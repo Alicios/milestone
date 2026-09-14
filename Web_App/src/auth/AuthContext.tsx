@@ -4,8 +4,8 @@ import type { User } from '../types'
 const demoUser: User = {
   id: 'provider-001',
   name: 'Dr. Maya Patel',
-  email: 'maya.patel@carebridge.example',
-  role: 'Primary Care Provider',
+  email: 'maya.patel@milestone.example',
+  role: 'Physical Therapist',
   initials: 'MP',
 }
 

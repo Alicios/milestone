@@ -1,6 +1,6 @@
-# This is the start of the Web App
+# Milestone Physical Therapy Web App
 
-This is what will be used by providers to access patient accounts.
+Milestone is a physical therapy web app for providers to manage patient progress, appointments, and communication.
 
 
 ## Tasks at Hand

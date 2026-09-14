@@ -1,59 +1,18 @@
 import { useState } from 'react'
-import { AppBar, Avatar, Box, Button, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, useMediaQuery } from '@mui/material'
-import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined'
-import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline'
-import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined'
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline'
+import { AppBar, Avatar, Box, Button, Container, IconButton, Stack, Toolbar, Typography } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
-import LogoutIcon from '@mui/icons-material/Logout'
 import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom'
-import { useTheme } from '@mui/material/styles'
-import { Brand } from './Brand'
 import { useAuth } from '../auth/AuthContext'
 
-const drawerWidth = 248
-const navigation = [
-  { label: 'Overview', path: '/dashboard', icon: <DashboardOutlinedIcon /> },
-  { label: 'Patients', path: '/dashboard/patients', icon: <PeopleOutlineIcon /> },
-  { label: 'Appointments', path: '/dashboard/appointments', icon: <CalendarMonthOutlinedIcon /> },
-  { label: 'Messages', path: '/dashboard/messages', icon: <ChatBubbleOutlineIcon /> },
-]
+const teal = '#4b9da9'
+const aqua = '#91c8c0'
 
 export function DashboardLayout() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const location = useLocation()
-  const theme = useTheme()
-  const desktop = useMediaQuery(theme.breakpoints.up('md'))
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
-  const drawer = (
-    <Box sx={{ height: '100%', bgcolor: 'primary.dark', color: 'white', p: 2 }}>
-      <Box sx={{ p: 1, mb: 3 }}><Brand light /></Box>
-      <Typography variant="overline" sx={{ px: 1, color: 'rgba(255,255,255,.6)' }}>Workspace</Typography>
-      <List>
-        {navigation.map((item) => (
-          <ListItemButton key={item.path} component={RouterLink} to={item.path} selected={location.pathname === item.path} onClick={() => setMobileOpen(false)} sx={{ color: 'inherit', borderRadius: 2, mb: .5, '&.Mui-selected': { bgcolor: 'rgba(255,255,255,.15)' }, '&.Mui-selected:hover': { bgcolor: 'rgba(255,255,255,.2)' } }}>
-            <ListItemIcon sx={{ color: 'inherit', minWidth: 42 }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} />
-          </ListItemButton>
-        ))}
-      </List>
-      <Box flexGrow={1} />
-      <Button fullWidth startIcon={<LogoutIcon />} onClick={logout} sx={{ color: 'white', justifyContent: 'flex-start', px: 1.5 }}>Sign out</Button>
-    </Box>
-  )
+  const buttonSx = { color: 'black', border: '4px solid black', borderRadius: '18px', px: { xs: 2, sm: 4 }, py: 1, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '1.4rem', sm: '2rem' }, '&:hover': { bgcolor: '#eb681d', color: 'white' } }
 
-  return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar position="fixed" color="inherit" elevation={0} sx={{ width: { md: `calc(100% - ${drawerWidth}px)` }, ml: { md: `${drawerWidth}px` }, borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
-          {!desktop && <IconButton aria-label="Open navigation" onClick={() => setMobileOpen(true)}><MenuIcon /></IconButton>}
-          <Box flexGrow={1} />
-          <Box display="flex" alignItems="center" gap={1.5}><Avatar sx={{ bgcolor: 'secondary.main', width: 36, height: 36 }}>{user?.initials}</Avatar><Box display={{ xs: 'none', sm: 'block' }}><Typography variant="body2" fontWeight={700}>{user?.name}</Typography><Typography variant="caption" color="text.secondary">{user?.role}</Typography></Box></Box>
-        </Toolbar>
-      </AppBar>
-      {desktop ? <Drawer variant="permanent" sx={{ width: drawerWidth, flexShrink: 0, '& .MuiDrawer-paper': { width: drawerWidth, boxSizing: 'border-box', border: 0 } }}>{drawer}</Drawer> : <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)} sx={{ '& .MuiDrawer-paper': { width: drawerWidth } }}>{drawer}</Drawer>}
-      <Box component="main" sx={{ flexGrow: 1, width: { md: `calc(100% - ${drawerWidth}px)` }, p: { xs: 2, sm: 3, md: 5 }, pt: { xs: 10, md: 12 } }}><Outlet /></Box>
-    </Box>
-  )
+  return <Box sx={{ minHeight: '100vh', bgcolor: '#e8ddba', color: '#050505', fontFamily: 'Georgia, Times New Roman, serif' }}><AppBar position="static" elevation={0} sx={{ bgcolor: teal, color: 'white', borderRadius: { xs: 0, md: '0 0 16px 16px' } }}><Container maxWidth="xl"><Toolbar disableGutters sx={{ minHeight: { xs: 112, sm: 148 }, justifyContent: 'space-between', gap: 2, alignItems: 'center' }}><Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1, sm: 3 }} alignItems={{ xs: 'stretch', sm: 'center' }}><Button component={RouterLink} to="/dashboard" onClick={() => setMenuOpen(false)} sx={{ ...buttonSx, bgcolor: location.pathname === '/dashboard' ? '#eb681d' : aqua, color: location.pathname === '/dashboard' ? 'white' : 'black' }}>Patients</Button><Button component={RouterLink} to="/dashboard/routines" onClick={() => setMenuOpen(false)} sx={{ ...buttonSx, bgcolor: location.pathname === '/dashboard/routines' ? '#eb681d' : aqua }}>Routines</Button></Stack><Stack direction="row" spacing={{ xs: 1, sm: 2 }} alignItems="center"><Typography sx={{ display: { xs: 'none', sm: 'block' }, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 700, fontSize: { sm: '2rem', md: '2.8rem' }, whiteSpace: 'nowrap' }}>Welcome, {user?.name.split(' ')[0]}!</Typography><Avatar sx={{ width: { xs: 58, sm: 96 }, height: { xs: 58, sm: 96 }, bgcolor: aqua, color: 'black', border: '3px solid black', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '1.3rem', sm: '2.2rem' } }}>{user?.initials}</Avatar><IconButton aria-label="Open dashboard menu" onClick={() => setMenuOpen((open) => !open)} sx={{ display: { xs: 'flex', md: 'none' }, color: 'white' }}><MenuIcon /></IconButton></Stack></Toolbar>{menuOpen && <Box sx={{ display: { xs: 'block', md: 'none' }, pb: 2 }}><Button component={RouterLink} to="/dashboard/patients" sx={{ color: 'white', fontFamily: 'Georgia, serif' }}>Patients</Button><Button component={RouterLink} to="/dashboard/appointments" sx={{ color: 'white', fontFamily: 'Georgia, serif' }}>Appointments</Button><Button component={RouterLink} to="/dashboard/messages" sx={{ color: 'white', fontFamily: 'Georgia, serif' }}>Messages</Button></Box>}</Container></AppBar><Container maxWidth="xl" sx={{ py: { xs: 2, md: 3 } }}><Outlet /></Container></Box>
 }

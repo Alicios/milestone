@@ -3,10 +3,10 @@ import type { User } from '../types'
 
 const demoUser: User = {
   id: 'provider-001',
-  name: 'Dr. Maya Patel',
-  email: 'maya.patel@milestone.example',
+  name: 'Lebron James',
+  email: 'lebron.james@milestone.example',
   role: 'Physical Therapist',
-  initials: 'MP',
+  initials: 'LBJ',
 }
 
 interface AuthContextValue {

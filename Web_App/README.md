@@ -7,6 +7,6 @@ Milestone is a physical therapy web app for providers to manage patient progress
 
 For now lets focus on creating 3 pages
 
-- Login
-- Dashboard
-- Homepage before login
+- Login ```Web_App/src/pages/LoginPage.tsx```
+- Dashboard ```Web_App/src/pages/DashboardPage.tsx```
+- Homepage before login ```Web_App/src/pages/HomePage.tsx```

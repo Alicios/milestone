@@ -1,4 +1,4 @@
-node_modules/
+Web_App/node_modules/
 dist/
 .vite/
 coverage/

@@ -22,7 +22,7 @@ npm run dev
 Open the local URL shown in the terminal, typically:
 
 ```text
-http://localhost:5173
+http://localhost:3000
 ```
 
 ## Available routes

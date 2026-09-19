@@ -9,22 +9,11 @@ import RemoveIcon from '@mui/icons-material/Remove'
 import SearchIcon from '@mui/icons-material/Search'
 import SwapVertIcon from '@mui/icons-material/SwapVert'
 import { Box, Button, Card, Divider, InputAdornment, OutlinedInput, Stack, Tooltip, Typography } from '@mui/material'
+import { AddPatientDialog } from '../components/AddPatientDialog'
 import { AssignRoutineDialog } from '../components/AssignRoutineDialog'
 import type { DashboardOutletContext, DayAssignments } from '../components/DashboardLayout'
+import type { Patient } from '../data/mockPatients'
 import type { Routine } from '../data/mockRoutines'
-
-interface Patient {
-  id: string
-  name: string
-  statuses: Array<'missed' | 'complete' | 'modified' | 'none' | 'routine'>
-}
-
-const patients: Patient[] = [
-  { id: 'john', name: 'John Patientman', statuses: ['missed', 'complete', 'modified', 'none', 'routine', 'none', 'routine'] },
-  { id: 'katherine', name: 'Katherine Varela', statuses: ['complete', 'complete', 'routine', 'complete', 'none', 'none', 'routine'] },
-  { id: 'neal', name: 'Neal Terrell', statuses: ['routine', 'complete', 'complete', 'none', 'routine', 'none', 'none'] },
-  { id: 'frank', name: 'Frank Murgolo', statuses: ['none', 'routine', 'complete', 'complete', 'none', 'none', 'routine'] },
-]
 
 const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 const weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -81,14 +70,31 @@ function PatientRow({ patient, expanded, onToggle, assignments, onAssign }: Pati
 }
 
 export function DashboardPage() {
+  const [addPatientOpen, setAddPatientOpen] = useState(false)
   const [expanded, setExpanded] = useState<string[]>(['john'])
   const [query, setQuery] = useState('')
-  const { assignments, setAssignments } = useOutletContext<DashboardOutletContext>()
+  const { patients, setPatients, assignments, setAssignments } = useOutletContext<DashboardOutletContext>()
   const [assignmentTarget, setAssignmentTarget] = useState<{ patient: Patient; dayIndex: number } | null>(null)
-  const visiblePatients = useMemo(() => patients.filter((patient) => patient.name.toLowerCase().includes(query.toLowerCase())), [query])
+  const visiblePatients = useMemo(() => patients.filter((patient) => patient.name.toLowerCase().includes(query.toLowerCase())), [patients, query])
   const allExpanded = visiblePatients.length > 0 && visiblePatients.every((patient) => expanded.includes(patient.id))
   const togglePatient = (id: string) => setExpanded((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
   const toggleAll = () => setExpanded(allExpanded ? [] : visiblePatients.map((patient) => patient.id))
+
+  const addPatient = (firstName: string, lastName: string) => {
+    const trimmedFirstName = firstName.trim()
+    const trimmedLastName = lastName.trim()
+    if (!trimmedFirstName || !trimmedLastName) return
+
+    const patient: Patient = {
+      id: crypto.randomUUID(),
+      name: `${trimmedFirstName} ${trimmedLastName}`,
+      statuses: ['none', 'none', 'none', 'none', 'none', 'none', 'none'],
+    }
+    setPatients((current) => [...current, patient])
+    setExpanded((current) => [...current, patient.id])
+    setQuery('')
+    setAddPatientOpen(false)
+  }
 
   const assignRoutine = (routine: Routine) => {
     if (!assignmentTarget) return
@@ -103,7 +109,11 @@ export function DashboardPage() {
   }
 
   return <>
-    <Stack direction={{ xs: 'column', lg: 'row' }} spacing={{ xs: 2, lg: 5 }} alignItems="stretch"><Box flexGrow={1} minWidth={0}><Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} mb={3}><Button onClick={toggleAll} sx={{ bgcolor: 'white', color: 'black', border: '4px solid black', borderRadius: '34px', px: 3, py: 1.25, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.2rem', '&:hover': { bgcolor: '#f5f5f5' } }}>{allExpanded ? 'Collapse All' : 'Expand All'}</Button><OutlinedInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search..." aria-label="Search patients" startAdornment={<InputAdornment position="start"><SearchIcon sx={{ bgcolor: '#4b9da9', border: '3px solid black', borderRadius: '50%', p: .5, boxSizing: 'content-box', fontSize: 42 }} /></InputAdornment>} sx={{ flexGrow: 1, bgcolor: 'white', border: '4px solid black', borderRadius: '34px', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.3rem', '& fieldset': { border: 0 } }} /></Stack>{visiblePatients.length ? visiblePatients.map((patient) => <PatientRow key={patient.id} patient={patient} expanded={expanded.includes(patient.id)} onToggle={() => togglePatient(patient.id)} assignments={assignments[patient.id] ?? {}} onAssign={(dayIndex) => setAssignmentTarget({ patient, dayIndex })} />) : <Card sx={{ p: 5, textAlign: 'center', border: '4px solid black', bgcolor: 'white' }}><Typography variant="h6" fontFamily="Georgia, serif">No patients found</Typography></Card>}</Box><Box sx={{ width: { xs: '100%', lg: 250 }, display: 'flex', flexDirection: { xs: 'row', lg: 'column' }, justifyContent: 'center', gap: { xs: 2, lg: 6 }, alignItems: 'center' }}><Button sx={{ color: 'black', display: 'flex', flexDirection: 'column', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.65rem', '&:hover': { bgcolor: 'transparent' } }}><Box sx={{ width: { xs: 110, sm: 170 }, height: { xs: 110, sm: 170 }, borderRadius: '50%', bgcolor: '#4b9da9', border: '4px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><AddIcon sx={{ color: 'white', fontSize: { xs: 70, sm: 120 } }} /></Box><Box component="span" mt={1}>New Patient</Box></Button><Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', lg: 'block' }, borderColor: 'black', borderWidth: 2 }} /><Button sx={{ color: 'black', display: 'flex', flexDirection: 'column', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.65rem', '&:hover': { bgcolor: 'transparent' } }}><Box sx={{ position: 'relative', width: { xs: 110, sm: 170 }, height: { xs: 110, sm: 170 }, borderRadius: '50%', bgcolor: '#4b9da9', border: '4px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ChatBubbleOutlineIcon sx={{ color: 'white', fontSize: { xs: 65, sm: 95 } }} /><Box sx={{ position: 'absolute', top: -2, right: -2, width: 46, height: 46, bgcolor: '#ef1640', borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Georgia, serif', fontStyle: 'normal', fontWeight: 700 }}>3</Box></Box><Box component="span" mt={1}>Messages</Box></Button></Box></Stack>
+    <Stack direction={{ xs: 'column', lg: 'row' }} spacing={{ xs: 2, lg: 5 }} alignItems="stretch"><Box flexGrow={1} minWidth={0}><Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} mb={3}><Button onClick={toggleAll} sx={{ bgcolor: 'white', color: 'black', border: '4px solid black', borderRadius: '34px', px: 3, py: 1.25, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.2rem', '&:hover': { bgcolor: '#f5f5f5' } }}>{allExpanded ? 'Collapse All' : 'Expand All'}</Button><OutlinedInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search..." aria-label="Search patients" startAdornment={<InputAdornment position="start"><SearchIcon sx={{ bgcolor: '#4b9da9', border: '3px solid black', borderRadius: '50%', p: .5, boxSizing: 'content-box', fontSize: 42 }} /></InputAdornment>} sx={{ flexGrow: 1, bgcolor: 'white', border: '4px solid black', borderRadius: '34px', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.3rem', '& fieldset': { border: 0 } }} /></Stack>{visiblePatients.length ? visiblePatients.map((patient) => <PatientRow key={patient.id} patient={patient} expanded={expanded.includes(patient.id)} onToggle={() => togglePatient(patient.id)} assignments={assignments[patient.id] ?? {}} onAssign={(dayIndex) => setAssignmentTarget({ patient, dayIndex })} />) : <Card sx={{ p: 5, textAlign: 'center', border: '4px solid black', bgcolor: 'white' }}><Typography variant="h6" fontFamily="Georgia, serif">No patients found</Typography></Card>}</Box><Box sx={{ width: { xs: '100%', lg: 250 }, display: 'flex', flexDirection: { xs: 'row', lg: 'column' }, justifyContent: 'center', gap: { xs: 2, lg: 6 }, alignItems: 'center' }}><Button onClick={() => setAddPatientOpen(true)} sx={{ color: 'black', display: 'flex', flexDirection: 'column', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.65rem', '&:hover': { bgcolor: 'transparent' } }}><Box sx={{ width: { xs: 110, sm: 170 }, height: { xs: 110, sm: 170 }, borderRadius: '50%', bgcolor: '#4b9da9', border: '4px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><AddIcon sx={{ color: 'white', fontSize: { xs: 70, sm: 120 } }} /></Box><Box component="span" mt={1}>New Patient</Box></Button><Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', lg: 'block' }, borderColor: 'black', borderWidth: 2 }} /><Button sx={{ color: 'black', display: 'flex', flexDirection: 'column', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.65rem', '&:hover': { bgcolor: 'transparent' } }}><Box sx={{ position: 'relative', width: { xs: 110, sm: 170 }, height: { xs: 110, sm: 170 }, borderRadius: '50%', bgcolor: '#4b9da9', border: '4px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ChatBubbleOutlineIcon sx={{ color: 'white', fontSize: { xs: 65, sm: 95 } }} /><Box sx={{ position: 'absolute', top: -2, right: -2, width: 46, height: 46, bgcolor: '#ef1640', borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Georgia, serif', fontStyle: 'normal', fontWeight: 700 }}>3</Box></Box><Box component="span" mt={1}>Messages</Box></Button></Box></Stack>
+    {addPatientOpen && <AddPatientDialog
+      onCancel={() => setAddPatientOpen(false)}
+      onAdd={addPatient}
+    />}
     {assignmentTarget && <AssignRoutineDialog
       patientName={assignmentTarget.patient.name}
       weekday={weekdayNames[assignmentTarget.dayIndex]}

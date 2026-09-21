@@ -1,13 +1,22 @@
-Web_App/node_modules/
+# Dependencies
+**/node_modules/
+
+# Build and tooling output
 dist/
 .vite/
 coverage/
 
-# Local environment files
-*.local
+# Local environment and secret files
 .env
 .env.*
 !.env.example
+!.env.*.example
+*.local
+.envrc
+
+# Local certificates and keys
+*.pem
+*.key
 
 # Logs and package-manager debug files
 *.log

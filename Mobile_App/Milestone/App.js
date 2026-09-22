@@ -40,23 +40,31 @@ export default function App() {
           <View>
             <Text style={styles.brand}>MILESTONE</Text>
           </View>
+
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>F</Text>
           </View>
         </View>
 
-        <View style={styles.welcomeCard}>
-          <Text style={styles.welcomeTitle}>WELCOME BACK,</Text>
-          <Text style={styles.welcomeTitle}>FRANK</Text>
-          <View style={styles.welcomeRule} />
-          <Text style={styles.welcomeSubtext}>let's pick up where you left off</Text>
+        <View style={styles.heroCard}>
+          <Text style={styles.headingLarge}>WELCOME BACK,</Text>
+          <Text style={styles.headingLarge}>FRANK</Text>
+
+          <View style={styles.decorativeRule} />
+
+          <Text style={styles.serifItalic}>
+            let's pick up where you left off
+          </Text>
         </View>
 
-        <View style={styles.sectionHeader}>
+        <View style={styles.sectionRow}>
           <View>
-            <Text style={styles.sectionTitle}>Today's routine</Text>
-            <Text style={styles.sectionSubtitle}>4 exercises · about 15 minutes</Text>
+            <Text style={styles.headingMedium}>Today's routine</Text>
+            <Text style={styles.caption}>
+              4 exercises · about 15 minutes
+            </Text>
           </View>
+
           <View style={styles.progressBadge}>
             <Text style={styles.progressText}>0 / 4</Text>
           </View>
@@ -76,10 +84,12 @@ export default function App() {
               <View style={styles.exerciseNumber}>
                 <Text style={styles.exerciseNumberText}>{index + 1}</Text>
               </View>
+
               <View style={styles.exerciseCopy}>
-                <Text style={styles.exerciseName}>{exercise.name}</Text>
-                <Text style={styles.exerciseDetail}>{exercise.detail}</Text>
+                <Text style={styles.listTitle}>{exercise.name}</Text>
+                <Text style={styles.listSubtitle}>{exercise.detail}</Text>
               </View>
+
               <Text style={styles.chevron}>›</Text>
             </View>
           ))}
@@ -88,13 +98,18 @@ export default function App() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Start today's routine"
-          style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.primaryButtonPressed,
+          ]}
         >
-          <Text style={styles.startButtonText}>START ROUTINE</Text>
-          <Text style={styles.startArrow}>→</Text>
+          <Text style={styles.primaryButtonText}>LET'S GO</Text>
+          
         </Pressable>
 
-        <Text style={styles.footerText}>Move well. Feel better.</Text>
+        <Text style={styles.secondaryText}>
+          Move well. Feel better.
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -105,6 +120,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.cream,
   },
+
   container: {
     flex: 1,
     width: '100%',
@@ -113,12 +129,14 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 20,
   },
+
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 18,
   },
+
   eyebrow: {
     color: palette.tealDark,
     fontFamily: 'sans-serif-medium',
@@ -126,6 +144,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2.4,
     marginBottom: 2,
   },
+
   brand: {
     color: palette.ink,
     fontFamily: 'sans-serif-condensed',
@@ -133,6 +152,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1,
   },
+
   avatar: {
     alignItems: 'center',
     backgroundColor: palette.orange,
@@ -143,13 +163,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 44,
   },
+
   avatarText: {
     color: palette.white,
     fontFamily: 'sans-serif-condensed',
     fontSize: 21,
     fontWeight: '800',
   },
-  welcomeCard: {
+
+  heroCard: {
     backgroundColor: palette.orange,
     borderColor: palette.ink,
     borderRadius: 20,
@@ -162,46 +184,53 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 2,
   },
-  welcomeTitle: {
+
+  headingLarge: {
     color: palette.white,
     fontFamily: 'sans-serif-condensed',
     fontSize: 31,
     fontWeight: '900',
     lineHeight: 34,
   },
-  welcomeRule: {
+
+  decorativeRule: {
     backgroundColor: palette.orangeDark,
     height: 1,
     marginTop: 13,
     opacity: 0.55,
     width: '100%',
   },
-  welcomeSubtext: {
+
+  serifItalic: {
     color: palette.ink,
     fontFamily: 'serif',
     fontSize: 18,
     fontStyle: 'italic',
     marginTop: 9,
   },
-  sectionHeader: {
+
+  sectionRow: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 11,
     marginTop: 30,
   },
-  sectionTitle: {
+
+  headingMedium: {
     color: palette.ink,
     fontFamily: 'sans-serif-condensed',
     fontSize: 23,
     fontWeight: '800',
   },
-  sectionSubtitle: {
+
+  caption: {
     color: palette.tealDark,
     fontFamily: 'sans-serif',
     fontSize: 12,
     marginTop: 2,
   },
+
   progressBadge: {
     backgroundColor: palette.white,
     borderColor: palette.tealDark,
@@ -210,17 +239,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
+
   progressText: {
     color: palette.tealDark,
     fontFamily: 'sans-serif-medium',
     fontSize: 12,
   },
+
   exerciseList: {
     borderColor: palette.ink,
     borderRadius: 20,
     borderWidth: 1.6,
     overflow: 'hidden',
   },
+
   exerciseRow: {
     alignItems: 'center',
     borderBottomColor: palette.ink,
@@ -229,12 +261,15 @@ const styles = StyleSheet.create({
     minHeight: 63,
     paddingHorizontal: 14,
   },
+
   firstExercise: {
     minHeight: 71,
   },
+
   lastExercise: {
     borderBottomWidth: 0,
   },
+
   exerciseNumber: {
     alignItems: 'center',
     backgroundColor: 'rgba(255, 253, 247, 0.55)',
@@ -244,26 +279,31 @@ const styles = StyleSheet.create({
     marginRight: 12,
     width: 30,
   },
+
   exerciseNumberText: {
     color: palette.ink,
     fontFamily: 'sans-serif-medium',
     fontSize: 13,
   },
+
   exerciseCopy: {
     flex: 1,
   },
-  exerciseName: {
+
+  listTitle: {
     color: palette.ink,
     fontFamily: 'serif',
     fontSize: 22,
     fontStyle: 'italic',
   },
-  exerciseDetail: {
+
+  listSubtitle: {
     color: palette.tealDark,
     fontFamily: 'sans-serif',
     fontSize: 11,
     marginTop: 1,
   },
+
   chevron: {
     color: palette.ink,
     fontFamily: 'sans-serif',
@@ -272,7 +312,8 @@ const styles = StyleSheet.create({
     lineHeight: 30,
     opacity: 0.65,
   },
-  startButton: {
+
+  primaryButton: {
     alignItems: 'center',
     backgroundColor: palette.blue,
     borderColor: palette.tealDark,
@@ -288,23 +329,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 3,
   },
-  startButtonPressed: {
+
+  primaryButtonPressed: {
     opacity: 0.78,
     transform: [{ scale: 0.985 }],
   },
-  startButtonText: {
+
+  primaryButtonText: {
     color: palette.white,
     fontFamily: 'sans-serif-condensed',
     fontSize: 20,
     fontWeight: '900',
     letterSpacing: 0.6,
   },
-  startArrow: {
+
+  primaryButtonIcon: {
     color: palette.white,
     fontSize: 24,
     marginLeft: 11,
   },
-  footerText: {
+
+  secondaryText: {
     color: palette.tealDark,
     fontFamily: 'serif',
     fontSize: 14,

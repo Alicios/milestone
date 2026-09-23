@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
-import type { User } from '../types'
+import type { ProfileFields, User } from '../types'
 
 const demoUser: User = {
   id: 'provider-001',
@@ -7,12 +7,17 @@ const demoUser: User = {
   email: 'lebron.james@milestone.example',
   role: 'Physical Therapist',
   initials: 'LBJ',
+  avatarUrl: '/lebron_profile.jpg',
+  phone: '(555) 010-2029',
+  specialty: 'Sports rehabilitation',
+  bio: 'I help patients build strength, improve mobility, and return to the activities they enjoy through personalized physical therapy.',
 }
 
 interface AuthContextValue {
   user: User | null
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  updateProfile: (profile: ProfileFields) => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -28,6 +33,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser({ ...demoUser, email: email || demoUser.email })
     },
     logout: () => setUser(null),
+    updateProfile: (profile) => setUser((current) => current ? {
+      ...current,
+      ...profile,
+      initials: profile.name === current.name
+        ? current.initials
+        : profile.name.trim().split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase(),
+    } : null),
   }), [user])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

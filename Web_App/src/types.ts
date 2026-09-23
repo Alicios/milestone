@@ -4,7 +4,13 @@ export interface User {
   email: string
   role: string
   initials: string
+  avatarUrl: string
+  phone: string
+  specialty: string
+  bio: string
 }
+
+export type ProfileFields = Omit<User, 'id' | 'initials'>
 
 export interface DashboardMetric {
   label: string

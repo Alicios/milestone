@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { User } from '../types'
+import type { EditableUserFields, User } from '../types'
 
 const demoUser: User = {
   id: 'provider-001',
@@ -43,6 +43,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout: () => {
       setUser(null)
       navigate('/', { replace: true })
+    },
+    updateProfile: (profile) => {
+      setUser((current) => {
+        if (!current) return current
+        const next = { ...current, ...profile }
+        if (next.name !== current.name) {
+          next.initials = next.name.trim().split(/\s+/).map((part) => part[0]).join('').toUpperCase()
+        }
+        return next
+      })
     },
   }), [navigate, user])
 

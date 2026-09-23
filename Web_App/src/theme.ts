@@ -10,7 +10,7 @@ export const theme = createTheme({
     text: { primary: '#18323d', secondary: '#5c7079' },
   },
   typography: {
-    fontFamily: 'Inter, Roboto, Arial, sans-serif',
+    fontFamily: 'Montserrat, Arial, sans-serif',
     h1: { fontWeight: 700, letterSpacing: '-0.03em' },
     h2: { fontWeight: 700, letterSpacing: '-0.02em' },
     h3: { fontWeight: 700 },

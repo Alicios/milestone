@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
-import type { ProfileFields, User } from '../types'
+import type { EditableUserFields, User } from '../types'
 
 const demoUser: User = {
   id: 'provider-001',
@@ -11,13 +11,19 @@ const demoUser: User = {
   phone: '(555) 010-2029',
   specialty: 'Sports rehabilitation',
   bio: 'I help patients build strength, improve mobility, and return to the activities they enjoy through personalized physical therapy.',
+  department: 'Physical Therapy',
+  facility: 'Milestone Rehabilitation Center',
+  officeLocation: 'Building A, Room 206',
+  workPhone: '(555) 010-2000',
+  workPhoneExtension: '206',
+  preferredContact: 'email',
 }
 
 interface AuthContextValue {
   user: User | null
   login: (email: string, password: string) => Promise<void>
   logout: () => void
-  updateProfile: (profile: ProfileFields) => void
+  updateProfile: (profile: Partial<EditableUserFields>) => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -36,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateProfile: (profile) => setUser((current) => current ? {
       ...current,
       ...profile,
-      initials: profile.name === current.name
+      initials: profile.name === undefined || profile.name === current.name
         ? current.initials
         : profile.name.trim().split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase(),
     } : null),

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined'
-import { Alert, Avatar, Box, Button, ButtonBase, Card, Divider, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Avatar, Box, Button, ButtonBase, Card, Divider, FormControl, FormControlLabel, FormLabel, MenuItem, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material'
 import { useAuth } from '../auth/AuthContext'
-import type { ProfileFields } from '../types'
+import type { PreferredContact, ProfileFields } from '../types'
 
 const fontSx = { fontFamily: 'Georgia, serif' }
 const headingSx = { ...fontSx, fontStyle: 'italic' }
@@ -15,14 +15,51 @@ const fieldSx = {
   '& .MuiInputLabel-root': fontSx,
 }
 
-const fields: { key: keyof ProfileFields; label: string; type?: string; autoComplete?: string; required?: boolean }[] = [
-  { key: 'name', label: 'Full name', autoComplete: 'name', required: true },
-  { key: 'role', label: 'Professional role/title', autoComplete: 'organization-title' },
-  { key: 'email', label: 'Email', type: 'email', autoComplete: 'email', required: true },
-  { key: 'phone', label: 'Phone number', type: 'tel', autoComplete: 'tel' },
-  { key: 'specialty', label: 'Specialty' },
-  { key: 'bio', label: 'Short professional bio' },
+const departments = [
+  'Physical Therapy', 'Occupational Therapy', 'Sports Medicine', 'Orthopedics',
+  'Neurological Rehabilitation', 'Pediatric Therapy', 'Cardiopulmonary Rehabilitation', 'Other',
 ]
+
+const contactOptions: { value: PreferredContact; label: string }[] = [
+  { value: 'email', label: 'Email' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'in-app', label: 'In-app message' },
+]
+
+type ProfileField = {
+  key: Exclude<keyof ProfileFields, 'avatarUrl' | 'preferredContact'>
+  label: string
+  type?: string
+  autoComplete?: string
+  required?: boolean
+  fullRow?: boolean
+  helperText?: string
+}
+
+const sections: { id: string; title: string; fields: ProfileField[] }[] = [
+  { id: 'personal', title: 'Personal & Professional', fields: [
+    { key: 'name', label: 'Full name', autoComplete: 'name', required: true },
+    { key: 'role', label: 'Professional role/title', autoComplete: 'organization-title' },
+    { key: 'specialty', label: 'Specialty' },
+    { key: 'bio', label: 'Short professional bio', fullRow: true },
+  ] },
+  { id: 'workplace', title: 'Workplace', fields: [
+    { key: 'department', label: 'Department' },
+    { key: 'facility', label: 'Clinic/facility', autoComplete: 'organization' },
+    { key: 'officeLocation', label: 'Office location', helperText: 'Building, floor, or room number.' },
+  ] },
+  { id: 'contact', title: 'Contact Information', fields: [
+    { key: 'email', label: 'Contact email', type: 'email', autoComplete: 'email', required: true },
+    { key: 'phone', label: 'Mobile phone', type: 'tel', autoComplete: 'tel' },
+    { key: 'workPhone', label: 'Work phone', type: 'tel', autoComplete: 'work tel' },
+    { key: 'workPhoneExtension', label: 'Extension' },
+  ] },
+]
+
+function isValidPhone(phone: string) {
+  const digits = phone.replace(/\D/g, '')
+  return digits.length === 10 || (digits.length === 11 && digits.startsWith('1'))
+}
 
 export function ProfilePage() {
   const { user, updateProfile } = useAuth()
@@ -45,8 +82,8 @@ export function ProfilePage() {
 
   function startEditing() {
     if (!user) return
-    const { name, role, email, phone, specialty, bio, avatarUrl } = user
-    setDraft({ name, role, email, phone, specialty, bio, avatarUrl })
+    const { name, role, email, phone, specialty, bio, avatarUrl, department, facility, officeLocation, workPhone, workPhoneExtension, preferredContact } = user
+    setDraft({ name, role, email, phone, specialty, bio, avatarUrl, department, facility, officeLocation, workPhone, workPhoneExtension, preferredContact })
     setErrors({})
     setSaved(false)
   }
@@ -113,11 +150,23 @@ export function ProfilePage() {
       specialty: draft.specialty.trim(),
       bio: draft.bio.trim(),
       avatarUrl: draft.avatarUrl.trim(),
+      department: draft.department.trim(),
+      facility: draft.facility.trim(),
+      officeLocation: draft.officeLocation.trim(),
+      workPhone: draft.workPhone.trim(),
+      workPhoneExtension: draft.workPhoneExtension.trim(),
+      preferredContact: draft.preferredContact,
     }
     const nextErrors: typeof errors = {}
     if (!nextProfile.name) nextErrors.name = 'Enter your full name.'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextProfile.email)) {
       nextErrors.email = 'Enter a valid email address, such as name@example.com.'
+    }
+    if (nextProfile.phone && !isValidPhone(nextProfile.phone)) nextErrors.phone = 'Enter a valid 10-digit phone number.'
+    if (nextProfile.workPhone && !isValidPhone(nextProfile.workPhone)) nextErrors.workPhone = 'Enter a valid 10-digit phone number.'
+    if (nextProfile.workPhoneExtension && !/^\d{1,6}$/.test(nextProfile.workPhoneExtension)) nextErrors.workPhoneExtension = 'Use up to 6 digits.'
+    if (nextProfile.preferredContact === 'phone' && !nextProfile.phone && !nextProfile.workPhone) {
+      nextErrors.preferredContact = 'Add a mobile or work phone number to be contacted by phone.'
     }
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return
@@ -135,6 +184,68 @@ export function ProfilePage() {
     >
       {user.initials}
     </Avatar>
+  )
+
+  const profileSections = (
+    <Stack spacing={3} divider={<Divider />}>
+      {sections.map((section) => (
+        <Box component="section" key={section.id} aria-labelledby={`profile-section-${section.id}`}>
+          <Typography id={`profile-section-${section.id}`} component={draft ? 'h3' : 'h2'} variant="h5" sx={{ ...headingSx, mb: 2, px: 2, py: 1, bgcolor: '#91c8c0', borderRadius: '18px' }}>
+            {section.title}
+          </Typography>
+          <Box component={draft ? 'div' : 'dl'} sx={{ m: 0, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 2.5 }}>
+            {section.fields.map((field) => draft ? (
+              <TextField
+                key={field.key}
+                id={`profile-${field.key}`}
+                label={field.label}
+                type={field.type ?? 'text'}
+                autoComplete={field.autoComplete}
+                required={field.required}
+                autoFocus={field.key === 'name'}
+                select={field.key === 'department'}
+                value={field.key === 'department' && draft.department && !departments.includes(draft.department) ? 'Other' : draft[field.key]}
+                onChange={(event) => {
+                  const value = event.target.value
+                  setDraft((current) => current ? { ...current, [field.key]: value } : null)
+                  setErrors((current) => ({ ...current, [field.key]: undefined }))
+                }}
+                error={Boolean(errors[field.key])}
+                helperText={errors[field.key] || field.helperText}
+                multiline={field.key === 'bio'}
+                minRows={field.key === 'bio' ? 3 : undefined}
+                sx={{ ...fieldSx, gridColumn: field.fullRow ? '1 / -1' : undefined }}
+              >
+                {field.key === 'department' && departments.map((department) => <MenuItem key={department} value={department} sx={fontSx}>{department}</MenuItem>)}
+              </TextField>
+            ) : (
+              <Box key={field.key} sx={{ minWidth: 0, gridColumn: field.fullRow ? '1 / -1' : undefined }}>
+                <Typography component="dt" sx={{ ...fontSx, fontWeight: 700, mb: .75 }}>{field.label}</Typography>
+                <Typography component="dd" sx={{ ...fontSx, m: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{user[field.key] || 'Not provided'}</Typography>
+              </Box>
+            ))}
+            {section.id === 'contact' && (draft ? (
+              <FormControl error={Boolean(errors.preferredContact)} sx={{ gridColumn: '1 / -1' }}>
+                <FormLabel id="profile-preferred-contact-label" sx={{ ...fontSx, fontWeight: 700, color: 'black', '&.Mui-focused': { color: 'black' } }}>Preferred contact method</FormLabel>
+                <RadioGroup row aria-labelledby="profile-preferred-contact-label" value={draft.preferredContact} onChange={(event) => {
+                  const value = event.target.value as PreferredContact
+                  setDraft((current) => current ? { ...current, preferredContact: value } : null)
+                  setErrors((current) => ({ ...current, preferredContact: undefined }))
+                }}>
+                  {contactOptions.map((option) => <FormControlLabel key={option.value} value={option.value} control={<Radio sx={{ '&.Mui-checked': { color: '#eb681d' } }} />} label={option.label} slotProps={{ typography: fontSx }} />)}
+                </RadioGroup>
+                {errors.preferredContact && <Typography role="alert" variant="body2" color="error" sx={fontSx}>{errors.preferredContact}</Typography>}
+              </FormControl>
+            ) : (
+              <Box sx={{ gridColumn: '1 / -1' }}>
+                <Typography component="dt" sx={{ ...fontSx, fontWeight: 700, mb: .75 }}>Preferred contact method</Typography>
+                <Typography component="dd" sx={{ ...fontSx, m: 0 }}>{contactOptions.find((option) => option.value === user.preferredContact)?.label}</Typography>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      ))}
+    </Stack>
   )
 
   return (
@@ -185,28 +296,7 @@ export function ProfilePage() {
             <Box component="form" noValidate onSubmit={saveProfile}>
               <Typography component="h2" variant="h5" sx={{ ...headingSx, mb: 3 }}>Edit Profile</Typography>
               <Stack spacing={2.5}>
-                {fields.map((field) => (
-                  <TextField
-                    key={field.key}
-                    id={`profile-${field.key}`}
-                    label={field.label}
-                    type={field.type ?? 'text'}
-                    autoComplete={field.autoComplete}
-                    required={field.required}
-                    autoFocus={field.key === 'name'}
-                    value={draft[field.key]}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      setDraft((current) => current ? { ...current, [field.key]: value } : null)
-                      setErrors((current) => ({ ...current, [field.key]: undefined }))
-                    }}
-                    error={Boolean(errors[field.key])}
-                    helperText={errors[field.key]}
-                    multiline={field.key === 'bio'}
-                    minRows={field.key === 'bio' ? 3 : undefined}
-                    sx={fieldSx}
-                  />
-                ))}
+                {profileSections}
                 <Divider />
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="flex-end">
                   <Button type="button" onClick={cancelEditing} sx={buttonSx}>Cancel</Button>
@@ -216,16 +306,7 @@ export function ProfilePage() {
             </Box>
           ) : (
             <>
-              <Box component="dl" sx={{ m: 0, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 3 }}>
-                {fields.map((field) => (
-                  <Box key={field.key} sx={{ minWidth: 0, gridColumn: field.key === 'bio' ? '1 / -1' : undefined }}>
-                    <Typography component="dt" sx={{ ...fontSx, fontWeight: 700, mb: .75 }}>{field.label}</Typography>
-                    <Typography component="dd" sx={{ ...fontSx, m: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-                      {user[field.key] || 'Not provided'}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
+              {profileSections}
               <Divider sx={{ my: 3 }} />
               <Stack direction="row" justifyContent="flex-end">
                 <Button onClick={startEditing} startIcon={<EditOutlinedIcon />} sx={primaryButtonSx}>Edit Profile</Button>

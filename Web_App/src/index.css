@@ -104,6 +104,26 @@ html {
   box-shadow: 0 14px 28px rgba(72, 48, 38, .2) !important;
 }
 
+.about-easter-egg-image-shell {
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+.about-easter-egg-image:hover {
+  box-shadow: 0 28px 58px rgba(11, 61, 80, .3) !important;
+}
+
+.about-easter-egg-glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(circle at 18% 12%, rgba(255, 255, 255, .46), rgba(255, 255, 255, .14) 16%, transparent 44%);
+  mix-blend-mode: screen;
+  transition: opacity 180ms ease-out;
+}
+
 .login-form-container {
   width: 100% !important;
 }
@@ -343,6 +363,22 @@ html {
     transition: none !important;
     transform: none !important;
     will-change: auto;
+  }
+
+  .about-easter-egg-image,
+  .about-easter-egg-image:hover {
+    transition: none !important;
+  }
+
+  .about-easter-egg-image-shell {
+    transition: none !important;
+    transform: none !important;
+    will-change: auto;
+  }
+
+  .about-easter-egg-glare {
+    opacity: 0 !important;
+    transition: none !important;
   }
 
   .dashboard-overview,

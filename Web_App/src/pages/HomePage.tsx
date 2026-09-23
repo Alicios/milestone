@@ -87,15 +87,15 @@ export function HomePage() {
       </Container>
     </Box>
     <Box component="footer" sx={{ bgcolor: 'primary.dark', color: 'white' }}>
-      <Container maxWidth="lg" sx={{ py: { xs: 4, md: 5 } }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 2.5, md: 3 } }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between">
-          <Box>
+          <Stack direction="row" spacing={2} alignItems="center">
             <Brand light />
-            <Typography variant="body2" sx={{ mt: 1, color: 'rgba(255,255,255,.72)' }}>Connected care for every milestone.</Typography>
-          </Box>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,.72)' }}>Connected care for every milestone.</Typography>
+          </Stack>
           <Button component={RouterLink} to="/about" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,.6)' }}>About us</Button>
         </Stack>
-        <Typography variant="caption" sx={{ display: 'block', mt: 4, color: 'rgba(255,255,255,.58)' }}>© 2026 Milestone Physical Therapy. Prototype experience.</Typography>
+        <Typography variant="caption" sx={{ display: 'block', mt: 2, color: 'rgba(255,255,255,.58)' }}>© 2026 LeTeam. The Prototype Experience.</Typography>
       </Container>
     </Box>
   </Box>

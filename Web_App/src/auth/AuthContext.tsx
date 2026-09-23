@@ -23,8 +23,17 @@ const demoUser: User = {
 interface AuthContextValue {
   user: User | null
   login: (email: string, password: string) => Promise<void>
+  register: (details: RegisterDetails) => Promise<void>
   logout: () => void
   updateProfile: (profile: Partial<EditableUserFields>) => void
+}
+
+export interface RegisterDetails {
+  name: string
+  email: string
+  password: string
+  confirmPassword: string
+  specialty: string
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -39,6 +48,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await new Promise((resolve) => setTimeout(resolve, 500))
       if (password.length < 6) throw new Error('For this demo, use a password with at least 6 characters.')
       setUser({ ...demoUser, email: email || demoUser.email })
+    },
+    register: async ({ name, email, specialty }) => {
+      await new Promise((resolve) => setTimeout(resolve, 600))
+      const normalizedName = name.trim()
+      const initials = normalizedName.split(/\s+/).map((part) => part[0]).join('').slice(0, 3).toUpperCase()
+      setUser({
+        id: `provider-${Date.now()}`,
+        name: normalizedName,
+        email: email.trim(),
+        role: 'Physical Therapist',
+        initials,
+        avatarUrl: '',
+        phone: '',
+        specialty: specialty.trim(),
+        bio: '',
+        department: specialty.trim(),
+        facility: 'Milestone Rehabilitation Center',
+        officeLocation: '',
+        workPhone: '',
+        workPhoneExtension: '',
+        preferredContact: 'email',
+      })
     },
     logout: () => {
       setUser(null)

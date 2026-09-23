@@ -8,10 +8,28 @@ import { Brand } from '../components/Brand'
 import { useAuth } from '../auth/AuthContext'
 
 const loginImages = [
-  { src: '/login-therapists.png', alt: 'A male and female physical therapist standing back-to-back in a rehabilitation clinic.', title: 'Care works better together.', tip: 'Team tip: Consistency between visits helps progress stick.' },
-  { src: '/login-therapist-male.png', alt: 'A male physical therapist standing confidently in a rehabilitation clinic.', title: 'Progress, one step at a time.', tip: 'Quick tip: Move slowly and stay within a comfortable range.' },
-  { src: '/login-therapist-female.png', alt: 'A female physical therapist standing confidently in a rehabilitation clinic.', title: 'Small movements. Meaningful progress.', tip: 'Recovery reminder: Small, consistent movements add up.' },
+  { src: '/login-therapists.png', alt: 'A male and female physical therapist standing back-to-back in a rehabilitation clinic.' },
+  { src: '/login-therapist-male.png', alt: 'A male physical therapist standing confidently in a rehabilitation clinic.' },
+  { src: '/login-therapist-female.png', alt: 'A female physical therapist standing confidently in a rehabilitation clinic.' },
 ]
+
+const loginCaptions = [
+  { title: 'Care works better together.', tip: 'Team tip: Consistency between visits helps progress stick.' },
+  { title: 'Progress, one step at a time.', tip: 'Quick tip: Move slowly and stay within a comfortable range.' },
+  { title: 'Small movements. Meaningful progress.', tip: 'Recovery reminder: Small, consistent movements add up.' },
+  { title: 'Every milestone counts.', tip: 'Quick tip: Focus on steady progress rather than perfect progress.' },
+  { title: 'Move with purpose.', tip: 'Recovery reminder: Controlled movement builds confidence.' },
+  { title: 'Your care team is here.', tip: 'Team tip: Share questions and feedback at every visit.' },
+  { title: 'Strong habits support strong recoveries.', tip: 'Quick tip: Short, consistent practice sessions are easier to maintain.' },
+]
+
+function getRandomIndex(length: number, excludedIndex?: number) {
+  if (length <= 1) return 0
+
+  let randomIndex = Math.floor(Math.random() * length)
+  while (randomIndex === excludedIndex) randomIndex = Math.floor(Math.random() * length)
+  return randomIndex
+}
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -21,11 +39,13 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [imageIndex, setImageIndex] = useState(0)
+  const [imageIndex, setImageIndex] = useState(() => getRandomIndex(loginImages.length))
+  const [captionIndex, setCaptionIndex] = useState(() => getRandomIndex(loginCaptions.length))
 
   useEffect(() => {
     const imageTimer = window.setInterval(() => {
       setImageIndex((currentIndex) => (currentIndex + 1) % loginImages.length)
+      setCaptionIndex((currentIndex) => getRandomIndex(loginCaptions.length, currentIndex))
     }, 10000)
 
     return () => window.clearInterval(imageTimer)
@@ -49,8 +69,8 @@ export function LoginPage() {
           <Box className="login-image-overlay" />
           <Box className="login-brand" sx={{ position: 'absolute', top: { xs: 20, md: 34 }, left: { xs: 24, md: 48 }, zIndex: 1 }}><Brand light /></Box>
           <Box className="login-image-caption" aria-live="polite">
-            <Typography variant="h6">{loginImages[imageIndex].title}</Typography>
-            <Typography variant="body2">{loginImages[imageIndex].tip}</Typography>
+            <Typography variant="h6">{loginCaptions[captionIndex].title}</Typography>
+            <Typography variant="body2">{loginCaptions[captionIndex].tip}</Typography>
           </Box>
         </Box>
       </Grid>
@@ -69,7 +89,7 @@ export function LoginPage() {
               <TextField label="Password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required InputProps={{ endAdornment: <InputAdornment position="end"><IconButton aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)} edge="end">{showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}</IconButton></InputAdornment> }} />
               <Box display="flex" justifyContent="flex-end"><Button size="small">Forgot password?</Button></Box>
               <Button type="submit" variant="contained" size="large" disabled={loading}>{loading ? <CircularProgress size={24} color="inherit" /> : 'Sign in'}</Button>
-              <Typography textAlign="center" variant="body2" color="text.secondary">Need an account? <Button component={RouterLink} to="/" size="small">Contact your administrator</Button></Typography>
+              <Typography textAlign="center" variant="body2" color="text.secondary">Need an account? <Button component={RouterLink} to="/register" size="small">Create account</Button></Typography>
             </Stack>
           </Paper>
           <Typography textAlign="center" mt={3} variant="caption" color="text.secondary">Milestone prototype • No real patient data is used</Typography>

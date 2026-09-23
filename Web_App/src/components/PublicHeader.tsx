@@ -22,7 +22,7 @@ export function PublicHeader() {
             </Box>
             <ResourceMenu />
             <Button component={RouterLink} to="/login" color="inherit">Sign in</Button>
-            <Button component={RouterLink} to="/login" variant="contained" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Get started</Button>
+            <Button component={RouterLink} to="/register" variant="contained" sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Get started</Button>
           </Box>
         </Toolbar>
       </Container>

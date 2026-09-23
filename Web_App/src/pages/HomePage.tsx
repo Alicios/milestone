@@ -43,7 +43,7 @@ export function HomePage() {
               <Typography variant="h6" color="text.secondary" fontWeight={400} lineHeight={1.6}>Milestone helps physical therapy providers create, assign, and manage personalized exercise routines while coordinating patient care between visits.</Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mt={4}>
                 <Button component={RouterLink} to="/login" variant="contained" size="large" endIcon={<ArrowForwardIcon />}>Enter therapist portal</Button>
-                <Button component={RouterLink} to="/request-access" variant="outlined" size="large">Request access</Button>
+                <Button component={RouterLink} to="/register" variant="outlined" size="large">Create account</Button>
               </Stack>
             </Reveal>
           </Grid>
@@ -82,7 +82,7 @@ export function HomePage() {
           <Grid container spacing={3} mt={4}>{resources.map(({ title, body, icon: Icon }) => <Grid size={{ xs: 12, md: 4 }} key={title}><Reveal><Card sx={{ height: '100%', borderRadius: 4 }}><CardContent sx={{ p: { xs: 3, md: 4 } }}><Icon color="secondary" sx={{ fontSize: 38 }} /><Typography variant="h6" mt={2}>{title}</Typography><Typography color="text.secondary" lineHeight={1.7} mt={1}>{body}</Typography></CardContent></Card></Reveal></Grid>)}</Grid>
         </Box>
 
-        <Reveal><Paper component="section" sx={{ my: { xs: 6, md: 10 }, p: { xs: 4, md: 7 }, bgcolor: 'secondary.main', color: 'white', borderRadius: { xs: 4, md: 6 }, textAlign: 'center' }}><Typography variant="h2" sx={{ fontSize: { xs: '2.2rem', md: '3.5rem' } }}>Ready to coordinate better care?</Typography><Typography sx={{ mt: 2, color: 'rgba(255,255,255,.84)' }}>Enter the Milestone provider workspace or request access to the front-end prototype.</Typography><Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="center" spacing={2} mt={4}><Button component={RouterLink} to="/login" variant="contained" color="primary" size="large">Enter therapist portal</Button><Button component={RouterLink} to="/request-access" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,.7)' }} size="large">Request access</Button></Stack></Paper></Reveal>
+          <Reveal><Paper component="section" sx={{ my: { xs: 6, md: 10 }, p: { xs: 4, md: 7 }, bgcolor: 'secondary.main', color: 'white', borderRadius: { xs: 4, md: 6 }, textAlign: 'center' }}><Typography variant="h2" sx={{ fontSize: { xs: '2.2rem', md: '3.5rem' } }}>Ready to coordinate better care?</Typography><Typography sx={{ mt: 2, color: 'rgba(255,255,255,.84)' }}>Enter the Milestone provider workspace or create an account for the front-end prototype.</Typography><Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="center" spacing={2} mt={4}><Button component={RouterLink} to="/login" variant="contained" color="primary" size="large">Enter therapist portal</Button><Button component={RouterLink} to="/register" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,.7)' }} size="large">Create account</Button></Stack></Paper></Reveal>
       </Container>
     </Box>
   </Box>

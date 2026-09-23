@@ -46,7 +46,7 @@ Open the local URL shown by Vite, typically `http://localhost:3000`.
 
 - `/` — Provider-focused homepage
 - `/login` — Mock provider login
-- `/request-access` — Front-end access-request form
+- `/register` — Mock provider account creation
 
 ### Protected provider routes
 
@@ -63,7 +63,7 @@ Routes under the dashboard require the mock authentication state.
 
 ## Demo authentication
 
-The login form is prefilled for the prototype. Any password with at least six characters authenticates successfully. This is mock authentication and must be replaced with a secure backend authentication flow before real patient information is used.
+The login form is prefilled for the prototype. Any password with at least six characters authenticates successfully. The registration form creates a mock provider account and signs the provider in immediately. This is mock authentication and must be replaced with a secure backend authentication flow before real patient information is used.
 
 ## Development commands
 
@@ -89,7 +89,7 @@ npm run preview
 
 - Patient, routine, dashboard, and message data are local mock data.
 - Changes are held in front-end state and are not persisted to a server.
-- Authentication and access requests do not connect to a real service.
+- Authentication and account creation do not connect to a real service.
 - Appointment functionality is currently represented by a placeholder route.
 - The patient mobile app and provider-to-patient account provisioning backend are not included in this repository.
 - Do not enter real protected health information into the prototype.

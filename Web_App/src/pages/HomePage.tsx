@@ -10,6 +10,7 @@ import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { PublicHeader } from '../components/PublicHeader'
+import { Brand } from '../components/Brand'
 
 type Feature = { eyebrow: string; title: string; body: string; image: string; alt: string; icon: SvgIconComponent }
 
@@ -83,6 +84,18 @@ export function HomePage() {
         </Box>
 
           <Reveal><Paper component="section" sx={{ my: { xs: 6, md: 10 }, p: { xs: 4, md: 7 }, bgcolor: 'secondary.main', color: 'white', borderRadius: { xs: 4, md: 6 }, textAlign: 'center' }}><Typography variant="h2" sx={{ fontSize: { xs: '2.2rem', md: '3.5rem' } }}>Ready to coordinate better care?</Typography><Typography sx={{ mt: 2, color: 'rgba(255,255,255,.84)' }}>Enter the Milestone provider workspace or create an account for the front-end prototype.</Typography><Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="center" spacing={2} mt={4}><Button component={RouterLink} to="/login" variant="contained" color="primary" size="large">Enter therapist portal</Button><Button component={RouterLink} to="/register" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,.7)' }} size="large">Create account</Button></Stack></Paper></Reveal>
+      </Container>
+    </Box>
+    <Box component="footer" sx={{ bgcolor: 'primary.dark', color: 'white' }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 4, md: 5 } }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between">
+          <Box>
+            <Brand light />
+            <Typography variant="body2" sx={{ mt: 1, color: 'rgba(255,255,255,.72)' }}>Connected care for every milestone.</Typography>
+          </Box>
+          <Button component={RouterLink} to="/about" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,.6)' }}>About us</Button>
+        </Stack>
+        <Typography variant="caption" sx={{ display: 'block', mt: 4, color: 'rgba(255,255,255,.58)' }}>© 2026 Milestone Physical Therapy. Prototype experience.</Typography>
       </Container>
     </Box>
   </Box>

@@ -34,7 +34,7 @@ function getRandomIndex(length: number, excludedIndex?: number) {
 export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('maya.patel@milestone.example')
+  const [email, setEmail] = useState('lebron.james@milestone.example')
   const [password, setPassword] = useState('provider123')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')

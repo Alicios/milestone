@@ -16,7 +16,6 @@ const loginImages = [
 export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
   const [email, setEmail] = useState('maya.patel@milestone.example')
   const [password, setPassword] = useState('provider123')
   const [showPassword, setShowPassword] = useState(false)
@@ -37,7 +36,7 @@ export function LoginPage() {
     if (!email.trim() || !email.includes('@')) return setError('Enter a valid email address.')
     if (password.length < 6) return setError('Password must be at least 6 characters.')
     setLoading(true)
-    try { await login(email, password); navigate((location.state as { from?: string } | null)?.from ?? '/dashboard', { replace: true }) } catch (submissionError) { setError(submissionError instanceof Error ? submissionError.message : 'Unable to sign in.') } finally { setLoading(false) }
+    try { await login(email, password); navigate('/dashboard', { replace: true }) } catch (submissionError) { setError(submissionError instanceof Error ? submissionError.message : 'Unable to sign in.') } finally { setLoading(false) }
   }
 
   return <Box className="login-page" minHeight={{ xs: '100dvh', md: 0 }} height={{ xs: 'auto', md: '100dvh' }} overflow={{ xs: 'visible', md: 'hidden' }} sx={{ bgcolor: '#e8ddba' }}>

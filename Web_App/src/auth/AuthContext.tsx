@@ -8,12 +8,23 @@ const demoUser: User = {
   email: 'lebron.james@milestone.example',
   role: 'Physical Therapist',
   initials: 'LBJ',
+  avatarUrl: '/lebron_profile.jpg',
+  phone: '(555) 010-2029',
+  specialty: 'Sports rehabilitation',
+  bio: 'I help patients build strength, improve mobility, and return to the activities they enjoy through personalized physical therapy.',
+  department: 'Physical Therapy',
+  facility: 'Milestone Rehabilitation Center',
+  officeLocation: 'Building A, Room 206',
+  workPhone: '(555) 010-2000',
+  workPhoneExtension: '206',
+  preferredContact: 'email',
 }
 
 interface AuthContextValue {
   user: User | null
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  updateProfile: (profile: Partial<EditableUserFields>) => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)

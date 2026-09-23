@@ -6,6 +6,7 @@ import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import FilterListIcon from '@mui/icons-material/FilterList'
+import PersonRemoveOutlinedIcon from '@mui/icons-material/PersonRemoveOutlined'
 import RemoveIcon from '@mui/icons-material/Remove'
 import SearchIcon from '@mui/icons-material/Search'
 import SortIcon from '@mui/icons-material/Sort'
@@ -13,21 +14,10 @@ import SwapVertIcon from '@mui/icons-material/SwapVert'
 import { Box, Button, Card, Collapse, Divider, Fade, Grow, InputAdornment, Menu, MenuItem, OutlinedInput, Stack, Tooltip, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 import { AssignRoutineDialog } from '../components/AssignRoutineDialog'
+import { DischargePatientDialog } from '../components/DischargePatientDialog'
 import type { DashboardOutletContext, DayAssignments } from '../components/DashboardLayout'
+import type { Patient } from '../data/mockPatients'
 import type { Routine } from '../data/mockRoutines'
-
-interface Patient {
-  id: string
-  name: string
-  statuses: Array<'missed' | 'complete' | 'modified' | 'none' | 'routine'>
-}
-
-const patients: Patient[] = [
-  { id: 'john', name: 'John Patientman', statuses: ['missed', 'complete', 'modified', 'none', 'routine', 'none', 'routine'] },
-  { id: 'katherine', name: 'Katherine Varela', statuses: ['complete', 'complete', 'routine', 'complete', 'none', 'none', 'routine'] },
-  { id: 'neal', name: 'Neal Terrell', statuses: ['routine', 'complete', 'complete', 'none', 'routine', 'none', 'none'] },
-  { id: 'frank', name: 'Frank Murgolo', statuses: ['none', 'routine', 'complete', 'complete', 'none', 'none', 'routine'] },
-]
 
 const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 const weekdayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -40,6 +30,7 @@ interface PatientRowProps {
   onToggle: () => void
   assignments: DayAssignments
   onAssign: (dayIndex: number) => void
+  onDischarge: () => void
 }
 
 function StatusIcon({ status }: { status: Patient['statuses'][number] }) {
@@ -50,7 +41,7 @@ function StatusIcon({ status }: { status: Patient['statuses'][number] }) {
   return <RemoveIcon />
 }
 
-function PatientRow({ patient, expanded, onToggle, assignments, onAssign }: PatientRowProps) {
+function PatientRow({ patient, expanded, onToggle, assignments, onAssign, onDischarge }: PatientRowProps) {
   return <Card sx={{ bgcolor: 'transparent', boxShadow: 'none', border: 0, overflow: 'visible', mb: 1.5 }}>
     <Button fullWidth onClick={onToggle} aria-expanded={expanded} sx={{ minHeight: 64, justifyContent: 'center', position: 'relative', bgcolor: '#91c8c0', color: 'black', border: '4px solid black', borderRadius: '40px', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '1.2rem', sm: '1.65rem' }, transition: 'transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease', '&:hover': { bgcolor: '#82bdb5', transform: 'translateY(-2px)', boxShadow: '0 8px 0 rgba(0, 0, 0, 0.18)' }, '&:active': { transform: 'translateY(0)' }, '&.Mui-focusVisible': { outline: '3px solid #eb681d', outlineOffset: 3 } }}>
       {patient.name}<ExpandMoreIcon sx={{ position: 'absolute', right: 12, bgcolor: 'black', color: '#91c8c0', borderRadius: '50%', transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 220ms ease' }} />
@@ -82,6 +73,14 @@ function PatientRow({ patient, expanded, onToggle, assignments, onAssign }: Pati
           })}
         </Stack>
       </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 2.5, px: { xs: 1.5, sm: 2 }, pb: 2 }}>
+          <Button
+            startIcon={<PersonRemoveOutlinedIcon />}
+            onClick={onDischarge}
+            aria-label={`Discharge Patient: ${patient.name}`}
+            sx={{ bgcolor: 'white', color: 'black', border: '3px solid black', borderRadius: '24px', px: 2, py: .75, fontFamily: 'Georgia, serif', fontStyle: 'italic', '&:hover': { bgcolor: '#e8ddba' } }}
+          >Discharge Patient</Button>
+        </Box>
       </Box>
     </Collapse>
   </Card>
@@ -94,8 +93,9 @@ export function DashboardPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(null)
   const [filterMenuAnchor, setFilterMenuAnchor] = useState<null | HTMLElement>(null)
-  const { assignments, setAssignments } = useOutletContext<DashboardOutletContext>()
+  const { patients, setPatients, assignments, setAssignments } = useOutletContext<DashboardOutletContext>()
   const [assignmentTarget, setAssignmentTarget] = useState<{ patient: Patient; dayIndex: number } | null>(null)
+  const [dischargeTarget, setDischargeTarget] = useState<Patient | null>(null)
   const visiblePatients = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
     return [...patients]
@@ -105,7 +105,7 @@ export function DashboardPage() {
         const comparison = first.name.localeCompare(second.name)
         return sortOrder === 'nameAsc' ? comparison : -comparison
       })
-  }, [query, sortOrder, statusFilter])
+  }, [patients, query, sortOrder, statusFilter])
   const allExpanded = visiblePatients.length > 0 && visiblePatients.every((patient) => expanded.includes(patient.id))
   const togglePatient = (id: string) => setExpanded((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
   const toggleAll = () => setExpanded(allExpanded ? [] : visiblePatients.map((patient) => patient.id))
@@ -120,6 +120,21 @@ export function DashboardPage() {
       return { ...current, [patient.id]: { ...current[patient.id], [dayIndex]: routine } }
     })
     setAssignmentTarget(null)
+  }
+
+  const dischargePatient = () => {
+    if (!dischargeTarget) return
+    const { id } = dischargeTarget
+
+    setPatients((current) => current.filter((patient) => patient.id !== id))
+    setExpanded((current) => current.filter((patientId) => patientId !== id))
+    setAssignments((current) => {
+      const remaining = { ...current }
+      delete remaining[id]
+      return remaining
+    })
+    setAssignmentTarget((current) => current?.patient.id === id ? null : current)
+    setDischargeTarget(null)
   }
 
   return <>
@@ -137,7 +152,7 @@ export function DashboardPage() {
           </Stack>
           <Menu anchorEl={sortMenuAnchor} open={Boolean(sortMenuAnchor)} onClose={() => setSortMenuAnchor(null)}><MenuItem selected={sortOrder === 'nameAsc'} onClick={() => { setSortOrder('nameAsc'); setSortMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Name A-Z</MenuItem><MenuItem selected={sortOrder === 'nameDesc'} onClick={() => { setSortOrder('nameDesc'); setSortMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Name Z-A</MenuItem></Menu>
           <Menu anchorEl={filterMenuAnchor} open={Boolean(filterMenuAnchor)} onClose={() => setFilterMenuAnchor(null)}><MenuItem selected={statusFilter === 'all'} onClick={() => { setStatusFilter('all'); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>All Patients</MenuItem><MenuItem selected={statusFilter === 'missed'} onClick={() => { setStatusFilter('missed'); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Missed</MenuItem><MenuItem selected={statusFilter === 'complete'} onClick={() => { setStatusFilter('complete'); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Complete</MenuItem><MenuItem selected={statusFilter === 'modified'} onClick={() => { setStatusFilter('modified'); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Modified</MenuItem><MenuItem selected={statusFilter === 'routine'} onClick={() => { setStatusFilter('routine'); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Routine</MenuItem><MenuItem selected={statusFilter === 'none'} onClick={() => { setStatusFilter('none'); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Unassigned</MenuItem></Menu>
-          {visiblePatients.length ? visiblePatients.map((patient) => <PatientRow key={patient.id} patient={patient} expanded={expanded.includes(patient.id)} onToggle={() => togglePatient(patient.id)} assignments={assignments[patient.id] ?? {}} onAssign={(dayIndex) => setAssignmentTarget({ patient, dayIndex })} />) : <Card sx={{ p: 5, textAlign: 'center', border: '4px solid black', bgcolor: 'white' }}><Typography variant="h6" fontFamily="Georgia, serif">No patients found</Typography></Card>}
+          {visiblePatients.length ? visiblePatients.map((patient) => <PatientRow key={patient.id} patient={patient} expanded={expanded.includes(patient.id)} onToggle={() => togglePatient(patient.id)} assignments={assignments[patient.id] ?? {}} onAssign={(dayIndex) => setAssignmentTarget({ patient, dayIndex })} onDischarge={() => setDischargeTarget(patient)} />) : <Card sx={{ p: 5, textAlign: 'center', border: '4px solid black', bgcolor: 'white' }}><Typography variant="h6" fontFamily="Georgia, serif">No patients found</Typography></Card>}
         </Stack>
       </Box>
       <Box sx={{ width: { xs: '100%', lg: 250 }, display: 'flex', flexDirection: { xs: 'row', lg: 'column' }, justifyContent: 'center', gap: { xs: 2, lg: 6 }, alignItems: 'center' }}><Button component={RouterLink} to="/dashboard/patients/new" sx={{ color: 'black', display: 'flex', flexDirection: 'column', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.65rem', transition: 'transform 180ms ease', '&:hover': { bgcolor: 'transparent', transform: 'translateY(-4px)' } }}><Box className="dashboard-shortcut-orb" sx={{ width: { xs: 110, sm: 170 }, height: { xs: 110, sm: 170 }, borderRadius: '50%', bgcolor: '#4b9da9', border: '4px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 180ms ease, box-shadow 180ms ease' }}><AddIcon sx={{ color: 'white', fontSize: { xs: 70, sm: 120 } }} /></Box><Box component="span" mt={1}>New Patient</Box></Button><Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', lg: 'block' }, borderColor: 'black', borderWidth: 2 }} /><Button component={RouterLink} to="/dashboard/messages" sx={{ color: 'black', display: 'flex', flexDirection: 'column', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.65rem', transition: 'transform 180ms ease', '&:hover': { bgcolor: 'transparent', transform: 'translateY(-4px)' } }}><Box className="dashboard-shortcut-orb" sx={{ position: 'relative', width: { xs: 110, sm: 170 }, height: { xs: 110, sm: 170 }, borderRadius: '50%', bgcolor: '#4b9da9', border: '4px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 180ms ease, box-shadow 180ms ease' }}><ChatBubbleOutlineIcon sx={{ color: 'white', fontSize: { xs: 65, sm: 95 } }} /><Box sx={{ position: 'absolute', top: -2, right: -2, width: 46, height: 46, bgcolor: '#ef1640', borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Georgia, serif', fontStyle: 'normal', fontWeight: 700 }}>3</Box></Box><Box component="span" mt={1}>Messages</Box></Button></Box>
@@ -148,6 +163,11 @@ export function DashboardPage() {
       weekday={weekdayNames[assignmentTarget.dayIndex]}
       onCancel={() => setAssignmentTarget(null)}
       onAssign={assignRoutine}
+    />}
+    {dischargeTarget && <DischargePatientDialog
+      patientName={dischargeTarget.name}
+      onCancel={() => setDischargeTarget(null)}
+      onDischarge={dischargePatient}
     />}
   </>
 }

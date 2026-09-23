@@ -4,6 +4,138 @@ body:has(.MuiAppBar-root) * {
   font-style: normal !important;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+.home-page {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(rgba(232, 221, 186, .88), rgba(232, 221, 186, .94)), url('/home/clinic-background.png') center / cover fixed !important;
+}
+
+.home-page .home-anchor {
+  scroll-margin-top: 92px;
+}
+
+.home-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 650ms ease, transform 650ms ease;
+}
+
+.home-reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.login-image-fade {
+  position: absolute !important;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 900ms ease-in-out;
+}
+
+.login-image-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.login-image-fade.login-image-active {
+  opacity: 1;
+}
+
+.login-image-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(7, 37, 49, .72) 0%, rgba(7, 37, 49, .08) 16%, transparent 38%);
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 68%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 68%, transparent 100%);
+}
+
+.login-form-grid {
+  position: relative;
+  z-index: 2;
+}
+
+.login-brand,
+.login-brand a {
+  color: #ffffff !important;
+}
+
+.login-image-caption {
+  position: absolute;
+  z-index: 1;
+  left: 48px;
+  bottom: 38px;
+  max-width: 360px;
+  padding: 14px 18px 15px;
+  border-radius: 16px;
+  background: rgba(7, 37, 49, .68);
+  box-shadow: 0 8px 20px rgba(7, 37, 49, .2);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+  color: #ffffff;
+  text-shadow: 0 2px 12px rgba(7, 37, 49, .45);
+}
+
+.login-image-caption .MuiTypography-h6 {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.login-image-caption .MuiTypography-body2 {
+  color: rgba(255, 255, 255, .9);
+}
+
+.login-card {
+  border: 0 !important;
+  background: #ffffff !important;
+  box-shadow: 0 14px 28px rgba(72, 48, 38, .2) !important;
+}
+
+.login-form-container {
+  width: 100% !important;
+}
+
+@media (min-width: 900px) {
+  .login-image-fade {
+    -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 68%, transparent 100%);
+    mask-image: linear-gradient(90deg, #000 0%, #000 68%, transparent 100%);
+  }
+
+  .login-image-grid {
+    flex-basis: 54% !important;
+    max-width: 54% !important;
+  }
+
+  .login-form-grid {
+    flex-basis: 46% !important;
+    max-width: 46% !important;
+  }
+
+  .login-form-container {
+    padding-left: 7.5% !important;
+    padding-right: 7.5% !important;
+  }
+
+  .login-card {
+    border-radius: 34px !important;
+  }
+}
+
+@keyframes loginImageFade {
+  from {
+    opacity: 0;
+    transform: scale(1.025);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 /* Compact dashboard app bar: 56px mobile / 64px desktop. */
 .MuiAppBar-root .MuiToolbar-root {
   min-height: 56px !important;
@@ -128,9 +260,35 @@ body:has(.MuiAppBar-root) * {
   }
 }
 
+@media (min-width: 1200px) {
+  .dashboard-overview > .MuiBox-root:last-child {
+    position: sticky !important;
+    top: 64px;
+    align-self: flex-start;
+    min-height: calc(100vh - 64px);
+  }
+}
+
 @media (max-width: 599px) {
   .messages-page {
     height: 88vh !important;
+  }
+}
+
+@media (max-width: 899px) {
+  .login-image-overlay {
+    background: linear-gradient(180deg, rgba(7, 37, 49, .72) 0%, rgba(7, 37, 49, .08) 30%, transparent 60%);
+  }
+
+  .login-card {
+    box-shadow: 0 10px 24px rgba(72, 48, 38, .14) !important;
+  }
+
+  .login-image-caption {
+    left: 24px;
+    right: 24px;
+    bottom: 24px;
+    max-width: 320px;
   }
 }
 
@@ -141,6 +299,26 @@ body:has(.MuiAppBar-root) * {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .home-reveal,
+  .home-reveal-visible {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .home-page img {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .login-image-fade {
+    transition: none !important;
+  }
+
   .dashboard-overview,
   .dashboard-overview *,
   .dashboard-overview .MuiButton-root,

@@ -19,6 +19,7 @@ const aqua = '#91c8c0'
 export function DashboardLayout() {
   const { user, logout } = useAuth()
   const location = useLocation()
+  const isMessagesPage = location.pathname === '/dashboard/messages'
   const [menuOpen, setMenuOpen] = useState(false)
   const [profileMenuAnchor, setProfileMenuAnchor] = useState<null | HTMLElement>(null)
   const [assignments, setAssignments] = useState<RoutineAssignments>({})
@@ -56,7 +57,7 @@ export function DashboardLayout() {
         </Box>}
       </Container>
     </AppBar>
-    <Container maxWidth={false} sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: { xs: 2, md: 3 } }}>
+    <Container maxWidth={false} sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: isMessagesPage ? 0 : { xs: 2, md: 3 } }}>
       <Outlet context={{ assignments, setAssignments } satisfies DashboardOutletContext} />
     </Container>
   </Box>

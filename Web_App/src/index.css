@@ -10,6 +10,12 @@ body:has(.MuiAppBar-root) * {
   gap: 8px !important;
 }
 
+/* Let the mail workspace meet the header and stop just above the viewport edge. */
+.messages-page {
+  height: 90vh !important;
+  min-height: 0 !important;
+}
+
 .MuiAppBar-root {
   border-radius: 0 !important;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16) !important;
@@ -64,6 +70,12 @@ body:has(.MuiAppBar-root) * {
 
   .MuiAppBar-root .MuiToolbar-root > .MuiStack-root:last-child > .MuiTypography-root {
     font-size: 1.35rem !important;
+  }
+}
+
+@media (max-width: 599px) {
+  .messages-page {
+    height: 88vh !important;
   }
 }
 

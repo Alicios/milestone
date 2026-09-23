@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Radio, RadioGroup, Typography } from '@mui/material'
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Fade, FormControlLabel, Radio, RadioGroup, Typography } from '@mui/material'
 import { mockRoutines, type Routine } from '../data/mockRoutines'
 
 interface AssignRoutineDialogProps {
@@ -19,9 +19,10 @@ export function AssignRoutineDialog({ patientName, weekday, onCancel, onAssign }
     onClose={onCancel}
     fullWidth
     maxWidth="sm"
+    slots={{ transition: Fade }}
     aria-labelledby="assign-routine-title"
     aria-describedby="assign-routine-context"
-    slotProps={{ paper: { sx: { bgcolor: '#e8ddba', color: 'black', border: '4px solid black', borderRadius: '28px' } } }}
+    slotProps={{ transition: { timeout: 220 }, paper: { sx: { bgcolor: '#e8ddba', color: 'black', border: '4px solid black', borderRadius: '28px' } } }}
   >
     <DialogTitle id="assign-routine-title" sx={{ bgcolor: '#4b9da9', color: 'white', fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>Assign Routine</DialogTitle>
     <DialogContent>

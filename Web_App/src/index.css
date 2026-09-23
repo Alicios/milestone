@@ -1,0 +1,156 @@
+/* Keep the authenticated dashboard typography consistent with the loaded font. */
+body:has(.MuiAppBar-root) * {
+  font-family: 'Montserrat', Arial, sans-serif !important;
+  font-style: normal !important;
+}
+
+/* Compact dashboard app bar: 56px mobile / 64px desktop. */
+.MuiAppBar-root .MuiToolbar-root {
+  min-height: 56px !important;
+  gap: 8px !important;
+}
+
+/* Modern clinical treatment for authenticated pages other than Messages. */
+.modern-dashboard-shell {
+  background: #e8ddba !important;
+}
+
+.modern-dashboard-shell * {
+  border-color: #d8e2e5 !important;
+  border-width: 1px !important;
+}
+
+.modern-dashboard-shell .MuiButton-root {
+  border-radius: 10px !important;
+  box-shadow: 0 2px 6px rgba(24, 50, 61, 0.06);
+  font-family: 'Montserrat', Arial, sans-serif !important;
+  font-style: normal !important;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.modern-dashboard-shell .MuiButton-root:hover {
+  box-shadow: 0 5px 14px rgba(24, 50, 61, 0.1);
+}
+
+.modern-dashboard-shell .MuiButton-root.Mui-focusVisible {
+  outline: 3px solid rgba(235, 104, 29, 0.55) !important;
+  outline-offset: 2px;
+}
+
+.modern-dashboard-shell .MuiOutlinedInput-root,
+.modern-dashboard-shell .MuiTextField-root .MuiOutlinedInput-root {
+  border-radius: 10px !important;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(24, 50, 61, 0.04);
+}
+
+.modern-dashboard-shell .MuiOutlinedInput-root fieldset,
+.modern-dashboard-shell .MuiTextField-root .MuiOutlinedInput-root fieldset {
+  border-width: 1px !important;
+  border-color: #d8e2e5 !important;
+}
+
+.modern-dashboard-shell .MuiCard-root,
+.modern-dashboard-shell .MuiPaper-root {
+  border: 1px solid #d8e2e5 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 24px rgba(24, 50, 61, 0.08) !important;
+}
+
+.modern-dashboard-shell .MuiDialog-paper {
+  background: #ffffff !important;
+}
+
+.modern-dashboard-shell .MuiDivider-root {
+  border-color: #d8e2e5 !important;
+}
+
+/* Let the mail workspace meet the header and stop just above the viewport edge. */
+.messages-page {
+  height: 90vh !important;
+  min-height: 0 !important;
+}
+
+.MuiAppBar-root {
+  border-radius: 0 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16) !important;
+}
+
+.MuiAppBar-root .MuiToolbar-root > .MuiStack-root:first-child {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.MuiAppBar-root .MuiToolbar-root > .MuiStack-root:first-child .MuiButton-root {
+  min-height: 36px;
+  padding: 6px 10px !important;
+  border-width: 2px !important;
+  border-radius: 12px !important;
+  font-size: 0.875rem !important;
+}
+
+.MuiAppBar-root .MuiToolbar-root .MuiAvatar-root {
+  width: 40px !important;
+  height: 40px !important;
+  font-size: 1rem !important;
+}
+
+.MuiAppBar-root .MuiToolbar-root > .MuiStack-root:last-child > .MuiTypography-root {
+  font-size: 1.15rem !important;
+}
+
+@media (min-width: 600px) {
+  .MuiAppBar-root .MuiToolbar-root {
+    min-height: 64px !important;
+  }
+
+  .MuiAppBar-root .MuiToolbar-root > .MuiStack-root:first-child {
+    gap: 8px !important;
+  }
+
+  .MuiAppBar-root .MuiToolbar-root > .MuiStack-root:first-child .MuiButton-root {
+    min-height: 40px;
+    padding: 7px 14px !important;
+    border-width: 3px !important;
+    border-radius: 14px !important;
+    font-size: 1rem !important;
+  }
+
+  .MuiAppBar-root .MuiToolbar-root .MuiAvatar-root {
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 1.15rem !important;
+  }
+
+  .MuiAppBar-root .MuiToolbar-root > .MuiStack-root:last-child > .MuiTypography-root {
+    font-size: 1.35rem !important;
+  }
+}
+
+@media (max-width: 599px) {
+  .messages-page {
+    height: 88vh !important;
+  }
+}
+
+.dashboard-overview .MuiButton-root,
+.dashboard-overview .dashboard-shortcut-orb,
+.dashboard-overview .MuiSvgIcon-root {
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-overview,
+  .dashboard-overview *,
+  .dashboard-overview .MuiButton-root,
+  .dashboard-overview .dashboard-shortcut-orb,
+  .dashboard-overview .MuiSvgIcon-root {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    transform: none !important;
+  }
+}

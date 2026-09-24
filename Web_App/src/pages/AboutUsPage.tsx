@@ -1,9 +1,13 @@
-import { Box, Stack, Typography } from '@mui/material'
-import { useState, type MouseEvent } from 'react'
+import { Box, Button, Stack, Typography } from '@mui/material'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import PauseIcon from '@mui/icons-material/Pause'
+import { useRef, useState, type MouseEvent } from 'react'
 import { PublicHeader } from '../components/PublicHeader'
 
 export function AboutUsPage() {
   const [imageTilt, setImageTilt] = useState({ rotateX: 0, rotateY: 0, hovering: false })
+  const [isPlaying, setIsPlaying] = useState(false)
+  const audioRef = useRef<HTMLAudioElement>(null)
   const glareX = Math.max(8, Math.min(92, 42 - imageTilt.rotateY * 1.5))
   const glareY = Math.max(8, Math.min(92, 38 + imageTilt.rotateX * 1.5))
 
@@ -12,6 +16,19 @@ export function AboutUsPage() {
     const horizontalPosition = (event.clientX - bounds.left) / bounds.width - 0.5
     const verticalPosition = (event.clientY - bounds.top) / bounds.height - 0.5
     setImageTilt({ rotateX: verticalPosition * -20, rotateY: horizontalPosition * 20, hovering: true })
+  }
+
+  async function toggleSound() {
+    const audio = audioRef.current
+    if (!audio) return
+
+    if (audio.paused) {
+      await audio.play()
+      setIsPlaying(true)
+    } else {
+      audio.pause()
+      setIsPlaying(false)
+    }
   }
 
   return (
@@ -24,6 +41,10 @@ export function AboutUsPage() {
             <Box component="img" className="about-easter-egg-image" src="/wallpapersden.com_king-lebron-james-hd-la-lakers-ai_1920x1080.jpg" alt="LeBron James in a Los Angeles Lakers uniform." onMouseMove={handleImageMove} onMouseLeave={() => setImageTilt({ rotateX: 0, rotateY: 0, hovering: false })} sx={{ display: 'block', width: '100%', maxHeight: 'calc(100vh - 190px)', objectFit: 'contain', borderRadius: { xs: 2, md: 4 }, boxShadow: '0 20px 50px rgba(11, 61, 80, .2)' }} />
             <Box className="about-easter-egg-glare" sx={{ opacity: imageTilt.hovering ? 1 : 0, background: `radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255, 255, 255, .46), rgba(255, 255, 255, .14) 16%, transparent 44%)` }} />
           </Box>
+          <audio ref={audioRef} src="/lebroooon-james.mp3" onEnded={() => setIsPlaying(false)} />
+          <Button onClick={toggleSound} startIcon={isPlaying ? <PauseIcon /> : <PlayArrowIcon />} variant="contained" color="primary" aria-label={isPlaying ? 'Pause the easter egg sound' : 'Play the easter egg sound'}>
+            {isPlaying ? 'Pause sound' : 'Play sound'}
+          </Button>
           <Typography variant="h6" color="primary.dark" textAlign="center">LeTeam was for a King</Typography>
         </Stack>
       </Box>

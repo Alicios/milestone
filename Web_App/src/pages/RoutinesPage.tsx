@@ -3,7 +3,7 @@ import AddIcon from '@mui/icons-material/Add'
 import CloseIcon from '@mui/icons-material/Close'
 import EditIcon from '@mui/icons-material/Edit'
 import SearchIcon from '@mui/icons-material/Search'
-import { Box, Button, IconButton, InputAdornment, OutlinedInput, Stack, TextField, Typography } from '@mui/material'
+import { Box, Button, IconButton, InputAdornment, OutlinedInput, Stack, TextField, Typography, useTheme } from '@mui/material'
 
 interface Routine {
   id: string
@@ -14,7 +14,6 @@ interface Routine {
 const teal = '#4b9da9'
 const aqua = '#91c8c0'
 const orange = '#eb681d'
-const chipGrey = '#d9d9d9'
 
 const initialRoutines: Routine[] = [
   { id: 'lower-body', name: 'Lower Body', exercises: ['Leg Stretch', 'Calf Stretch'] },
@@ -32,6 +31,13 @@ function RoutineColumn({ routine, dimmed, highlighted, onClick }: {
   highlighted?: boolean
   onClick?: () => void
 }) {
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
+  const border = theme.palette.divider
+  const surface = theme.palette.background.paper
+  const text = theme.palette.text.primary
+  const chipSurface = isDark ? '#29454d' : '#d9d9d9'
+
   return (
     <Box
       onClick={onClick}
@@ -44,12 +50,12 @@ function RoutineColumn({ routine, dimmed, highlighted, onClick }: {
         transition: 'filter .15s ease',
       }}
     >
-      <Box sx={{ ...fontSx, bgcolor: aqua, border: '4px solid black', borderColor: highlighted ? orange : 'black', borderRadius: '20px', textAlign: 'center', py: 1.25, px: 1.5, mx: 1.5, mb: -3, position: 'relative', zIndex: 2, fontSize: '1.15rem', fontWeight: 700 }}>
+      <Box sx={{ ...fontSx, bgcolor: aqua, color: '#102b34', border: `4px solid ${highlighted ? orange : border}`, borderRadius: '20px', textAlign: 'center', py: 1.25, px: 1.5, mx: 1.5, mb: -3, position: 'relative', zIndex: 2, fontSize: '1.15rem', fontWeight: 700 }}>
         {routine.name}
       </Box>
-      <Box sx={{ border: '4px solid black', borderColor: highlighted ? orange : 'black', borderRadius: '30px', bgcolor: 'white', pt: 5, pb: 2, px: 1.25, minHeight: 320, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+      <Box sx={{ border: `4px solid ${highlighted ? orange : border}`, borderRadius: '30px', bgcolor: surface, color: text, pt: 5, pb: 2, px: 1.25, minHeight: 320, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
         {routine.exercises.map((exercise) => (
-          <Box key={exercise} sx={{ ...fontSx, bgcolor: chipGrey, border: '3px solid black', borderRadius: '20px', py: 1, px: 1.5, textAlign: 'center', fontSize: '1rem' }}>
+          <Box key={exercise} sx={{ ...fontSx, bgcolor: chipSurface, border: `3px solid ${border}`, borderRadius: '20px', py: 1, px: 1.5, textAlign: 'center', fontSize: '1rem' }}>
             {exercise}
           </Box>
         ))}
@@ -59,6 +65,10 @@ function RoutineColumn({ routine, dimmed, highlighted, onClick }: {
 }
 
 function ExerciseEditor({ exercises, onChange }: { exercises: string[]; onChange: (next: string[]) => void }) {
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
+  const border = theme.palette.divider
+  const chipSurface = isDark ? '#29454d' : '#d9d9d9'
   const updateAt = (index: number, value: string) => onChange(exercises.map((exercise, i) => (i === index ? value : exercise)))
   const removeAt = (index: number) => onChange(exercises.filter((_, i) => i !== index))
   const add = () => onChange([...exercises, ''])
@@ -72,14 +82,14 @@ function ExerciseEditor({ exercises, onChange }: { exercises: string[]; onChange
             onChange={(event) => updateAt(index, event.target.value)}
             placeholder="Exercise name"
             size="small"
-            sx={{ '& .MuiOutlinedInput-root': { ...fontSx, bgcolor: chipGrey, borderRadius: '20px', '& fieldset': { border: '3px solid black' } } }}
+            sx={{ '& .MuiOutlinedInput-root': { ...fontSx, bgcolor: chipSurface, borderRadius: '20px', '& fieldset': { border: `3px solid ${border}` } } }}
           />
-          <IconButton aria-label="Remove exercise" onClick={() => removeAt(index)} sx={{ bgcolor: '#ff333c', color: 'white', border: '2px solid black', '&:hover': { bgcolor: '#e02c34' } }}>
+          <IconButton aria-label="Remove exercise" onClick={() => removeAt(index)} sx={{ bgcolor: '#ff333c', color: 'white', border: `2px solid ${border}`, '&:hover': { bgcolor: '#e02c34' } }}>
             <CloseIcon fontSize="small" />
           </IconButton>
         </Stack>
       ))}
-      <Button onClick={add} startIcon={<AddIcon />} sx={{ ...fontSx, alignSelf: 'flex-start', bgcolor: aqua, color: 'black', border: '3px solid black', borderRadius: '20px', px: 2, '&:hover': { bgcolor: '#82bdb5' } }}>
+      <Button onClick={add} startIcon={<AddIcon />} sx={{ ...fontSx, alignSelf: 'flex-start', bgcolor: aqua, color: '#102b34', border: `3px solid ${border}`, borderRadius: '20px', px: 2, '&:hover': { bgcolor: '#82bdb5' } }}>
         Add Exercise
       </Button>
     </Stack>
@@ -87,6 +97,11 @@ function ExerciseEditor({ exercises, onChange }: { exercises: string[]; onChange
 }
 
 export function RoutinesPage() {
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
+  const border = theme.palette.divider
+  const surface = theme.palette.background.paper
+  const text = theme.palette.text.primary
   const [routines, setRoutines] = useState<Routine[]>(initialRoutines)
   const [mode, setMode] = useState<'list' | 'new' | 'edit-pick' | 'edit'>('list')
   const [query, setQuery] = useState('')
@@ -141,18 +156,18 @@ export function RoutinesPage() {
     return (
       <Box maxWidth={480} mx="auto">
         <Typography variant="h4" sx={{ ...fontSx, mb: 3, textAlign: 'center' }}>New Routine</Typography>
-        <Box sx={{ border: '4px solid black', borderRadius: '30px', bgcolor: 'white', p: 3 }}>
+        <Box sx={{ border: `4px solid ${border}`, borderRadius: '30px', bgcolor: surface, color: text, p: 3 }}>
           <Stack spacing={2.5}>
             <TextField
               label="Routine name"
               value={newName}
               onChange={(event) => setNewName(event.target.value)}
-              sx={{ '& .MuiOutlinedInput-root': { ...fontSx, borderRadius: '20px', '& fieldset': { border: '3px solid black' } } }}
+              sx={{ '& .MuiOutlinedInput-root': { ...fontSx, borderRadius: '20px', '& fieldset': { border: `3px solid ${border}` } } }}
             />
             <ExerciseEditor exercises={newExercises} onChange={setNewExercises} />
             <Stack direction="row" spacing={1.5} justifyContent="flex-end" mt={2}>
-              <Button onClick={() => setMode('list')} sx={{ ...fontSx, color: 'black', border: '3px solid black', borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#f0f0f0' } }}>Cancel</Button>
-              <Button onClick={submitNew} disabled={!newName.trim()} sx={{ ...fontSx, bgcolor: orange, color: 'white', border: '3px solid black', borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#d15a17' } }}>Create Routine</Button>
+              <Button onClick={() => setMode('list')} sx={{ ...fontSx, color: text, border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: isDark ? '#29454d' : '#f0f0f0' } }}>Cancel</Button>
+              <Button onClick={submitNew} disabled={!newName.trim()} sx={{ ...fontSx, bgcolor: orange, color: 'white', border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#d15a17' } }}>Create Routine</Button>
             </Stack>
           </Stack>
         </Box>
@@ -164,17 +179,17 @@ export function RoutinesPage() {
     return (
       <Box maxWidth={480} mx="auto">
         <Typography variant="h4" sx={{ ...fontSx, mb: 3, textAlign: 'center' }}>Edit Routine</Typography>
-        <Box sx={{ border: '4px solid black', borderRadius: '30px', bgcolor: 'white', p: 3 }}>
+        <Box sx={{ border: `4px solid ${border}`, borderRadius: '30px', bgcolor: surface, color: text, p: 3 }}>
           <Stack spacing={2.5}>
             <TextField
               label="Routine name"
               value={editName}
               onChange={(event) => setEditName(event.target.value)}
-              sx={{ '& .MuiOutlinedInput-root': { ...fontSx, borderRadius: '20px', '& fieldset': { border: '3px solid black' } } }}
+              sx={{ '& .MuiOutlinedInput-root': { ...fontSx, borderRadius: '20px', '& fieldset': { border: `3px solid ${border}` } } }}
             />
             <ExerciseEditor exercises={editExercises} onChange={setEditExercises} />
             <Stack direction="row" justifyContent="flex-end" mt={2}>
-              <Button onClick={finishEditing} sx={{ ...fontSx, bgcolor: orange, color: 'white', border: '3px solid black', borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#d15a17' } }}>Finish Editing</Button>
+              <Button onClick={finishEditing} sx={{ ...fontSx, bgcolor: orange, color: 'white', border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#d15a17' } }}>Finish Editing</Button>
             </Stack>
           </Stack>
         </Box>
@@ -191,11 +206,11 @@ export function RoutinesPage() {
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search..."
             aria-label="Search routines"
-            startAdornment={<InputAdornment position="start"><SearchIcon sx={{ bgcolor: teal, border: '3px solid black', borderRadius: '50%', p: .5, boxSizing: 'content-box', fontSize: 42 }} /></InputAdornment>}
-            sx={{ flexGrow: 1, bgcolor: 'white', border: '4px solid black', borderRadius: '34px', ...fontSx, fontSize: '1.3rem', '& fieldset': { border: 0 } }}
+            startAdornment={<InputAdornment position="start"><SearchIcon sx={{ bgcolor: teal, border: `3px solid ${border}`, borderRadius: '50%', p: .5, boxSizing: 'content-box', fontSize: 42 }} /></InputAdornment>}
+            sx={{ flexGrow: 1, bgcolor: surface, border: `4px solid ${border}`, borderRadius: '34px', ...fontSx, fontSize: '1.3rem', '& fieldset': { border: 0 } }}
           />
           {mode === 'edit-pick' && (
-            <Button onClick={() => { setMode('list'); setHoveredId(null) }} sx={{ ...fontSx, color: 'black', border: '3px solid black', borderRadius: '20px', px: 2, whiteSpace: 'nowrap', '&:hover': { bgcolor: '#f0f0f0' } }}>
+            <Button onClick={() => { setMode('list'); setHoveredId(null) }} sx={{ ...fontSx, color: text, border: `3px solid ${border}`, borderRadius: '20px', px: 2, whiteSpace: 'nowrap', '&:hover': { bgcolor: isDark ? '#29454d' : '#f0f0f0' } }}>
               Cancel
             </Button>
           )}
@@ -228,7 +243,7 @@ export function RoutinesPage() {
                     height: 52,
                     bgcolor: '#ff333c',
                     color: 'white',
-                    border: '4px solid black',
+                    border: `4px solid ${border}`,
                     visibility: isHovered ? 'visible' : 'hidden',
                     '&:hover': { bgcolor: '#d81f28' },
                   }}
@@ -241,14 +256,14 @@ export function RoutinesPage() {
         </Box>
       </Box>
       <Box sx={{ width: { xs: '100%', lg: 180 }, display: 'flex', flexDirection: { xs: 'row', lg: 'column' }, justifyContent: 'center', gap: { xs: 3, lg: 5 }, alignItems: 'center' }}>
-        <Button onClick={startNew} sx={{ color: 'black', display: 'flex', flexDirection: 'column', ...fontSx, fontSize: '1.3rem', '&:hover': { bgcolor: 'transparent' } }}>
-          <Box sx={{ width: { xs: 90, sm: 130 }, height: { xs: 90, sm: 130 }, borderRadius: '50%', bgcolor: teal, border: '4px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Button onClick={startNew} sx={{ color: isDark ? 'white' : 'black', display: 'flex', flexDirection: 'column', ...fontSx, fontSize: '1.3rem', '&:hover': { bgcolor: 'transparent' } }}>
+          <Box sx={{ width: { xs: 90, sm: 130 }, height: { xs: 90, sm: 130 }, borderRadius: '50%', bgcolor: teal, border: `4px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <AddIcon sx={{ color: 'white', fontSize: { xs: 56, sm: 90 } }} />
           </Box>
           <Box component="span" mt={1}>New Routine</Box>
         </Button>
-        <Button onClick={() => setMode('edit-pick')} sx={{ color: 'black', display: 'flex', flexDirection: 'column', ...fontSx, fontSize: '1.3rem', '&:hover': { bgcolor: 'transparent' } }}>
-          <Box sx={{ width: { xs: 90, sm: 130 }, height: { xs: 90, sm: 130 }, borderRadius: '50%', bgcolor: teal, border: '4px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Button onClick={() => setMode('edit-pick')} sx={{ color: isDark ? 'white' : 'black', display: 'flex', flexDirection: 'column', ...fontSx, fontSize: '1.3rem', '&:hover': { bgcolor: 'transparent' } }}>
+          <Box sx={{ width: { xs: 90, sm: 130 }, height: { xs: 90, sm: 130 }, borderRadius: '50%', bgcolor: teal, border: `4px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <EditIcon sx={{ color: 'white', fontSize: { xs: 48, sm: 76 } }} />
           </Box>
           <Box component="span" mt={1}>Edit Routine</Box>

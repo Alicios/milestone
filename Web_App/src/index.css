@@ -8,6 +8,21 @@ html {
   scroll-behavior: smooth;
 }
 
+[data-milestone-theme='light'] {
+  --milestone-dashboard-bg: #e8ddba;
+  --milestone-dashboard-surface: #ffffff;
+  --milestone-dashboard-border: #d8e2e5;
+  --milestone-dashboard-text: #18323d;
+}
+
+[data-milestone-theme='dark'] {
+  color-scheme: dark;
+  --milestone-dashboard-bg: #102b34;
+  --milestone-dashboard-surface: #1b3c46;
+  --milestone-dashboard-border: #47616a;
+  --milestone-dashboard-text: #f3f8f8;
+}
+
 .home-page {
   position: relative;
   isolation: isolate;
@@ -183,11 +198,12 @@ html {
 
 /* Modern clinical treatment for authenticated pages other than Messages. */
 .modern-dashboard-shell {
-  background: #e8ddba !important;
+  background: var(--milestone-dashboard-bg) !important;
+  color: var(--milestone-dashboard-text);
 }
 
 .modern-dashboard-shell * {
-  border-color: #d8e2e5 !important;
+  border-color: var(--milestone-dashboard-border) !important;
   border-width: 1px !important;
 }
 
@@ -211,29 +227,51 @@ html {
 .modern-dashboard-shell .MuiOutlinedInput-root,
 .modern-dashboard-shell .MuiTextField-root .MuiOutlinedInput-root {
   border-radius: 10px !important;
-  background: #ffffff;
+  background: var(--milestone-dashboard-surface);
   box-shadow: 0 2px 8px rgba(24, 50, 61, 0.04);
 }
 
 .modern-dashboard-shell .MuiOutlinedInput-root fieldset,
 .modern-dashboard-shell .MuiTextField-root .MuiOutlinedInput-root fieldset {
   border-width: 1px !important;
-  border-color: #d8e2e5 !important;
+  border-color: var(--milestone-dashboard-border) !important;
 }
 
 .modern-dashboard-shell .MuiCard-root,
 .modern-dashboard-shell .MuiPaper-root {
-  border: 1px solid #d8e2e5 !important;
+  border: 1px solid var(--milestone-dashboard-border) !important;
   border-radius: 14px !important;
   box-shadow: 0 8px 24px rgba(24, 50, 61, 0.08) !important;
 }
 
 .modern-dashboard-shell .MuiDialog-paper {
-  background: #ffffff !important;
+  background: var(--milestone-dashboard-surface) !important;
 }
 
 .modern-dashboard-shell .MuiDivider-root {
-  border-color: #d8e2e5 !important;
+  border-color: var(--milestone-dashboard-border) !important;
+}
+
+[data-milestone-theme='dark'] .modern-dashboard-shell .MuiCard-root,
+[data-milestone-theme='dark'] .modern-dashboard-shell .MuiPaper-root {
+  background-color: var(--milestone-dashboard-surface) !important;
+  color: var(--milestone-dashboard-text) !important;
+}
+
+[data-milestone-theme='dark'] .modern-dashboard-shell .MuiOutlinedInput-root,
+[data-milestone-theme='dark'] .modern-dashboard-shell .MuiTextField-root .MuiOutlinedInput-root {
+  color: var(--milestone-dashboard-text) !important;
+}
+
+[data-milestone-theme='dark'] .messages-shell .messages-page {
+  background: var(--milestone-dashboard-surface) !important;
+  border-color: var(--milestone-dashboard-border) !important;
+}
+
+[data-milestone-theme='dark'] .messages-shell .messages-page section,
+[data-milestone-theme='dark'] .messages-shell .messages-page aside,
+[data-milestone-theme='dark'] .messages-shell .messages-page form {
+  color: var(--milestone-dashboard-text);
 }
 
 /* Let the mail workspace meet the header and stop just above the viewport edge. */

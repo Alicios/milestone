@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined'
-import { Alert, Avatar, Box, Button, ButtonBase, Card, Divider, FormControl, FormControlLabel, FormLabel, MenuItem, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Avatar, Box, Button, ButtonBase, Card, Divider, FormControl, FormControlLabel, FormLabel, MenuItem, Radio, RadioGroup, Stack, TextField, Typography, useTheme } from '@mui/material'
 import { useAuth } from '../auth/AuthContext'
 import type { PreferredContact, ProfileFields } from '../types'
 
 const fontSx = { fontFamily: 'Georgia, serif' }
 const headingSx = { ...fontSx, fontStyle: 'italic' }
-const buttonSx = { ...headingSx, color: 'black', border: '3px solid black', borderRadius: '20px', px: 3 }
-const primaryButtonSx = { ...buttonSx, bgcolor: '#eb681d', color: 'white', '&:hover': { bgcolor: '#d15a17' } }
 const fieldSx = {
   '& .MuiOutlinedInput-root': { ...fontSx, borderRadius: '18px' },
   '& .MuiOutlinedInput-notchedOutline': { borderWidth: '2px' },
@@ -62,6 +60,7 @@ function isValidPhone(phone: string) {
 }
 
 export function ProfilePage() {
+  const theme = useTheme()
   const { user, updateProfile } = useAuth()
   const [draft, setDraft] = useState<ProfileFields | null>(null)
   const [errors, setErrors] = useState<Partial<Record<keyof ProfileFields, string>>>({})
@@ -79,6 +78,11 @@ export function ProfilePage() {
   useEffect(() => () => stopReadingPhoto(), [])
 
   if (!user) return null
+
+  const border = theme.palette.divider
+  const text = theme.palette.text.primary
+  const buttonSx = { ...headingSx, color: text, border: `3px solid ${border}`, borderRadius: '20px', px: 3 }
+  const primaryButtonSx = { ...buttonSx, bgcolor: '#eb681d', color: 'white', '&:hover': { bgcolor: '#d15a17' } }
 
   function startEditing() {
     if (!user) return
@@ -180,7 +184,7 @@ export function ProfilePage() {
     <Avatar
       src={(draft?.avatarUrl ?? user.avatarUrl) || undefined}
       alt={`${user.name} profile picture`}
-      sx={{ width: 112, height: 112, bgcolor: '#4b9da9', color: 'black', border: '3px solid black', fontSize: '2.5rem', ...fontSx }}
+      sx={{ width: 112, height: 112, bgcolor: '#4b9da9', color: '#102b34', border: `3px solid ${border}`, fontSize: '2.5rem', ...fontSx }}
     >
       {user.initials}
     </Avatar>
@@ -190,7 +194,7 @@ export function ProfilePage() {
     <Stack spacing={3} divider={<Divider />}>
       {sections.map((section) => (
         <Box component="section" key={section.id} aria-labelledby={`profile-section-${section.id}`}>
-          <Typography id={`profile-section-${section.id}`} component={draft ? 'h3' : 'h2'} variant="h5" sx={{ ...headingSx, mb: 2, px: 2, py: 1, bgcolor: '#91c8c0', borderRadius: '18px' }}>
+          <Typography id={`profile-section-${section.id}`} component={draft ? 'h3' : 'h2'} variant="h5" sx={{ ...headingSx, mb: 2, px: 2, py: 1, bgcolor: '#91c8c0', color: '#102b34', borderRadius: '18px' }}>
             {section.title}
           </Typography>
           <Box component={draft ? 'div' : 'dl'} sx={{ m: 0, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 2.5 }}>
@@ -226,7 +230,7 @@ export function ProfilePage() {
             ))}
             {section.id === 'contact' && (draft ? (
               <FormControl error={Boolean(errors.preferredContact)} sx={{ gridColumn: '1 / -1' }}>
-                <FormLabel id="profile-preferred-contact-label" sx={{ ...fontSx, fontWeight: 700, color: 'black', '&.Mui-focused': { color: 'black' } }}>Preferred contact method</FormLabel>
+                <FormLabel id="profile-preferred-contact-label" sx={{ ...fontSx, fontWeight: 700, color: text, '&.Mui-focused': { color: text } }}>Preferred contact method</FormLabel>
                 <RadioGroup row aria-labelledby="profile-preferred-contact-label" value={draft.preferredContact} onChange={(event) => {
                   const value = event.target.value as PreferredContact
                   setDraft((current) => current ? { ...current, preferredContact: value } : null)
@@ -255,8 +259,8 @@ export function ProfilePage() {
       </Typography>
       <Typography sx={{ ...fontSx, mb: 3 }}>Help patients get to know you and your care.</Typography>
       {saved && <Alert severity="success" role="status" sx={{ mb: 2 }}>Your profile has been updated.</Alert>}
-      <Card sx={{ border: '4px solid black', borderRadius: '30px', bgcolor: 'white', color: 'black', overflow: 'hidden' }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems="center" sx={{ p: { xs: 3, sm: 4 }, bgcolor: '#91c8c0', borderBottom: '3px solid black' }}>
+    <Card sx={{ border: `4px solid ${border}`, borderRadius: '30px', bgcolor: 'background.paper', color: text, overflow: 'hidden' }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems="center" sx={{ p: { xs: 3, sm: 4 }, bgcolor: '#91c8c0', color: '#102b34', borderBottom: `3px solid ${border}` }}>
           <Stack alignItems="center" sx={{ width: 112, flexShrink: 0 }}>
             {draft ? (
               <>
@@ -268,13 +272,13 @@ export function ProfilePage() {
                   sx={{ borderRadius: '50%', '&:hover': { opacity: .85 }, '&.Mui-focusVisible': { outline: '3px solid black', outlineOffset: 4 } }}
                 >
                   {avatar}
-                  <Box sx={{ position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: '50%', bgcolor: '#eb681d', color: 'white', border: '2px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Box sx={{ position: 'absolute', bottom: 0, right: 0, width: 32, height: 32, borderRadius: '50%', bgcolor: '#eb681d', color: 'white', border: `2px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <PhotoCameraOutlinedIcon sx={{ fontSize: 18 }} />
                   </Box>
                 </ButtonBase>
                 <input ref={photoInput} type="file" accept="image/*" aria-label="Profile photo" hidden onChange={selectPhoto} />
                 {draft.avatarUrl && (
-                  <Button type="button" size="small" sx={{ ...fontSx, mt: 1, px: 0, color: 'black', textTransform: 'none', textDecoration: 'underline' }} onClick={() => {
+                  <Button type="button" size="small" sx={{ ...fontSx, mt: 1, px: 0, color: text, textTransform: 'none', textDecoration: 'underline' }} onClick={() => {
                     stopReadingPhoto()
                     setPhotoLoading(false)
                     setDraft((current) => current ? { ...current, avatarUrl: '' } : null)

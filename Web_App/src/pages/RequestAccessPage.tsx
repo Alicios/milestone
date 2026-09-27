@@ -3,6 +3,7 @@ import HowToRegOutlinedIcon from '@mui/icons-material/HowToRegOutlined'
 import { Alert, Box, Button, CircularProgress, Container, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 import { Brand } from '../components/Brand'
+import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 const DEPARTMENTS = ['Physical Therapy', 'Occupational Therapy', 'Sports Medicine', 'Administration', 'IT / Systems', 'Other']
 
@@ -23,8 +24,12 @@ export function RequestAccessPage() {
     if (!department) return setError('Select your department.')
     setLoading(true)
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600))
+      if (!isSupabaseConfigured) throw new Error('Supabase is not configured. Add your keys to .env.local.')
+      const { error: insertError } = await supabase.from('access_requests').insert({ name: name.trim(), email: email.trim(), department, notes: notes.trim() || null })
+      if (insertError) throw new Error(insertError.message)
       setSubmitted(true)
+    } catch (submissionError) {
+      setError(submissionError instanceof Error ? submissionError.message : 'Unable to submit your request.')
     } finally {
       setLoading(false)
     }

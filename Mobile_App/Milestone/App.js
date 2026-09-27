@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Pressable,
   SafeAreaView,
@@ -21,16 +21,177 @@ const palette = {
 };
 
 const exercises = [
-  { name: 'Push Ups', detail: 'Upper body', accent: '#8BC0BC' },
-  { name: 'Sit Ups', detail: 'Core strength', accent: '#91C6C1' },
-  { name: 'Quad Stretch', detail: 'Flexibility', accent: '#98CCC5' },
-  { name: 'Leg Stretch', detail: 'Lower body', accent: '#A0D1C9' },
+  {
+    name: 'Push Ups',
+    detail: 'Upper body',
+    accent: '#8BC0BC',
+    type: 'countup',
+    sets: 3,
+    reps: 5,
+  },
+  {
+    name: 'Sit Ups',
+    detail: 'Core strength',
+    accent: '#91C6C1',
+    type: 'countup',
+    sets: 3,
+    reps: 5,
+  },
+  {
+    name: 'Quad Stretch',
+    detail: 'Flexibility',
+    accent: '#98CCC5',
+    type: 'countdown',
+    durationSeconds: 30,
+    sets: 1,
+    reps: 1,
+  },
+  {
+    name: 'Leg Stretch',
+    detail: 'Lower body',
+    accent: '#A0D1C9',
+    type: 'countdown',
+    durationSeconds: 30,
+    sets: 1,
+    reps: 1,
+  },
 ];
+
+function getStartingTime(exercise) {
+  return exercise.type === 'countdown'
+    ? exercise.durationSeconds * 100
+    : 0;
+}
+
+function formatTimer(centiseconds) {
+  const safeTime = Math.max(0, centiseconds);
+  const minutes = Math.floor(safeTime / 6000);
+  const seconds = Math.floor((safeTime % 6000) / 100);
+  const hundredths = safeTime % 100;
+
+  return `${String(minutes).padStart(2, '0')}.${String(seconds).padStart(
+    2,
+    '0'
+  )}.${String(hundredths).padStart(2, '0')}`;
+}
 
 export default function App() {
   const { width } = useWindowDimensions();
   const contentWidth = Math.min(width - 44, 390);
   const [routineStarted, setRoutineStarted] = useState(false);
+  const activeExercise = exercises[0];
+
+  const [screen, setScreen] = useState('routine');
+  const [isRunning, setIsRunning] = useState(false);
+  const [currentSet, setCurrentSet] = useState(1);
+  const [timerCentiseconds, setTimerCentiseconds] = useState(
+    getStartingTime(activeExercise)
+  );  
+
+  useEffect(() => {
+    if (!isRunning) return;
+
+    const timer = setInterval(() => {
+      setTimerCentiseconds((currentTime) => {
+        const nextTime =
+          activeExercise.type === 'countdown'
+            ? currentTime - 1
+            : currentTime + 1;
+
+        if (activeExercise.type === 'countdown' && nextTime <= 0) {
+          setIsRunning(false);
+          return 0;
+        }
+
+        return nextTime;
+      });
+    }, 10);
+
+    return () => clearInterval(timer);
+  }, [isRunning, activeExercise.type]);
+
+  function startExercise() {
+    setTimerCentiseconds(getStartingTime(activeExercise));
+    setCurrentSet(1);
+    setIsRunning(true);
+    setScreen('exercise');
+  }
+
+  function goToNextSet() {
+    setCurrentSet((set) =>
+      Math.min(set + 1, activeExercise.sets)
+    );
+
+    setTimerCentiseconds(getStartingTime(activeExercise));
+    setIsRunning(true);
+  }
+
+  function resumeExercise() {
+    setIsRunning(true);
+  }
+
+  if (screen === 'exercise') {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.exerciseScreen}>
+          <Text style={styles.encouragementText}>you got this!</Text>
+
+          <View style={styles.exercisePageCard}>
+            <View style={styles.exercisePageHeader}>
+              <Text style={styles.exercisePageTitle}>
+                {activeExercise.name}
+              </Text>
+            </View>
+
+            <View style={styles.exercisePageContent}>
+              <Text style={styles.timerText}>
+                {formatTimer(timerCentiseconds)}
+              </Text>
+
+              <View style={styles.exerciseInfoPill}>
+                <Text style={styles.exerciseInfoText}>
+                  Set {currentSet} of {activeExercise.sets}
+                </Text>
+              </View>
+
+              <View style={styles.exerciseInfoPill}>
+                <Text style={styles.exerciseInfoText}>
+                  {activeExercise.reps} Reps
+                </Text>
+              </View>
+
+              <View style={styles.exerciseControls}>
+                {isRunning ? (
+                  <Pressable
+                    style={styles.stopButton}
+                    onPress={() => setIsRunning(false)}
+                  >
+                    <Text style={styles.stopButtonText}>STOP</Text>
+                  </Pressable>
+                ) : (
+                  <View style={styles.controlRow}>
+                    <Pressable
+                      style={styles.controlButton}
+                      onPress={goToNextSet}
+                    >
+                      <Text style={styles.controlButtonText}>NEXT</Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={styles.controlButton}
+                      onPress={resumeExercise}
+                    >
+                      <Text style={styles.controlButtonText}>RESUME</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            </View>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -123,7 +284,13 @@ export default function App() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Start today's routine"
-          onPress={() => setRoutineStarted(true)}
+          onPress={() => {
+            if (!routineStarted) {
+              setRoutineStarted(true);
+            } else {
+              startExercise();
+            }
+          }}
           style={({ pressed }) => [
             styles.primaryButton,
             pressed && styles.primaryButtonPressed,
@@ -421,5 +588,117 @@ const styles = StyleSheet.create({
     fontFamily: 'serif',
     fontSize: 24,
     fontStyle: 'italic',
+  },
+  exerciseScreen: {
+    flex: 1,
+    paddingHorizontal: 22,
+    paddingTop: 8,
+    paddingBottom: 20,
+  },
+  encouragementText: {
+    color: palette.ink,
+    fontFamily: 'serif',
+    fontSize: 25,
+    fontStyle: 'italic',
+    marginBottom: 14,
+    textAlign: 'center',
+  },
+  exercisePageCard: {
+    backgroundColor: palette.blue,
+    borderColor: palette.ink,
+    borderRadius: 22,
+    borderWidth: 1.8,
+    flex: 1,
+    overflow: 'hidden',
+  },
+  exercisePageHeader: {
+    alignItems: 'center',
+    backgroundColor: palette.orange,
+    borderBottomColor: palette.ink,
+    borderBottomWidth: 1.5,
+    minHeight: 58,
+    justifyContent: 'center',
+  },
+  exercisePageTitle: {
+    color: palette.white,
+    fontFamily: 'serif',
+    fontSize: 28,
+    fontStyle: 'italic',
+  },
+  exercisePageContent: {
+    backgroundColor: palette.teal,
+    borderColor: palette.ink,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    flex: 1,
+    margin: 12,
+    paddingHorizontal: 18,
+    paddingTop: 30,
+    paddingBottom: 12,
+  },
+  timerText: {
+    color: palette.white,
+    fontFamily: 'sans-serif-condensed',
+    fontSize: 54,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  exerciseInfoPill: {
+    alignSelf: 'center',
+    backgroundColor: palette.orange,
+    borderColor: palette.ink,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    marginTop: 16,
+    minWidth: 184,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+  },
+  exerciseInfoText: {
+    color: palette.white,
+    fontFamily: 'serif',
+    fontSize: 23,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  exerciseControls: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  stopButton: {
+    alignItems: 'center',
+    backgroundColor: palette.orange,
+    borderColor: palette.ink,
+    borderRadius: 20,
+    borderWidth: 1.6,
+    minHeight: 78,
+    justifyContent: 'center',
+  },
+  stopButtonText: {
+    color: palette.white,
+    fontFamily: 'sans-serif-condensed',
+    fontSize: 28,
+    fontWeight: '900',
+  },
+  controlRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  controlButton: {
+    alignItems: 'center',
+    backgroundColor: palette.orange,
+    borderColor: palette.ink,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    flex: 1,
+    marginHorizontal: 5,
+    minHeight: 70,
+    justifyContent: 'center',
+  },
+  controlButtonText: {
+    color: palette.white,
+    fontFamily: 'sans-serif-condensed',
+    fontSize: 20,
+    fontWeight: '900',
   },
 });

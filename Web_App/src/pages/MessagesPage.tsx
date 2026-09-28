@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import SearchIcon from '@mui/icons-material/Search'
 import SendIcon from '@mui/icons-material/Send'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
 import StarIcon from '@mui/icons-material/Star'
-import { Box, Button, IconButton, InputAdornment, OutlinedInput, Stack, Typography } from '@mui/material'
+import { Box, Button, FormControl, IconButton, InputAdornment, InputLabel, MenuItem, OutlinedInput, Select, Stack, Typography, useTheme } from '@mui/material'
 
-type Message = { id: number; text: string; from: 'patient' | 'provider'; time: string }
+type MessageAttachment = { src: string; alt: string; label: string }
+type Message = { id: number; text: string; from: 'patient' | 'provider'; time: string; attachments?: MessageAttachment[] }
 type Conversation = { id: string; name: string; initials: string; preview: string; time: string; unread: number; starred?: boolean; messages: Message[] }
 
 const initialConversations: Conversation[] = [
@@ -17,53 +17,117 @@ const initialConversations: Conversation[] = [
     { id: 1, text: 'Hi, I finished the first week of my routine. My knee feels much better.', from: 'patient', time: '10:31 AM' },
     { id: 2, text: 'That is great progress, John! Keep the movements slow and controlled.', from: 'provider', time: '10:35 AM' },
     { id: 3, text: 'I had a question about my routine. Should I do the leg stretches on rest days too?', from: 'patient', time: '10:42 AM' },
+    { id: 4, text: 'Yes, gentle stretching is perfect on rest days. Stop if you feel sharp pain, and send me a photo if you want feedback on your setup.', from: 'provider', time: '10:45 AM', attachments: [{ src: '/home/progress-review.png', alt: 'Physical therapist reviewing a patient exercise plan', label: 'A quick form check from today’s session' }] },
+    { id: 5, text: 'I tried the stretch next to the couch like you showed me. It feels much steadier this way.', from: 'patient', time: '10:51 AM', attachments: [{ src: '/telehealth-physical-therapy-1.webp', alt: 'Patient practicing a guided exercise at home', label: 'My home setup for the stretch' }] },
+    { id: 6, text: 'That setup looks good. Keep your shoulders relaxed and hold for 20 seconds, three times. I’ll update your routine with that cue.', from: 'provider', time: '10:56 AM' },
   ] },
   { id: 'katherine', name: 'Katherine Varela', initials: 'KV', preview: 'Thank you for checking in!', time: 'Yesterday', unread: 0, messages: [
     { id: 1, text: 'How is your shoulder feeling after the new exercises?', from: 'provider', time: 'Yesterday, 3:14 PM' },
     { id: 2, text: 'Much better. Thank you for checking in!', from: 'patient', time: 'Yesterday, 3:28 PM' },
+    { id: 3, text: 'Wonderful. Try to keep the movement comfortable and let me know if the soreness lasts longer than a day.', from: 'provider', time: 'Yesterday, 3:32 PM', attachments: [{ src: '/physical-therapy.webp', alt: 'Therapist guiding a shoulder mobility exercise', label: 'Reference for the shoulder movement' }] },
+    { id: 4, text: 'I’ll keep that in mind. I’m going to practice it after work and send you an update tomorrow.', from: 'patient', time: 'Yesterday, 3:41 PM' },
   ] },
   { id: 'neal', name: 'Neal Terrell', initials: 'NT', preview: 'I uploaded my progress photos.', time: 'Mon', unread: 1, messages: [{ id: 1, text: 'I uploaded my progress photos.', from: 'patient', time: 'Monday, 9:06 AM' }] },
   { id: 'frank', name: 'Frank Murgolo', initials: 'FM', preview: 'Can we reschedule my appointment?', time: 'Sun', unread: 0, messages: [{ id: 1, text: 'Can we reschedule my appointment?', from: 'patient', time: 'Sunday, 11:20 AM' }] },
 ]
 
-const fontSx = { fontFamily: 'Georgia, serif', fontStyle: 'italic' }
 const teal = '#4b9da9'
 const aqua = '#91c8c0'
 const orange = '#eb681d'
-
 function ConversationRow({ conversation, selected, onClick }: { conversation: Conversation; selected: boolean; onClick: () => void }) {
-  return <Button onClick={onClick} fullWidth sx={{ ...fontSx, color: 'black', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', gap: 1.25, p: 1.25, borderRadius: '20px', bgcolor: selected ? aqua : 'transparent', border: selected ? '3px solid black' : '3px solid transparent', '&:hover': { bgcolor: selected ? aqua : '#eaf3f1' } }}>
-    <Box sx={{ width: 48, height: 48, flexShrink: 0, bgcolor: teal, color: 'white', border: '3px solid black', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 700 }}>{conversation.initials}</Box>
-    <Box minWidth={0} flexGrow={1}><Stack direction="row" justifyContent="space-between" gap={1}><Typography sx={{ ...fontSx, fontWeight: 700, fontSize: '1.05rem' }} noWrap>{conversation.name}</Typography><Typography sx={{ ...fontSx, fontSize: '.78rem', whiteSpace: 'nowrap' }}>{conversation.time}</Typography></Stack><Stack direction="row" justifyContent="space-between" alignItems="center" gap={1}><Typography sx={{ ...fontSx, fontSize: '.9rem', color: '#4b4b4b' }} noWrap>{conversation.preview}</Typography>{conversation.unread > 0 && <Box sx={{ flexShrink: 0, bgcolor: '#ef1640', color: 'white', borderRadius: '50%', minWidth: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Georgia, serif', fontStyle: 'normal', fontWeight: 700, fontSize: '.8rem' }}>{conversation.unread}</Box>}</Stack></Box>
+  const theme = useTheme()
+  const border = theme.palette.divider
+  const selectedBackground = theme.palette.mode === 'dark' ? '#214b52' : '#edf7f5'
+  const hoverBackground = theme.palette.mode === 'dark' ? '#1c4148' : '#f5f8f8'
+  return <Button onClick={onClick} fullWidth sx={{ color: 'text.primary', textAlign: 'left', justifyContent: 'flex-start', alignItems: 'flex-start', gap: 1.25, p: 1.25, borderRadius: 1.5, bgcolor: selected ? selectedBackground : 'transparent', borderLeft: selected ? `3px solid ${teal}` : '3px solid transparent', '&:hover': { bgcolor: selected ? selectedBackground : hoverBackground }, transition: 'background-color 160ms ease, border-color 160ms ease' }}>
+    <Box sx={{ width: 42, height: 42, flexShrink: 0, bgcolor: selected ? teal : 'action.hover', color: selected ? 'white' : 'text.primary', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.85rem', fontWeight: 700 }}>{conversation.initials}</Box>
+    <Box minWidth={0} flexGrow={1}><Stack direction="row" justifyContent="space-between" gap={1}><Typography fontWeight={conversation.unread ? 700 : 600} fontSize=".92rem" noWrap>{conversation.name}</Typography><Typography color="text.secondary" fontSize=".72rem" whiteSpace="nowrap">{conversation.time}</Typography></Stack><Stack direction="row" justifyContent="space-between" alignItems="center" gap={1}><Typography color="text.secondary" fontSize=".8rem" noWrap>{conversation.preview}</Typography>{conversation.unread > 0 && <Box sx={{ flexShrink: 0, bgcolor: orange, color: 'white', borderRadius: '50%', minWidth: 21, height: 21, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '.7rem' }}>{conversation.unread}</Box>}</Stack></Box>
   </Button>
 }
 
 export function MessagesPage() {
+  const theme = useTheme()
+  const border = theme.palette.divider
+  const listBackground = theme.palette.mode === 'dark' ? '#15343d' : '#fbfcfc'
+  const threadBackground = theme.palette.mode === 'dark' ? '#122f38' : '#f7faf9'
+  const providerBubble = theme.palette.mode === 'dark' ? '#24564f' : '#e3f2ef'
+  const patientBubble = theme.palette.mode === 'dark' ? '#1b3c46' : 'white'
+  const attachmentBackground = theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, .08)' : 'rgba(255, 255, 255, .72)'
   const [conversations, setConversations] = useState(initialConversations)
   const [selectedId, setSelectedId] = useState(initialConversations[0].id)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
   const [draft, setDraft] = useState('')
   const [showConversation, setShowConversation] = useState(false)
+  const [isComposing, setIsComposing] = useState(false)
+  const [composeRecipientId, setComposeRecipientId] = useState(initialConversations[0].id)
   const selected = conversations.find((conversation) => conversation.id === selectedId) ?? conversations[0]
+  const composeRecipient = conversations.find((conversation) => conversation.id === composeRecipientId) ?? conversations[0]
   const visibleConversations = useMemo(() => conversations.filter((conversation) => conversation.name.toLowerCase().includes(query.toLowerCase()) && (filter === 'all' || conversation.unread > 0)), [conversations, filter, query])
 
   function selectConversation(id: string) {
-    setSelectedId(id); setShowConversation(true)
+    setSelectedId(id)
+    setIsComposing(false)
+    setShowConversation(true)
     setConversations((current) => current.map((conversation) => conversation.id === id ? { ...conversation, unread: 0 } : conversation))
   }
 
-  function sendMessage() {
-    const text = draft.trim(); if (!text) return
-    setConversations((current) => current.map((conversation) => conversation.id === selected.id ? { ...conversation, preview: text, time: 'Now', messages: [...conversation.messages, { id: Date.now(), text, from: 'provider', time: 'Just now' }] } : conversation))
+  function startCompose() {
+    setComposeRecipientId(selected.id)
     setDraft('')
+    setIsComposing(true)
+    setShowConversation(true)
   }
 
-  return <Box sx={{ ...fontSx }}>
-    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2} gap={1}><Box><Typography sx={{ ...fontSx, fontSize: { xs: '2rem', sm: '2.8rem' }, fontWeight: 700 }}>Messages</Typography><Typography sx={{ ...fontSx, fontSize: { xs: '.95rem', sm: '1.1rem' } }}>Stay connected with your patients</Typography></Box><Button sx={{ ...fontSx, bgcolor: orange, color: 'white', border: '3px solid black', borderRadius: '20px', px: { xs: 1.5, sm: 2.5 }, '&:hover': { bgcolor: '#d15a17' } }}>New message</Button></Stack>
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(275px, 34%) 1fr' }, minHeight: { md: 590 }, border: '4px solid black', borderRadius: '28px', overflow: 'hidden', bgcolor: 'white' }}>
-      <Box sx={{ display: showConversation ? { xs: 'none', md: 'block' } : 'block', borderRight: { md: '4px solid black' }, p: { xs: 1.5, sm: 2 }, bgcolor: '#f8f8f8' }}><OutlinedInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search messages" aria-label="Search messages" startAdornment={<InputAdornment position="start"><SearchIcon sx={{ color: 'black' }} /></InputAdornment>} sx={{ ...fontSx, bgcolor: 'white', border: '3px solid black', borderRadius: '24px', '& fieldset': { border: 0 } }} /><Stack direction="row" spacing={1} my={2}><Button onClick={() => setFilter('all')} sx={{ ...fontSx, color: 'black', bgcolor: filter === 'all' ? aqua : 'white', border: '2px solid black', borderRadius: '18px', px: 2 }}>All</Button><Button onClick={() => setFilter('unread')} sx={{ ...fontSx, color: 'black', bgcolor: filter === 'unread' ? aqua : 'white', border: '2px solid black', borderRadius: '18px', px: 2 }}>Unread</Button></Stack><Stack spacing={.5}>{visibleConversations.map((conversation) => <ConversationRow key={conversation.id} conversation={conversation} selected={conversation.id === selectedId} onClick={() => selectConversation(conversation.id)} />)}{visibleConversations.length === 0 && <Typography sx={{ ...fontSx, p: 2, textAlign: 'center' }}>No messages found</Typography>}</Stack></Box>
-      <Box sx={{ display: showConversation ? 'flex' : { xs: 'none', md: 'flex' }, flexDirection: 'column', minWidth: 0 }}><Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} sx={{ p: 2, borderBottom: '3px solid black', bgcolor: teal, color: 'white' }}><Stack direction="row" alignItems="center" gap={1}><IconButton onClick={() => setShowConversation(false)} aria-label="Back to messages" sx={{ display: { xs: 'flex', md: 'none' }, color: 'white' }}><ArrowBackIcon /></IconButton><Box sx={{ width: 48, height: 48, bgcolor: aqua, color: 'black', border: '3px solid black', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{selected.initials}</Box><Box><Typography sx={{ ...fontSx, fontWeight: 700, fontSize: '1.25rem' }}>{selected.name}</Typography><Typography sx={{ ...fontSx, fontSize: '.85rem' }}>Patient</Typography></Box></Stack><Stack direction="row"><IconButton aria-label="Star conversation" sx={{ color: 'white' }}>{selected.starred ? <StarIcon /> : <StarBorderIcon />}</IconButton><IconButton aria-label="More conversation actions" sx={{ color: 'white' }}><MoreHorizIcon /></IconButton></Stack></Stack><Box sx={{ flexGrow: 1, p: { xs: 1.5, sm: 3 }, bgcolor: '#e8ddba', overflowY: 'auto' }}><Stack spacing={2}>{selected.messages.map((message) => <Box key={message.id} sx={{ alignSelf: message.from === 'provider' ? 'flex-end' : 'flex-start', maxWidth: { xs: '90%', sm: '72%' } }}><Box sx={{ bgcolor: message.from === 'provider' ? aqua : 'white', border: '3px solid black', borderRadius: message.from === 'provider' ? '20px 20px 4px 20px' : '20px 20px 20px 4px', px: 2, py: 1.25 }}><Typography sx={{ ...fontSx, fontStyle: 'normal', fontSize: '1rem' }}>{message.text}</Typography></Box><Typography sx={{ ...fontSx, fontSize: '.75rem', mt: .5, textAlign: message.from === 'provider' ? 'right' : 'left' }}>{message.time}{message.from === 'provider' && '  ·  You'}</Typography></Box>)}</Stack></Box><Box sx={{ p: 1.5, borderTop: '3px solid black', bgcolor: 'white' }}><Stack direction="row" spacing={1} alignItems="center"><IconButton aria-label="Attach file" sx={{ color: 'black' }}><AttachFileIcon /></IconButton><OutlinedInput value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage() } }} placeholder="Write a message…" aria-label="Write a message" sx={{ ...fontSx, flexGrow: 1, border: '3px solid black', borderRadius: '24px', '& fieldset': { border: 0 } }} /><IconButton onClick={sendMessage} aria-label="Send message" sx={{ bgcolor: teal, color: 'white', border: '3px solid black', '&:hover': { bgcolor: '#3e8792' } }}><SendIcon /></IconButton></Stack></Box></Box>
-    </Box><Stack direction="row" spacing={1} alignItems="center" mt={2} sx={{ color: '#333' }}><CheckCircleOutlineIcon fontSize="small" /><Typography sx={{ ...fontSx, fontSize: '.9rem' }}>Messages are private and secure</Typography></Stack>
+  function toggleStar() {
+    setConversations((current) => current.map((conversation) => conversation.id === selected.id ? { ...conversation, starred: !conversation.starred } : conversation))
+  }
+
+  function sendMessage() {
+    const text = draft.trim()
+    const recipientId = isComposing ? composeRecipientId : selected.id
+    if (!text || !recipientId) return
+    setConversations((current) => current.map((conversation) => conversation.id === recipientId ? { ...conversation, preview: text, time: 'Now', messages: [...conversation.messages, { id: Date.now(), text, from: 'provider', time: 'Just now' }] } : conversation))
+    setSelectedId(recipientId)
+    setDraft('')
+    setIsComposing(false)
+  }
+
+  const listVisible = { xs: showConversation ? 'none' : 'flex', md: 'flex' } as const
+  const conversationVisible = { xs: showConversation ? 'flex' : 'none', md: 'flex' } as const
+
+  return <Box className="messages-page" sx={{ width: '100%', height: { xs: 'calc(100dvh - 88px)', sm: 'calc(100dvh - 96px)' }, minHeight: 520, bgcolor: 'background.paper', border: `1px solid ${border}`, overflow: 'hidden', display: 'grid', gridTemplateColumns: { xs: '1fr', md: '320px minmax(0, 1fr)' }, gridTemplateRows: 'minmax(0, 1fr)' }}>
+    <Box component="aside" aria-label="Message conversations" sx={{ display: listVisible, minWidth: 0, minHeight: 0, flexDirection: 'column', borderRight: { md: `1px solid ${border}` }, bgcolor: listBackground, overflow: 'hidden' }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} sx={{ p: 1.5, borderBottom: `1px solid ${border}` }}>
+        <Typography fontWeight={700} color="text.primary">Inbox</Typography>
+        <Button onClick={startCompose} variant="contained" size="small" sx={{ bgcolor: orange, color: 'white', borderRadius: 1.5, px: 1.5, '&:hover': { bgcolor: '#d15a17' } }}>Compose</Button>
+      </Stack>
+      <Box sx={{ p: 1.25, borderBottom: `1px solid ${border}` }}><OutlinedInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search mail" aria-label="Search messages" fullWidth size="small" startAdornment={<InputAdornment position="start"><SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} /></InputAdornment>} sx={{ bgcolor: 'background.paper', borderRadius: 1.5, '& fieldset': { borderColor: border } }} /></Box>
+      <Stack direction="row" spacing={.5} sx={{ px: 1.25, py: 1, borderBottom: `1px solid ${border}` }}>
+        <Button onClick={() => setFilter('all')} size="small" sx={{ minWidth: 0, px: 1.25, borderRadius: 1, color: filter === 'all' ? 'text.primary' : 'text.secondary', bgcolor: filter === 'all' ? (theme.palette.mode === 'dark' ? '#214b52' : '#e8f3f1') : 'transparent' }}>All mail</Button>
+        <Button onClick={() => setFilter('unread')} size="small" sx={{ minWidth: 0, px: 1.25, borderRadius: 1, color: filter === 'unread' ? 'text.primary' : 'text.secondary', bgcolor: filter === 'unread' ? (theme.palette.mode === 'dark' ? '#214b52' : '#e8f3f1') : 'transparent' }}>Unread</Button>
+      </Stack>
+      <Stack spacing={.25} sx={{ p: .75, overflowY: 'auto', flexGrow: 1 }}>{visibleConversations.map((conversation) => <ConversationRow key={conversation.id} conversation={conversation} selected={conversation.id === selectedId && !isComposing} onClick={() => selectConversation(conversation.id)} />)}{visibleConversations.length === 0 && <Typography color="text.secondary" fontSize=".9rem" textAlign="center" sx={{ p: 3 }}>No messages found</Typography>}</Stack>
+    </Box>
+
+    <Box component="section" aria-label={isComposing ? 'Compose message' : `Conversation with ${selected.name}`} sx={{ display: conversationVisible, minWidth: 0, minHeight: 0, overflow: 'hidden', flexDirection: 'column', bgcolor: 'background.paper' }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} sx={{ minHeight: 64, px: { xs: 1.5, sm: 2.5 }, borderBottom: `1px solid ${border}` }}>
+        <Stack direction="row" alignItems="center" gap={1.25} minWidth={0}>
+          <IconButton onClick={() => setShowConversation(false)} aria-label="Back to messages" sx={{ display: { xs: 'flex', md: 'none' } }}><ArrowBackIcon /></IconButton>
+          {isComposing ? <Typography fontWeight={700} fontSize="1.1rem">New message</Typography> : <><Box sx={{ width: 40, height: 40, flexShrink: 0, bgcolor: aqua, color: '#18323d', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{selected.initials}</Box><Box minWidth={0}><Typography fontWeight={700} noWrap>{selected.name}</Typography><Typography color="text.secondary" fontSize=".75rem">Patient conversation</Typography></Box></>}
+        </Stack>
+        {!isComposing && <Stack direction="row"><IconButton onClick={toggleStar} aria-label={selected.starred ? 'Unstar conversation' : 'Star conversation'} color={selected.starred ? 'warning' : 'default'}>{selected.starred ? <StarIcon /> : <StarBorderIcon />}</IconButton><IconButton aria-label="More conversation actions"><MoreHorizIcon /></IconButton></Stack>}
+      </Stack>
+
+      {isComposing && <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} gap={1.5} sx={{ px: { xs: 1.5, sm: 2.5 }, py: 1.5, borderBottom: `1px solid ${border}` }}>
+        <FormControl size="small" sx={{ minWidth: { sm: 260 } }}><InputLabel id="compose-recipient-label">To</InputLabel><Select labelId="compose-recipient-label" value={composeRecipientId} label="To" onChange={(event) => setComposeRecipientId(event.target.value)}>{conversations.map((conversation) => <MenuItem key={conversation.id} value={conversation.id}>{conversation.name}</MenuItem>)}</Select></FormControl>
+        <Typography color="text.secondary" fontSize=".85rem">Patient message</Typography>
+      </Stack>}
+
+      {!isComposing && <Box sx={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', p: { xs: 1.5, sm: 3 }, bgcolor: threadBackground }}><Stack spacing={2}>{selected.messages.map((message) => <Box key={message.id} sx={{ alignSelf: message.from === 'provider' ? 'flex-end' : 'flex-start', maxWidth: { xs: '92%', sm: '72%' } }}><Typography color="text.secondary" fontSize=".72rem" sx={{ mb: .5, textAlign: message.from === 'provider' ? 'right' : 'left' }}>{message.from === 'provider' ? 'You' : selected.name} · {message.time}</Typography><Box sx={{ bgcolor: message.from === 'provider' ? providerBubble : patientBubble, border: `1px solid ${border}`, borderRadius: 2, px: 2, py: 1.25, boxShadow: '0 1px 2px rgba(24, 50, 61, .04)' }}><Typography fontSize=".95rem" lineHeight={1.55}>{message.text}</Typography>{message.attachments?.map((attachment) => <Box key={attachment.src} sx={{ mt: 1.25, overflow: 'hidden', borderRadius: 1.5, bgcolor: attachmentBackground, border: `1px solid ${border}` }}><Box component="img" src={attachment.src} alt={attachment.alt} sx={{ display: 'block', width: '100%', maxHeight: 220, objectFit: 'cover' }} /><Typography color="text.secondary" fontSize=".75rem" sx={{ px: 1, py: .75 }}>{attachment.label}</Typography></Box>)}</Box></Box>)}</Stack></Box>}
+      {isComposing && <Box sx={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', bgcolor: threadBackground, p: { xs: 1.5, sm: 3 } }}><Typography color="text.secondary" fontSize=".9rem">Write a new message to {composeRecipient.name}.</Typography></Box>}
+
+      <Box component="form" onSubmit={(event) => { event.preventDefault(); sendMessage() }} sx={{ flexShrink: 0, p: { xs: 1, sm: 1.5 }, borderTop: `1px solid ${border}`, bgcolor: 'background.paper' }}><Stack direction="row" spacing={1} alignItems="center"><IconButton type="button" aria-label="Attach file"><AttachFileIcon fontSize="small" /></IconButton><OutlinedInput value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={isComposing ? 'Write a new message…' : 'Reply to this conversation…'} aria-label={isComposing ? 'Write a new message' : 'Write a reply'} fullWidth size="small" sx={{ bgcolor: threadBackground, borderRadius: 1.5, '& fieldset': { borderColor: border } }} /><IconButton type="submit" aria-label="Send message" sx={{ bgcolor: teal, color: 'white', borderRadius: 1.5, '&:hover': { bgcolor: '#3e8792' } }}><SendIcon fontSize="small" /></IconButton></Stack></Box>
+    </Box>
   </Box>
 }

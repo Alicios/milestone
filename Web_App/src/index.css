@@ -1,0 +1,434 @@
+/* Keep the authenticated dashboard typography consistent with the loaded font. */
+body:has(.MuiAppBar-root) * {
+  font-family: 'Montserrat', Arial, sans-serif !important;
+  font-style: normal !important;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+[data-milestone-theme='light'] {
+  --milestone-dashboard-bg: #e8ddba;
+  --milestone-dashboard-surface: #ffffff;
+  --milestone-dashboard-border: #d8e2e5;
+  --milestone-dashboard-text: #18323d;
+}
+
+[data-milestone-theme='dark'] {
+  color-scheme: dark;
+  --milestone-dashboard-bg: #102b34;
+  --milestone-dashboard-surface: #1b3c46;
+  --milestone-dashboard-border: #47616a;
+  --milestone-dashboard-text: #f3f8f8;
+}
+
+.home-page {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(rgba(232, 221, 186, .88), rgba(232, 221, 186, .94)), url('/home/clinic-background.png') center / cover fixed !important;
+}
+
+.home-page .home-anchor {
+  scroll-margin-top: 92px;
+}
+
+.home-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 650ms ease, transform 650ms ease;
+}
+
+.home-reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.login-image-fade {
+  position: absolute !important;
+  inset: 0;
+  opacity: 0;
+  transform: scale(1);
+  transition: opacity 900ms ease-in-out, transform 10s ease-out;
+}
+
+.login-image-stage {
+  position: absolute;
+  inset: 0;
+  background: #e8ddba;
+}
+
+.login-image-fade.login-image-active {
+  opacity: 1;
+  transform: scale(1.035);
+  will-change: transform;
+}
+
+.login-image-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(7, 37, 49, .72) 0%, rgba(7, 37, 49, .08) 16%, transparent 38%);
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 68%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 68%, transparent 100%);
+}
+
+.login-form-grid {
+  position: relative;
+  z-index: 2;
+}
+
+.login-brand,
+.login-brand a {
+  color: #ffffff !important;
+}
+
+.login-image-caption {
+  position: absolute;
+  z-index: 1;
+  left: 48px;
+  bottom: 38px;
+  max-width: 360px;
+  padding: 14px 18px 15px;
+  border-radius: 16px;
+  background: rgba(7, 37, 49, .68);
+  box-shadow: 0 8px 20px rgba(7, 37, 49, .2);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+  color: #ffffff;
+  text-shadow: 0 2px 12px rgba(7, 37, 49, .45);
+}
+
+.login-image-caption .MuiTypography-h6 {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.login-image-caption .MuiTypography-body2 {
+  color: rgba(255, 255, 255, .9);
+}
+
+.register-image-panel .login-image-caption {
+  left: auto;
+  right: 48px;
+}
+
+.login-card {
+  border: 0 !important;
+  background: #ffffff !important;
+  box-shadow: 0 14px 28px rgba(72, 48, 38, .2) !important;
+}
+
+.about-easter-egg-image-shell {
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+.about-easter-egg-image:hover {
+  box-shadow: 0 28px 58px rgba(11, 61, 80, .3) !important;
+}
+
+.about-easter-egg-glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(circle at 18% 12%, rgba(255, 255, 255, .46), rgba(255, 255, 255, .14) 16%, transparent 44%);
+  mix-blend-mode: screen;
+  transition: opacity 180ms ease-out;
+}
+
+.login-form-container {
+  width: 100% !important;
+}
+
+@media (min-width: 900px) {
+  .login-image-fade {
+    -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 56%, rgba(0, 0, 0, .8) 72%, transparent 94%);
+    mask-image: linear-gradient(90deg, #000 0%, #000 56%, rgba(0, 0, 0, .8) 72%, transparent 94%);
+  }
+
+  .register-image-panel .login-image-fade {
+    -webkit-mask-image: linear-gradient(270deg, #000 0%, #000 56%, rgba(0, 0, 0, .8) 72%, transparent 94%);
+    mask-image: linear-gradient(270deg, #000 0%, #000 56%, rgba(0, 0, 0, .8) 72%, transparent 94%);
+  }
+
+  .register-image-panel .login-image-overlay {
+    -webkit-mask-image: linear-gradient(270deg, #000 0%, #000 68%, transparent 100%);
+    mask-image: linear-gradient(270deg, #000 0%, #000 68%, transparent 100%);
+  }
+
+  .login-image-grid {
+    flex-basis: 54% !important;
+    max-width: 54% !important;
+  }
+
+  .login-form-grid {
+    flex-basis: 46% !important;
+    max-width: 46% !important;
+  }
+
+  .login-form-container {
+    padding-left: 7.5% !important;
+    padding-right: 7.5% !important;
+  }
+
+  .login-card {
+    border-radius: 34px !important;
+  }
+}
+
+@keyframes loginImageFade {
+  from {
+    opacity: 0;
+    transform: scale(1.025);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Compact dashboard app bar: 56px mobile / 64px desktop. */
+.MuiAppBar-root .MuiToolbar-root {
+  min-height: 56px !important;
+  gap: 8px !important;
+}
+
+/* Modern clinical treatment for authenticated pages other than Messages. */
+.modern-dashboard-shell {
+  background: var(--milestone-dashboard-bg) !important;
+  color: var(--milestone-dashboard-text);
+}
+
+.modern-dashboard-shell * {
+  border-color: var(--milestone-dashboard-border) !important;
+  border-width: 1px !important;
+}
+
+.modern-dashboard-shell .MuiButton-root {
+  border-radius: 10px !important;
+  box-shadow: 0 2px 6px rgba(24, 50, 61, 0.06);
+  font-family: 'Montserrat', Arial, sans-serif !important;
+  font-style: normal !important;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.modern-dashboard-shell .MuiButton-root:hover {
+  box-shadow: 0 5px 14px rgba(24, 50, 61, 0.1);
+}
+
+.modern-dashboard-shell .MuiButton-root.Mui-focusVisible {
+  outline: 3px solid rgba(235, 104, 29, 0.55) !important;
+  outline-offset: 2px;
+}
+
+.modern-dashboard-shell .MuiOutlinedInput-root,
+.modern-dashboard-shell .MuiTextField-root .MuiOutlinedInput-root {
+  border-radius: 10px !important;
+  background: var(--milestone-dashboard-surface);
+  box-shadow: 0 2px 8px rgba(24, 50, 61, 0.04);
+}
+
+.modern-dashboard-shell .MuiOutlinedInput-root fieldset,
+.modern-dashboard-shell .MuiTextField-root .MuiOutlinedInput-root fieldset {
+  border-width: 1px !important;
+  border-color: var(--milestone-dashboard-border) !important;
+}
+
+.modern-dashboard-shell .MuiCard-root,
+.modern-dashboard-shell .MuiPaper-root {
+  border: 1px solid var(--milestone-dashboard-border) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 24px rgba(24, 50, 61, 0.08) !important;
+}
+
+.modern-dashboard-shell .MuiDialog-paper {
+  background: var(--milestone-dashboard-surface) !important;
+}
+
+.modern-dashboard-shell .MuiDivider-root {
+  border-color: var(--milestone-dashboard-border) !important;
+}
+
+[data-milestone-theme='dark'] .modern-dashboard-shell .MuiCard-root,
+[data-milestone-theme='dark'] .modern-dashboard-shell .MuiPaper-root {
+  background-color: var(--milestone-dashboard-surface) !important;
+  color: var(--milestone-dashboard-text) !important;
+}
+
+[data-milestone-theme='dark'] .modern-dashboard-shell .MuiOutlinedInput-root,
+[data-milestone-theme='dark'] .modern-dashboard-shell .MuiTextField-root .MuiOutlinedInput-root {
+  color: var(--milestone-dashboard-text) !important;
+}
+
+[data-milestone-theme='dark'] .messages-shell .messages-page {
+  background: var(--milestone-dashboard-surface) !important;
+  border-color: var(--milestone-dashboard-border) !important;
+}
+
+[data-milestone-theme='dark'] .messages-shell .messages-page section,
+[data-milestone-theme='dark'] .messages-shell .messages-page aside,
+[data-milestone-theme='dark'] .messages-shell .messages-page form {
+  color: var(--milestone-dashboard-text);
+}
+
+/* Let the mail workspace meet the header and stop just above the viewport edge. */
+.messages-page {
+  height: 90vh !important;
+  min-height: 0 !important;
+}
+
+.MuiAppBar-root {
+  border-radius: 0 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16) !important;
+}
+
+.MuiAppBar-root .MuiToolbar-root > .MuiStack-root:first-child {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.MuiAppBar-root .MuiToolbar-root > .MuiStack-root:first-child .MuiButton-root {
+  min-height: 36px;
+  padding: 6px 10px !important;
+  border-width: 2px !important;
+  border-radius: 12px !important;
+  font-size: 0.875rem !important;
+}
+
+.MuiAppBar-root .MuiToolbar-root .MuiAvatar-root {
+  width: 40px !important;
+  height: 40px !important;
+  font-size: 1rem !important;
+}
+
+.MuiAppBar-root .MuiToolbar-root > .MuiStack-root:last-child > .MuiTypography-root {
+  font-size: 1.15rem !important;
+}
+
+@media (min-width: 600px) {
+  .MuiAppBar-root .MuiToolbar-root {
+    min-height: 64px !important;
+  }
+
+  .MuiAppBar-root .MuiToolbar-root > .MuiStack-root:first-child {
+    gap: 8px !important;
+  }
+
+  .MuiAppBar-root .MuiToolbar-root > .MuiStack-root:first-child .MuiButton-root {
+    min-height: 40px;
+    padding: 7px 14px !important;
+    border-width: 3px !important;
+    border-radius: 14px !important;
+    font-size: 1rem !important;
+  }
+
+  .MuiAppBar-root .MuiToolbar-root .MuiAvatar-root {
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 1.15rem !important;
+  }
+
+  .MuiAppBar-root .MuiToolbar-root > .MuiStack-root:last-child > .MuiTypography-root {
+    font-size: 1.35rem !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  .dashboard-overview > .MuiBox-root:last-child {
+    position: sticky !important;
+    top: 64px;
+    align-self: flex-start;
+    min-height: calc(100vh - 64px);
+  }
+}
+
+@media (max-width: 599px) {
+  .messages-page {
+    height: 88vh !important;
+  }
+}
+
+@media (max-width: 899px) {
+  .login-image-overlay {
+    background: linear-gradient(180deg, rgba(7, 37, 49, .72) 0%, rgba(7, 37, 49, .08) 30%, transparent 60%);
+  }
+
+  .login-card {
+    box-shadow: 0 10px 24px rgba(72, 48, 38, .14) !important;
+  }
+
+  .login-image-caption {
+    left: 24px;
+    right: 24px;
+    bottom: 24px;
+    max-width: 320px;
+  }
+
+  .register-image-panel .login-image-caption {
+    left: auto;
+    right: 24px;
+  }
+}
+
+.dashboard-overview .MuiButton-root,
+.dashboard-overview .dashboard-shortcut-orb,
+.dashboard-overview .MuiSvgIcon-root {
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .home-reveal,
+  .home-reveal-visible {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .home-page img {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .login-image-fade {
+    transition: none !important;
+    transform: none !important;
+    will-change: auto;
+  }
+
+  .about-easter-egg-image,
+  .about-easter-egg-image:hover {
+    transition: none !important;
+  }
+
+  .about-easter-egg-image-shell {
+    transition: none !important;
+    transform: none !important;
+    will-change: auto;
+  }
+
+  .about-easter-egg-glare {
+    opacity: 0 !important;
+    transition: none !important;
+  }
+
+  .dashboard-overview,
+  .dashboard-overview *,
+  .dashboard-overview .MuiButton-root,
+  .dashboard-overview .dashboard-shortcut-orb,
+  .dashboard-overview .MuiSvgIcon-root {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    transform: none !important;
+  }
+}

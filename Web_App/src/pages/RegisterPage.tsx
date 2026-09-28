@@ -1,6 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import HowToRegOutlinedIcon from '@mui/icons-material/HowToRegOutlined'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
 import { Alert, Box, Button, CircularProgress, Container, Grid, IconButton, InputAdornment, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material'
@@ -81,9 +80,9 @@ export function RegisterPage() {
 
   return <Box className="login-page" minHeight={{ xs: '100dvh', md: 0 }} height={{ xs: 'auto', md: '100dvh' }} overflow={{ xs: 'visible', md: 'hidden' }} sx={{ bgcolor: '#e8ddba' }}>
     <Grid container className="login-layout" height={{ xs: 'auto', md: '100%' }} minHeight={{ xs: 'auto', md: 0 }}>
-      <Grid className="login-form-grid" size={{ xs: 12, md: 5 }} display="flex" alignItems="center" sx={{ height: { xs: 'auto', md: '100%' }, minHeight: 0, overflowY: { xs: 'visible', md: 'auto' }, bgcolor: '#e8ddba', order: { xs: 2, md: 1 }, position: 'relative' }}>
+      <Grid className="login-form-grid register-form-grid" size={{ xs: 12, md: 5 }} display="flex" alignItems="flex-start" sx={{ height: { xs: 'auto', md: '100%' }, minHeight: 0, overflowY: { xs: 'visible', md: 'auto' }, bgcolor: '#e8ddba', order: { xs: 2, md: 1 }, position: 'relative' }}>
         <Box sx={{ position: 'absolute', top: { xs: 20, md: 34 }, left: { xs: 24, md: 48 }, zIndex: 1 }}><Brand /></Box>
-        <Container className="login-form-container" maxWidth={false} sx={{ py: { xs: 4, md: 6 }, px: { xs: 2.5, sm: 4, md: 0 } }}>
+        <Container className="login-form-container" maxWidth={false} sx={{ pt: { xs: 10, md: 12 }, pb: { xs: 4, md: 6 }, px: { xs: 2.5, sm: 4, md: 0 } }}>
           <Paper component="form" onSubmit={handleSubmit} className="login-card" sx={{ p: { xs: 3, sm: 5, md: 6 }, borderRadius: { xs: 3, md: 4 } }}>
             <Box textAlign="center" mb={4}>
               <Button component={RouterLink} to="/" startIcon={<ArrowBackIcon />} size="small" sx={{ mb: 2 }}>Back to main page</Button>
@@ -91,11 +90,6 @@ export function RegisterPage() {
               <Typography color="text.secondary">Set up your Milestone workspace and start coordinating better care.</Typography>
             </Box>
             <Stack spacing={3}>
-              <Box display="flex" justifyContent="center">
-                <Box sx={{ p: 1.5, bgcolor: 'primary.light', color: 'white', borderRadius: '50%', display: 'flex' }}>
-                  <HowToRegOutlinedIcon />
-                </Box>
-              </Box>
               {error && <Alert severity="error">{error}</Alert>}
               <TextField label="Full name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required />
               <TextField label="Work email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />

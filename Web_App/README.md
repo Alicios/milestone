@@ -53,6 +53,7 @@ Open the local URL shown by Vite, typically `http://localhost:3000`.
 - `/dashboard` — Provider patient dashboard
 - `/dashboard/patients` — Patient management view
 - `/dashboard/patients/new` — Add a pending patient locally
+- `/dashboard/patients/:patientId` — Individual patient overview, weekly routines, and patient actions
 - `/dashboard/routines` — Exercise routine management
 - `/dashboard/appointments` — Appointment placeholder
 - `/dashboard/messages` — Patient messaging prototype
@@ -89,6 +90,8 @@ npm run preview
 
 - Patient, routine, dashboard, and message data are local mock data.
 - Changes are held in front-end state and are not persisted to a server.
+- Patient pages use shared routine assignment and discharge state. Refreshing resets mock authentication and patient state; every successful login opens the main Patients dashboard at `/dashboard`.
+- Session notes are marked “Coming Soon” and are not implemented.
 - Authentication and account creation do not connect to a real service.
 - Appointment functionality is currently represented by a placeholder route.
 - The patient mobile app and provider-to-patient account provisioning backend are not included in this repository.

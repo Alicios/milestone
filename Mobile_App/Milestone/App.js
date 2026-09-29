@@ -143,8 +143,16 @@ export default function App() {
   }
 
   function goToNextExercise() {
-    const nextIndex =
-      (currentExerciseIndex + 1) % exercises.length;
+    const isLastExercise =
+      currentExerciseIndex >= exercises.length - 1;
+
+    if (isLastExercise) {
+      setReviewRating(null);
+      setScreen('finalReview');
+      return;
+    }
+
+    const nextIndex = currentExerciseIndex + 1;
 
     setCurrentExerciseIndex(nextIndex);
     setCurrentSet(1);
@@ -157,6 +165,16 @@ export default function App() {
 
   function resumeExercise() {
     setIsRunning(true);
+  }
+
+  function goHome() {
+    setScreen('home');
+    setRoutineStarted(false);
+    setIsRunning(false);
+    setCurrentSet(1);
+    setCurrentExerciseIndex(0);
+    setReviewRating(null);
+    setTimerCentiseconds(getStartingTime(exercises[0]));
   }
 
   if (screen === 'exercise') {
@@ -222,6 +240,101 @@ export default function App() {
                 )}
               </View>
             </View>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (screen === 'finalReview') {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.finalSummaryScreen}>
+          <Text style={styles.reviewTitle}>ROUTINE COMPLETE!</Text>
+
+          <Text style={styles.reviewSubtitle}>
+            Here's what you accomplished today
+          </Text>
+
+          <View style={styles.finalSummaryCard}>
+            <Text style={styles.reviewCardTitle}>YOUR SUMMARY</Text>
+
+            {exercises.map((exercise) => (
+              <View
+                key={exercise.name}
+                style={styles.finalSummaryRow}
+              >
+                <Text style={styles.summaryLabel}>
+                  {exercise.name}
+                </Text>
+
+                <Text style={styles.summaryValue}>
+                  {exercise.sets}{' '}
+                  {exercise.sets === 1 ? 'set' : 'sets'}
+                  {' · '}
+                  {exercise.type === 'countdown'
+                    ? `${exercise.durationSeconds}s`
+                    : `${exercise.reps} reps`}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={styles.feelingQuestion}>
+            How did that feel overall?
+          </Text>
+
+          <View style={styles.feelingRow}>
+            <Pressable
+              style={[
+                styles.feelingButton,
+                reviewRating === 'up' &&
+                  styles.selectedFeelingButton,
+              ]}
+              onPress={() => setReviewRating('up')}
+            >
+              <Text style={styles.feelingEmoji}>👍</Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.feelingButton,
+                reviewRating === 'down' &&
+                  styles.selectedFeelingButton,
+              ]}
+              onPress={() => setReviewRating('down')}
+            >
+              <Text style={styles.feelingEmoji}>👎</Text>
+            </Pressable>
+          </View>
+
+          <Pressable
+            style={styles.reviewNextButton}
+            onPress={goHome}
+          >
+            <Text style={styles.reviewNextButtonText}>HOME</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (screen === 'home') {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.homeScreen}>
+          <View style={styles.homeMessage}>
+            <Text style={styles.homeMessageLarge}>
+              NICE JOB TODAY,
+            </Text>
+
+            <Text style={styles.homeMessageLarge}>
+              FRANK!
+            </Text>
+
+            <Text style={styles.homeMessageSmall}>
+              check back tomorrow
+            </Text>
           </View>
         </View>
       </SafeAreaView>
@@ -923,5 +1036,57 @@ const styles = StyleSheet.create({
     fontFamily: 'sans-serif-condensed',
     fontSize: 22,
     fontWeight: '900',
+  },
+  finalSummaryScreen: {
+    flex: 1,
+    paddingHorizontal: 22,
+    paddingTop: 30,
+    paddingBottom: 20,
+  },
+  finalSummaryCard: {
+    backgroundColor: palette.teal,
+    borderColor: palette.ink,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    marginTop: 28,
+    padding: 20,
+  },
+  finalSummaryRow: {
+    borderTopColor: 'rgba(25, 51, 51, 0.3)',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+  },
+  homeScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 22,
+  },
+  homeMessage: {
+    alignItems: 'center',
+    backgroundColor: palette.orange,
+    borderColor: palette.ink,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    paddingHorizontal: 20,
+    paddingVertical: 28,
+    width: '100%',
+  },
+  homeMessageLarge: {
+    color: palette.white,
+    fontFamily: 'sans-serif-condensed',
+    fontSize: 32,
+    fontWeight: '900',
+    lineHeight: 37,
+    textAlign: 'center',
+  },
+  homeMessageSmall: {
+    color: palette.ink,
+    fontFamily: 'serif',
+    fontSize: 20,
+    fontStyle: 'italic',
+    marginTop: 18,
   },
 });

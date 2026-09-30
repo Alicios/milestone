@@ -28,6 +28,9 @@ const exercises = [
     type: 'countup',
     sets: 3,
     reps: 5,
+    estimatedSeconds: 180,
+    overview:
+      'A simple upper-body exercise that strengthens your chest, shoulders, and arms. Keep your body straight and move at a comfortable pace.',
   },
   {
     name: 'Sit Ups',
@@ -36,6 +39,9 @@ const exercises = [
     type: 'countup',
     sets: 3,
     reps: 5,
+    estimatedSeconds: 180,
+    overview:
+      'A core-strengthening exercise that works your abdominal muscles. Move slowly and avoid pulling on your neck.',
   },
   {
     name: 'Quad Stretch',
@@ -45,6 +51,8 @@ const exercises = [
     durationSeconds: 30,
     sets: 1,
     reps: 1,
+    overview:
+      'A lower-body stretch that helps improve flexibility in the front of your thigh.',
   },
   {
     name: 'Leg Stretch',
@@ -54,8 +62,21 @@ const exercises = [
     durationSeconds: 30,
     sets: 1,
     reps: 1,
+    overview:
+      'A gentle stretch for the legs that helps improve mobility and flexibility.',
   },
-];
+].map((exercise) => ({
+  ...exercise,
+  estimatedSeconds:
+    exercise.durationSeconds ?? exercise.estimatedSeconds,
+}));
+
+const totalRoutineSeconds = exercises.reduce(
+  (total, exercise) => total + exercise.estimatedSeconds,
+  0
+);
+
+const routineMinutes = Math.ceil(totalRoutineSeconds / 60);
 
 function getStartingTime(exercise) {
   return exercise.type === 'countdown'
@@ -79,15 +100,20 @@ export default function App() {
   const { width } = useWindowDimensions();
   const contentWidth = Math.min(width - 44, 390);
   const [routineStarted, setRoutineStarted] = useState(false);
-  const activeExercise = exercises[0];
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  const activeExercise = exercises[currentExerciseIndex];
 
   const [screen, setScreen] = useState('routine');
   const [isRunning, setIsRunning] = useState(false);
   const [currentSet, setCurrentSet] = useState(1);
+  const [reviewRating, setReviewRating] = useState(null);
+
+  const [completedExerciseCount, setCompletedExerciseCount] =
+  useState(0);
+
   const [timerCentiseconds, setTimerCentiseconds] = useState(
     getStartingTime(activeExercise)
-  );  
-
+  );
   useEffect(() => {
     if (!isRunning) return;
 
@@ -126,8 +152,51 @@ export default function App() {
     setIsRunning(true);
   }
 
+  function finishExercise() {
+    setIsRunning(false);
+
+    setCompletedExerciseCount((count) =>
+      Math.min(count + 1, exercises.length)
+    );
+
+    setReviewRating(null);
+    setScreen('review');
+  }
+
+  function goToNextExercise() {
+    const isLastExercise =
+      currentExerciseIndex >= exercises.length - 1;
+
+    if (isLastExercise) {
+      setReviewRating(null);
+      setScreen('finalReview');
+      return;
+    }
+
+    const nextIndex = currentExerciseIndex + 1;
+
+    setCurrentExerciseIndex(nextIndex);
+    setCurrentSet(1);
+    setIsRunning(false);
+    setReviewRating(null);
+    setTimerCentiseconds(getStartingTime(exercises[nextIndex]));
+    setRoutineStarted(true);
+    setScreen('routine');
+  }
+
   function resumeExercise() {
     setIsRunning(true);
+  }
+
+  function goHome() {
+    setScreen('home');
+    setRoutineStarted(false);
+    setIsRunning(false);
+    setCurrentSet(1);
+    setCurrentExerciseIndex(0);
+    setReviewRating(null);
+    setTimerCentiseconds(getStartingTime(exercises[0]));
+    setCompletedExerciseCount(0);
   }
 
   if (screen === 'exercise') {
@@ -172,9 +241,15 @@ export default function App() {
                   <View style={styles.controlRow}>
                     <Pressable
                       style={styles.controlButton}
-                      onPress={goToNextSet}
+                      onPress={
+                        currentSet >= activeExercise.sets
+                          ? finishExercise
+                          : goToNextSet
+                      }
                     >
-                      <Text style={styles.controlButtonText}>NEXT</Text>
+                      <Text style={styles.controlButtonText}>
+                        {currentSet >= activeExercise.sets ? 'FINISH' : 'NEXT'}
+                      </Text>
                     </Pressable>
 
                     <Pressable
@@ -188,6 +263,175 @@ export default function App() {
               </View>
             </View>
           </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (screen === 'finalReview') {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.finalSummaryScreen}>
+          <Text style={styles.reviewTitle}>ROUTINE COMPLETE!</Text>
+
+          <Text style={styles.reviewSubtitle}>
+            Here's what you accomplished today
+          </Text>
+
+          <View style={styles.finalSummaryCard}>
+            <Text style={styles.reviewCardTitle}>YOUR SUMMARY</Text>
+
+            {exercises.map((exercise) => (
+              <View
+                key={exercise.name}
+                style={styles.finalSummaryRow}
+              >
+                <Text style={styles.summaryLabel}>
+                  {exercise.name}
+                </Text>
+
+                <Text style={styles.summaryValue}>
+                  {exercise.sets}{' '}
+                  {exercise.sets === 1 ? 'set' : 'sets'}
+                  {' · '}
+                  {exercise.type === 'countdown'
+                    ? `${exercise.durationSeconds}s`
+                    : `${exercise.reps} reps`}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={styles.feelingQuestion}>
+            How did that feel overall?
+          </Text>
+
+          <View style={styles.feelingRow}>
+            <Pressable
+              style={[
+                styles.feelingButton,
+                reviewRating === 'up' &&
+                  styles.selectedFeelingButton,
+              ]}
+              onPress={() => setReviewRating('up')}
+            >
+              <Text style={styles.feelingEmoji}>👍</Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.feelingButton,
+                reviewRating === 'down' &&
+                  styles.selectedFeelingButton,
+              ]}
+              onPress={() => setReviewRating('down')}
+            >
+              <Text style={styles.feelingEmoji}>👎</Text>
+            </Pressable>
+          </View>
+
+          <Pressable
+            style={styles.reviewNextButton}
+            onPress={goHome}
+          >
+            <Text style={styles.reviewNextButtonText}>HOME</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (screen === 'home') {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.homeScreen}>
+          <View style={styles.homeMessage}>
+            <Text style={styles.homeMessageLarge}>
+              NICE JOB TODAY,
+            </Text>
+
+            <Text style={styles.homeMessageLarge}>
+              FRANK!
+            </Text>
+
+            <Text style={styles.homeMessageSmall}>
+              check back tomorrow
+            </Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (screen === 'review') {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.reviewScreen}>
+          <Text style={styles.reviewTitle}>NICE WORK!</Text>
+
+          <Text style={styles.reviewSubtitle}>
+            You finished {activeExercise.name}
+          </Text>
+
+          <View style={styles.reviewCard}>
+            <Text style={styles.reviewCardTitle}>YOUR SUMMARY</Text>
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Exercise</Text>
+              <Text style={styles.summaryValue}>
+                {activeExercise.name}
+              </Text>
+            </View>
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Sets completed</Text>
+              <Text style={styles.summaryValue}>
+                {activeExercise.sets}
+              </Text>
+            </View>
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Reps per set</Text>
+              <Text style={styles.summaryValue}>
+                {activeExercise.reps}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.feelingQuestion}>
+            How did that feel?
+          </Text>
+
+          <View style={styles.feelingRow}>
+            <Pressable
+              style={[
+                styles.feelingButton,
+                reviewRating === 'up' &&
+                  styles.selectedFeelingButton,
+              ]}
+              onPress={() => setReviewRating('up')}
+            >
+              <Text style={styles.feelingEmoji}>👍</Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.feelingButton,
+                reviewRating === 'down' &&
+                  styles.selectedFeelingButton,
+              ]}
+              onPress={() => setReviewRating('down')}
+            >
+              <Text style={styles.feelingEmoji}>👎</Text>
+            </Pressable>
+          </View>
+
+          <Pressable
+            style={styles.reviewNextButton}
+            onPress={goToNextExercise}
+          >
+            <Text style={styles.reviewNextButtonText}>NEXT</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -221,10 +465,14 @@ export default function App() {
         <View style={styles.sectionHeader}>
           <View>
             <Text style={styles.sectionTitle}>Today's routine</Text>
-            <Text style={styles.sectionSubtitle}>4 exercises · about 15 minutes</Text>
+            <Text style={styles.sectionSubtitle}>
+              {exercises.length} exercises · about {routineMinutes} minutes
+            </Text>
           </View>
           <View style={styles.progressBadge}>
-            <Text style={styles.progressText}>0 / 4</Text>
+            <Text style={styles.progressText}>
+              {completedExerciseCount} / {exercises.length}
+            </Text>
           </View>
         </View>
 
@@ -232,7 +480,9 @@ export default function App() {
           {routineStarted && (
             <View style={styles.expandedExercise}>
               <View style={styles.expandedHeader}>
-                <Text style={styles.expandedHeaderText}>Push Ups</Text>
+                <Text style={styles.expandedHeaderText}>
+                  {activeExercise.name}
+                </Text>
               </View>
 
               <View style={styles.overviewPanel}>
@@ -241,33 +491,43 @@ export default function App() {
                 </View>
 
                 <Text style={styles.overviewText}>
-                  A classic calisthenics exercise where you lift and lower your 
-                  body using your arms while keeping your legs and torso straight.
+                  {activeExercise.overview}
                 </Text>
               </View>
 
               <View style={styles.statsRow}>
-                <Text style={styles.statsText}>3 Sets</Text>
-                <Text style={styles.statsText}>5 Reps</Text>
+                <Text style={styles.statsText}>
+                  {activeExercise.sets} Sets
+                </Text>
+
+                <Text style={styles.statsText}>
+                  {activeExercise.reps} Reps
+                </Text>
               </View>
             </View>
           )}
 
-          {exercises
-            .slice(routineStarted ? 1 : 0)
-            .map((exercise, index, visibleExercises) => (
+          {exercises.map((exercise, index) => {
+            if (routineStarted && index === currentExerciseIndex) {
+              return null;
+            }
+
+            return (
               <View
                 key={exercise.name}
                 style={[
                   styles.exerciseRow,
                   { backgroundColor: exercise.accent },
-                  !routineStarted && index === 0 && styles.firstExercise,
-                  index === visibleExercises.length - 1 && styles.lastExercise,
+                  !routineStarted &&
+                    index === 0 &&
+                    styles.firstExercise,
+                  index === exercises.length - 1 &&
+                    styles.lastExercise,
                 ]}
               >
                 <View style={styles.exerciseNumber}>
                   <Text style={styles.exerciseNumberText}>
-                    {routineStarted ? index + 2 : index + 1}
+                    {index + 1}
                   </Text>
                 </View>
 
@@ -278,7 +538,8 @@ export default function App() {
 
                 <Text style={styles.chevron}>›</Text>
               </View>
-            ))}
+            );
+          })}
         </View>
 
         <Pressable
@@ -700,5 +961,158 @@ const styles = StyleSheet.create({
     fontFamily: 'sans-serif-condensed',
     fontSize: 20,
     fontWeight: '900',
+  },
+  reviewScreen: {
+    flex: 1,
+    paddingHorizontal: 22,
+    paddingTop: 30,
+    paddingBottom: 20,
+  },
+  reviewTitle: {
+    color: palette.ink,
+    fontFamily: 'sans-serif-condensed',
+    fontSize: 34,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  reviewSubtitle: {
+    color: palette.tealDark,
+    fontFamily: 'serif',
+    fontSize: 19,
+    fontStyle: 'italic',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  reviewCard: {
+    backgroundColor: palette.teal,
+    borderColor: palette.ink,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    marginTop: 32,
+    padding: 20,
+  },
+  reviewCardTitle: {
+    color: palette.ink,
+    fontFamily: 'sans-serif-condensed',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 16,
+  },
+  summaryRow: {
+    borderTopColor: 'rgba(25, 51, 51, 0.3)',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+  },
+  summaryLabel: {
+    color: palette.ink,
+    fontFamily: 'sans-serif',
+    fontSize: 15,
+  },
+  summaryValue: {
+    color: palette.ink,
+    fontFamily: 'serif',
+    fontSize: 17,
+    fontStyle: 'italic',
+  },
+  feelingQuestion: {
+    color: palette.ink,
+    fontFamily: 'serif',
+    fontSize: 24,
+    fontStyle: 'italic',
+    marginTop: 38,
+    textAlign: 'center',
+  },
+  feelingRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 18,
+  },
+  feelingButton: {
+    alignItems: 'center',
+    backgroundColor: palette.white,
+    borderColor: palette.tealDark,
+    borderRadius: 30,
+    borderWidth: 1.5,
+    height: 64,
+    justifyContent: 'center',
+    marginHorizontal: 10,
+    width: 64,
+  },
+  selectedFeelingButton: {
+    backgroundColor: palette.orange,
+    borderColor: palette.ink,
+  },
+  feelingEmoji: {
+    fontSize: 28,
+  },
+  reviewNextButton: {
+    alignItems: 'center',
+    backgroundColor: palette.blue,
+    borderColor: palette.tealDark,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    marginTop: 'auto',
+    minHeight: 66,
+  },
+  reviewNextButtonText: {
+    color: palette.white,
+    fontFamily: 'sans-serif-condensed',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  finalSummaryScreen: {
+    flex: 1,
+    paddingHorizontal: 22,
+    paddingTop: 30,
+    paddingBottom: 20,
+  },
+  finalSummaryCard: {
+    backgroundColor: palette.teal,
+    borderColor: palette.ink,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    marginTop: 28,
+    padding: 20,
+  },
+  finalSummaryRow: {
+    borderTopColor: 'rgba(25, 51, 51, 0.3)',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+  },
+  homeScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 22,
+  },
+  homeMessage: {
+    alignItems: 'center',
+    backgroundColor: palette.orange,
+    borderColor: palette.ink,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    paddingHorizontal: 20,
+    paddingVertical: 28,
+    width: '100%',
+  },
+  homeMessageLarge: {
+    color: palette.white,
+    fontFamily: 'sans-serif-condensed',
+    fontSize: 32,
+    fontWeight: '900',
+    lineHeight: 37,
+    textAlign: 'center',
+  },
+  homeMessageSmall: {
+    color: palette.ink,
+    fontFamily: 'serif',
+    fontSize: 20,
+    fontStyle: 'italic',
+    marginTop: 18,
   },
 });

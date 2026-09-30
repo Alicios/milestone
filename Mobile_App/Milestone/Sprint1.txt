@@ -1,0 +1,6 @@
+Dylan:
+SCRUM 14 - As a developer, I want to lock in the general theme and style guide we will be using for the project’s UI, so that we have consistency and proper visuals.
+SCRUM 26 - As a developer, I want to set up the required SDKs and development environment for a mobile app, so that I can use React Native.
+SCRUM 9 - As a patient, i want the Routine Overview page to display my assigned exercises for the day, so that I can help me run the exercises and see my progress.
+SCRUM 22 - As a patient, I want the home page to greet me and show my calendar, so I can see an overview of this week’s tasks.
+SCRUM 11 - As a patient, I want to be able to see the details of each individual exercise, so that I can get help and guidance in performing the exercise correctly.

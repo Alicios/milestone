@@ -7,6 +7,7 @@ import { Box, Button, Card, Chip, Divider, Link, MenuItem, Stack, Tab, Tabs, Tex
 import { AssignRoutineDialog } from '../components/AssignRoutineDialog'
 import type { DashboardOutletContext } from '../components/DashboardLayout'
 import { DischargePatientDialog } from '../components/DischargePatientDialog'
+import { RemoveRoutineDialog } from '../components/RemoveRoutineDialog'
 import { weekdayNames, type Patient } from '../data/mockPatients'
 
 const activityLabels: Record<Patient['statuses'][number], string> = {
@@ -21,11 +22,12 @@ function Detail({ label, children }: { label: string; children?: ReactNode }) {
 }
 
 function PatientOverview({ patient }: { patient: Patient }) {
-  const { assignments, assignRoutine, dischargePatient } = useOutletContext<DashboardOutletContext>()
+  const { assignments, assignRoutine, removeRoutine, dischargePatient } = useOutletContext<DashboardOutletContext>()
   const navigate = useNavigate()
   const heading = useRef<HTMLHeadingElement>(null)
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [assignmentDay, setAssignmentDay] = useState<number | null>(null)
+  const [removalDay, setRemovalDay] = useState<number | null>(null)
   const [confirmDischarge, setConfirmDischarge] = useState(false)
   const [feedback, setFeedback] = useState('')
   const patientAssignments = assignments[patient.id] ?? {}
@@ -92,7 +94,15 @@ function PatientOverview({ patient }: { patient: Patient }) {
                     {routine?.name ?? (status === 'none' ? 'No routine assigned' : 'Routine details unavailable')}
                   </Typography>
                 </Box>
-                <Chip size="small" variant="outlined" label={routine ? 'Assigned' : activityLabels[status]} color={routine ? 'primary' : 'default'} />
+                <Stack alignItems="flex-end" spacing={.5} sx={{ flexShrink: 0 }}>
+                  <Chip size="small" variant="outlined" label={routine ? 'Assigned' : activityLabels[status]} color={routine ? 'primary' : 'default'} />
+                  {(routine || status === 'routine') && <Button
+                    size="small"
+                    aria-label={`Remove ${routine?.name ?? 'scheduled routine'} from ${day}`}
+                    onClick={() => setRemovalDay(index)}
+                    sx={{ minWidth: 0, px: .5, py: 0, color: 'text.secondary' }}
+                  >Remove</Button>}
+                </Stack>
               </Box>
             })}
           </Stack>
@@ -124,6 +134,17 @@ function PatientOverview({ patient }: { patient: Patient }) {
         assignRoutine(patient.id, assignmentDay, routine)
         setFeedback(`${routine.name} assigned for ${weekdayNames[assignmentDay]}.`)
         setAssignmentDay(null)
+      }}
+    />}
+    {removalDay !== null && <RemoveRoutineDialog
+      patientName={patient.name}
+      weekday={weekdayNames[removalDay]}
+      routineName={patientAssignments[removalDay]?.name}
+      onCancel={() => setRemovalDay(null)}
+      onRemove={() => {
+        removeRoutine(patient.id, removalDay)
+        setFeedback(`${patientAssignments[removalDay]?.name ?? 'Scheduled routine'} removed from ${weekdayNames[removalDay]}.`)
+        setRemovalDay(null)
       }}
     />}
     {confirmDischarge && <DischargePatientDialog

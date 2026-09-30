@@ -13,6 +13,7 @@ export interface DashboardOutletContext {
   patients: Patient[]
   assignments: RoutineAssignments
   assignRoutine: (patientId: string, dayIndex: number, routine: Routine) => void
+  removeRoutine: (patientId: string, dayIndex: number) => void
   dischargePatient: (patientId: string) => void
 }
 
@@ -37,6 +38,22 @@ export function DashboardLayout() {
       if (current[patientId]?.[dayIndex]) return current
       return { ...current, [patientId]: { ...current[patientId], [dayIndex]: routine } }
     })
+  }
+
+  const removeRoutine = (patientId: string, dayIndex: number) => {
+    const patient = patients.find((item) => item.id === patientId)
+    if (!patient || (!assignments[patientId]?.[dayIndex] && patient.statuses[dayIndex] !== 'routine')) return
+
+    setAssignments((current) => {
+      if (!current[patientId]?.[dayIndex]) return current
+      const remaining = { ...current[patientId] }
+      delete remaining[dayIndex]
+      return { ...current, [patientId]: remaining }
+    })
+    // Demo scheduled days can have a status without named routine details.
+    setPatients((current) => current.map((item) => item.id === patientId && item.statuses[dayIndex] === 'routine'
+      ? { ...item, statuses: item.statuses.map((status, index) => index === dayIndex ? 'none' : status) }
+      : item))
   }
 
   const dischargePatient = (patientId: string) => {
@@ -82,7 +99,7 @@ export function DashboardLayout() {
       </Container>
     </AppBar>
     <Container maxWidth={false} sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: isMessagesPage ? 0 : { xs: 2, md: 3 } }}>
-      <Outlet context={{ patients, assignments, assignRoutine, dischargePatient } satisfies DashboardOutletContext} />
+      <Outlet context={{ patients, assignments, assignRoutine, removeRoutine, dischargePatient } satisfies DashboardOutletContext} />
     </Container>
   </Box>
 }

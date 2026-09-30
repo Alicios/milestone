@@ -28,6 +28,7 @@ const exercises = [
     type: 'countup',
     sets: 3,
     reps: 5,
+    estimatedSeconds: 180,
     overview:
       'A simple upper-body exercise that strengthens your chest, shoulders, and arms. Keep your body straight and move at a comfortable pace.',
   },
@@ -38,6 +39,7 @@ const exercises = [
     type: 'countup',
     sets: 3,
     reps: 5,
+    estimatedSeconds: 180,
     overview:
       'A core-strengthening exercise that works your abdominal muscles. Move slowly and avoid pulling on your neck.',
   },
@@ -63,7 +65,18 @@ const exercises = [
     overview:
       'A gentle stretch for the legs that helps improve mobility and flexibility.',
   },
-];
+].map((exercise) => ({
+  ...exercise,
+  estimatedSeconds:
+    exercise.durationSeconds ?? exercise.estimatedSeconds,
+}));
+
+const totalRoutineSeconds = exercises.reduce(
+  (total, exercise) => total + exercise.estimatedSeconds,
+  0
+);
+
+const routineMinutes = Math.ceil(totalRoutineSeconds / 60);
 
 function getStartingTime(exercise) {
   return exercise.type === 'countdown'
@@ -94,6 +107,9 @@ export default function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [currentSet, setCurrentSet] = useState(1);
   const [reviewRating, setReviewRating] = useState(null);
+
+  const [completedExerciseCount, setCompletedExerciseCount] =
+  useState(0);
 
   const [timerCentiseconds, setTimerCentiseconds] = useState(
     getStartingTime(activeExercise)
@@ -138,6 +154,11 @@ export default function App() {
 
   function finishExercise() {
     setIsRunning(false);
+
+    setCompletedExerciseCount((count) =>
+      Math.min(count + 1, exercises.length)
+    );
+
     setReviewRating(null);
     setScreen('review');
   }
@@ -175,6 +196,7 @@ export default function App() {
     setCurrentExerciseIndex(0);
     setReviewRating(null);
     setTimerCentiseconds(getStartingTime(exercises[0]));
+    setCompletedExerciseCount(0);
   }
 
   if (screen === 'exercise') {
@@ -443,10 +465,14 @@ export default function App() {
         <View style={styles.sectionHeader}>
           <View>
             <Text style={styles.sectionTitle}>Today's routine</Text>
-            <Text style={styles.sectionSubtitle}>4 exercises · about 15 minutes</Text>
+            <Text style={styles.sectionSubtitle}>
+              {exercises.length} exercises · about {routineMinutes} minutes
+            </Text>
           </View>
           <View style={styles.progressBadge}>
-            <Text style={styles.progressText}>0 / 4</Text>
+            <Text style={styles.progressText}>
+              {completedExerciseCount} / {exercises.length}
+            </Text>
           </View>
         </View>
 

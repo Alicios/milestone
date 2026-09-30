@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import {
   Pressable,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const palette = {
   cream: '#F4EACF',

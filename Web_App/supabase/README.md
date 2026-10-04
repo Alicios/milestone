@@ -1,5 +1,55 @@
 # Provider profile schema extension
 
+## Final model: a separate patient profile for each provider
+
+Apply migrations in filename order: `001`, `002`, `003`, then `004` (the suffixes
+of the timestamped filenames). If the first three have already been applied,
+run only `20261004000400_rename_profiles_to_providers.sql`. Migration 003
+supersedes the shared-status behavior described in the migration 002 section
+below. None of these migrations have been database-tested in this workspace.
+
+- `providers`: the provider's own professional account profile, linked to
+  `auth.users.id`. Migration 004 renames the original `profiles` table.
+- `patients`: shared patient identity, such as the patient's name.
+- `provider_patient_profiles`: a unique `id`, `provider_id`, `patient_id`,
+  `clinical_notes`, and `created_at` for each provider-patient relationship.
+- `patient_statuses`: references `patient_profile_id`, with one status per
+  profile/day index. Different providers' statuses are independent.
+
+The unique `(provider_id, patient_id)` constraint ensures a provider has exactly
+one profile for a particular patient whenever that relationship exists. A patient
+can have separate profiles with multiple providers. Each provider can see only
+their own profiles and statuses, even when they treat the same patient.
+Only `clinical_notes` is client-editable on the relationship profile for now;
+future routines, treatment plans, and assessments should reference this profile's
+ID. This migration does not implement those future tables or UI features.
+
+The shared patient identity is read-only to providers after migration 003.
+Identity corrections and additional relationship creation are admin/backend
+operations. To assign a second provider, create a fresh relationship profile:
+
+```sql
+insert into public.provider_patient_profiles (provider_id, patient_id)
+values ('SECOND_PROVIDER_AUTH_UUID', 'EXISTING_PATIENT_UUID');
+```
+
+No notes or statuses are copied from another provider. `create_patient` still
+returns the shared patient ID; query the caller's relationship profile to get
+its ID before writing statuses. The old `provider_patients` table name and
+`patient_statuses.patient_id` column no longer exist after migration 003.
+
+Existing statuses migrate automatically only when their patient has exactly one
+provider. If existing statuses belong to a patient with zero or multiple
+providers, the transaction aborts without changes: an explicit provider mapping
+is needed because historical shared statuses contain no provider attribution.
+
+Verify with providers A and B assigned to the same patient, plus unassigned C:
+A and B should each see one different profile ID, neither should see the other's
+notes/statuses, and C should see neither the patient nor its profiles/statuses.
+Writing a status for another provider's profile must fail. Creating duplicate
+provider-patient pairs must fail. A new relationship starts with no statuses.
+Day indexes are still 0-6; dated progress history remains a separate change.
+
 ## Multiple providers per patient
 
 After the profile migration, run
@@ -45,6 +95,10 @@ create an unassigned patient or remove its final assignment.
 Any consumers that filter or insert `patients.provider_id` must migrate to the
 linking table/RPC. The current web app still uses mock patients. This does not
 implement patient logins, provider invitations, or a sharing interface.
+
+After migration 004, application queries should use `providers` for provider
+attributes. Developer or troubleshooting access should be granted through
+separate database/admin roles; a provider row is not an administrator role.
 
 Before deployment, test with three accounts: two assigned to the same patient
 must see that patient and its statuses, and an unassigned account must not.

@@ -17,7 +17,7 @@ This repository contains the provider-facing web front end, built with:
 - Material UI and Emotion
 - React Router
 
-The current implementation is a front-end prototype. It uses local mock data and mock authentication only. There is no backend, database, API integration, or real patient information.
+The current implementation is a front-end prototype. It uses local mock data and mock authentication. A Supabase browser client is configured for backend integration, but the screens and authentication flow are not yet connected to it. There is no real patient information.
 
 ## Getting started
 
@@ -33,6 +33,12 @@ npm install
 ```
 
 ### Start the development server
+
+Before starting, copy `.env.example` to `.env.local` and set your Supabase project URL and publishable key. The local environment file is ignored by Git. Restart Vite after changing these values, and configure the same variables in your deployment environment before building.
+
+This is a Vite React app, so environment variables use the `VITE_` prefix. Import the shared client with `import { supabase } from './lib/supabase'` from files in `src` (adjust the relative path as needed). The client persists and refreshes Supabase sessions in the browser; Next.js server helpers, cookie middleware, and `@supabase/ssr` are not needed here. The existing mock login does not create a Supabase session.
+
+Only use a publishable key in the browser configuration, never a secret or `service_role` key. Database access must be protected by appropriate Row Level Security policies before connecting application data.
 
 ```bash
 npm run dev

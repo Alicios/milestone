@@ -3,7 +3,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
 import { Alert, Box, Button, CircularProgress, Container, Grid, IconButton, InputAdornment, Paper, Stack, TextField, Typography } from '@mui/material'
-import { Link as RouterLink, useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import { Brand } from '../components/Brand'
 import { useAuth } from '../auth/AuthContext'
 
@@ -34,8 +34,9 @@ function getRandomIndex(length: number, excludedIndex?: number) {
 export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('lebron.james@milestone.example')
-  const [password, setPassword] = useState('provider123')
+  const location = useLocation()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -56,7 +57,7 @@ export function LoginPage() {
     if (!email.trim() || !email.includes('@')) return setError('Enter a valid email address.')
     if (password.length < 6) return setError('Password must be at least 6 characters.')
     setLoading(true)
-    try { await login(email, password); navigate('/dashboard', { replace: true }) } catch (submissionError) { setError(submissionError instanceof Error ? submissionError.message : 'Unable to sign in.') } finally { setLoading(false) }
+    try { await login(email, password); navigate((location.state as { from?: string } | null)?.from ?? '/dashboard', { replace: true }) } catch (submissionError) { setError(submissionError instanceof Error ? submissionError.message : 'Unable to sign in.') } finally { setLoading(false) }
   }
 
   return <Box className="login-page" minHeight={{ xs: '100dvh', md: 0 }} height={{ xs: 'auto', md: '100dvh' }} overflow={{ xs: 'visible', md: 'hidden' }} sx={{ bgcolor: '#e8ddba' }}>

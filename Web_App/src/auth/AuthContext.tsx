@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { EditableUserFields, User } from '../types'
-import { supabase } from '../lib/supabase'
+import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { loadProvider, updateProvider } from '../lib/supabaseData'
 
 interface AuthContextValue {
@@ -9,7 +9,7 @@ interface AuthContextValue {
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (details: RegisterDetails) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   updateProfile: (profile: Partial<EditableUserFields>) => Promise<void>
 }
 
@@ -25,24 +25,34 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(isSupabaseConfigured)
   const navigate = useNavigate()
 
   useEffect(() => {
+    if (!isSupabaseConfigured) return
     let active = true
-    async function restoreSession() {
-      const { data, error } = await supabase.auth.getSession()
-      if (error) console.error(error)
-      if (active && data.session) {
-        try { setUser(await loadProvider(data.session.user.id, data.session.user.email ?? '')) }
-        catch (providerError) { console.error(providerError) }
+
+    async function applySession(sessionUser: { id: string; email?: string } | null) {
+      if (!sessionUser) {
+        if (active) { setUser(null); setLoading(false) }
+        return
       }
-      if (active) setLoading(false)
+      try {
+        const next = await loadProvider(sessionUser.id, sessionUser.email ?? '')
+        if (active) { setUser(next); setLoading(false) }
+      } catch (error) {
+        console.error(error)
+        if (active) setLoading(false)
+      }
     }
-    void restoreSession()
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') setUser(null)
-      if (event === 'SIGNED_IN' && session) void loadProvider(session.user.id, session.user.email ?? '').then(setUser).catch(console.error)
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) console.error(error)
+      void applySession(data.session?.user ?? null)
+    })
+    // Defer the provider query out of the auth callback to avoid deadlocking supabase-js.
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setTimeout(() => { void applySession(session?.user ?? null) }, 0)
     })
     return () => { active = false; listener.subscription.unsubscribe() }
   }, [])
@@ -51,12 +61,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     loading,
     login: async (email, password) => {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (!isSupabaseConfigured) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local.')
+      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
       if (error) throw error
       if (!data.user) throw new Error('Supabase did not return a signed-in user.')
       setUser(await loadProvider(data.user.id, data.user.email ?? email))
     },
     register: async ({ name, email, password, specialty }) => {
+      if (!isSupabaseConfigured) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local.')
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -66,8 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!data.user || !data.session) throw new Error('Account created. Confirm your email before signing in.')
       setUser(await loadProvider(data.user.id, data.user.email ?? email))
     },
-    logout: () => {
-      void supabase.auth.signOut()
+    logout: async () => {
+      await supabase.auth.signOut()
       setUser(null)
       navigate('/', { replace: true })
     },

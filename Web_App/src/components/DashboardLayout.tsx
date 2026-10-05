@@ -10,6 +10,7 @@ import {
   assignRoutine as assignRoutineInDatabase,
   cancelRoutineAssignment as cancelAssignmentInDatabase,
   cancelRoutineFollowUp as cancelFollowUpInDatabase,
+  completeRoutineFollowUp as completeFollowUpInDatabase,
   dischargePatient as dischargePatientFromDatabase,
   loadPatients,
   loadRoutineAssignments,
@@ -31,6 +32,7 @@ export interface DashboardOutletContext {
   cancelAssignment: (assignmentId: string) => Promise<void>
   scheduleFollowUp: (assignmentId: string, scheduledAt: string) => Promise<void>
   cancelFollowUp: (assignmentId: string) => Promise<void>
+  completeFollowUp: (assignmentId: string) => Promise<void>
   saveRoutine: (routineId: string | null, name: string, exercises: string[]) => Promise<void>
   archiveRoutine: (routineId: string) => Promise<void>
   dischargePatient: (patientId: string) => Promise<void>
@@ -103,6 +105,11 @@ export function DashboardLayout() {
     await refreshAssignments(patients)
   }
 
+  const completeFollowUp = async (assignmentId: string) => {
+    await completeFollowUpInDatabase(assignmentId)
+    await refreshAssignments(patients)
+  }
+
   const saveRoutine = async (routineId: string | null, name: string, exercises: string[]) => {
     await saveRoutineInDatabase(routineId, name, exercises)
     setRoutines(await loadRoutines())
@@ -160,7 +167,7 @@ export function DashboardLayout() {
     <Container maxWidth={false} sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: isMessagesPage ? 0 : { xs: 2, md: 3 } }}>
       {patientsLoading && <Alert severity="info" sx={{ mb: 2 }}>Loading patients from Supabase…</Alert>}
       {patientsError && <Alert severity="error" sx={{ mb: 2 }}>{patientsError}</Alert>}
-      <Outlet context={{ patients, routines, assignments, weekDates, assignRoutine, cancelAssignment, scheduleFollowUp, cancelFollowUp, saveRoutine, archiveRoutine, dischargePatient } satisfies DashboardOutletContext} />
+      <Outlet context={{ patients, routines, assignments, weekDates, assignRoutine, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, archiveRoutine, dischargePatient } satisfies DashboardOutletContext} />
     </Container>
   </Box>
 }

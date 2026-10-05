@@ -205,16 +205,16 @@ export async function loadRoutines(includeArchived = false): Promise<Routine[]> 
 
 export async function saveRoutine(routineId: string | null, name: string, exercises: string[]) {
   const { data, error } = await supabase.rpc('save_routine', {
-    routine_id: routineId,
-    routine_name: name.trim(),
-    exercise_names: exercises.map((exercise) => exercise.trim()).filter(Boolean),
+    p_routine_id: routineId,
+    p_routine_name: name.trim(),
+    p_exercise_names: exercises.map((exercise) => exercise.trim()).filter(Boolean),
   })
   if (error) throw error
   return data as string
 }
 
 export async function archiveRoutine(routineId: string) {
-  const { error } = await supabase.rpc('archive_routine', { routine_id: routineId })
+  const { error } = await supabase.rpc('archive_routine', { p_routine_id: routineId })
   if (error) throw error
 }
 
@@ -270,29 +270,34 @@ export async function loadRoutineAssignments(profileIds: string[], startDate: st
 
 export async function assignRoutine(patientProfileId: string, routineId: string, scheduledDate: string) {
   const { data, error } = await supabase.rpc('assign_routine', {
-    patient_profile_id: patientProfileId,
-    routine_id: routineId,
-    scheduled_date: scheduledDate,
+    p_patient_profile_id: patientProfileId,
+    p_routine_id: routineId,
+    p_scheduled_date: scheduledDate,
   })
   if (error) throw error
   return data as string
 }
 
 export async function cancelRoutineAssignment(routineAssignmentId: string) {
-  const { error } = await supabase.rpc('cancel_routine_assignment', { routine_assignment_id: routineAssignmentId })
+  const { error } = await supabase.rpc('cancel_routine_assignment', { p_routine_assignment_id: routineAssignmentId })
   if (error) throw error
 }
 
 export async function scheduleRoutineFollowUp(routineAssignmentId: string, scheduledAt: string) {
   const { data, error } = await supabase.rpc('schedule_routine_follow_up', {
-    routine_assignment_id: routineAssignmentId,
-    scheduled_at: scheduledAt,
+    p_routine_assignment_id: routineAssignmentId,
+    p_scheduled_at: scheduledAt,
   })
   if (error) throw error
   return data as string
 }
 
 export async function cancelRoutineFollowUp(routineAssignmentId: string) {
-  const { error } = await supabase.rpc('cancel_routine_follow_up', { routine_assignment_id: routineAssignmentId })
+  const { error } = await supabase.rpc('cancel_routine_follow_up', { p_routine_assignment_id: routineAssignmentId })
+  if (error) throw error
+}
+
+export async function completeRoutineFollowUp(routineAssignmentId: string) {
+  const { error } = await supabase.rpc('complete_routine_follow_up', { p_routine_assignment_id: routineAssignmentId })
   if (error) throw error
 }

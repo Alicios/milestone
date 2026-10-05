@@ -17,7 +17,7 @@ This repository contains the provider-facing web front end, built with:
 - Material UI and Emotion
 - React Router
 
-The current implementation is a front-end prototype. Supabase Auth now powers provider login and registration, provider profile fields are stored in Supabase, and patient records/statuses are loaded from Supabase. Routines and messages remain local prototype data because their database tables are not part of the current schema.
+The current implementation is a provider-facing prototype backed by Supabase Auth and database records for provider profiles, patients, routines, dated routine assignments, and assignment follow-ups. Messages and dashboard summary metrics remain local prototype data.
 
 ## Getting started
 
@@ -94,12 +94,12 @@ npm run preview
 
 ## Prototype limitations
 
-- Routine, dashboard summary, and message data are local mock data.
+- Dashboard summary and message data are local mock data.
 - Provider profile fields and patient identities/statuses are persisted through Supabase.
-- Patient pages use Supabase patient relationships/statuses and local routine assignment state. Routine assignments are not persisted yet.
+- Provider routine templates, ordered exercises, dated patient assignments, immutable assignment snapshots, and assignment follow-ups are persisted through Supabase.
 - Session notes are marked “Coming Soon” and are not implemented.
 - Authentication and account creation require the Supabase Auth configuration.
-- Appointment functionality is currently represented by a placeholder route.
+- The standalone Appointments route remains a placeholder; routine follow-ups are managed from the patient overview.
 - The patient mobile app and provider-to-patient account provisioning backend are not included in this repository.
 - Do not enter real protected health information into the prototype.
 

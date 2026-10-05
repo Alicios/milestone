@@ -22,7 +22,7 @@ function Detail({ label, children }: { label: string; children?: ReactNode }) {
 }
 
 function PatientOverview({ patient }: { patient: Patient }) {
-  const { routines, assignments, weekDates, assignRoutine, cancelAssignment, scheduleFollowUp, cancelFollowUp, dischargePatient } = useOutletContext<DashboardOutletContext>()
+  const { routines, assignments, weekDates, assignRoutine, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, dischargePatient } = useOutletContext<DashboardOutletContext>()
   const navigate = useNavigate()
   const heading = useRef<HTMLHeadingElement>(null)
   const [selectedDay, setSelectedDay] = useState(0)
@@ -96,12 +96,12 @@ function PatientOverview({ patient }: { patient: Patient }) {
                         <Typography variant="body2" color="text.secondary" sx={{ mt: .5 }}>
                           {assignment.exercises.length ? assignment.exercises.map((exercise) => exercise.name).join(' · ') : 'No exercises listed'}
                         </Typography>
-                        {assignment.followUp?.status === 'scheduled' ? <Typography variant="body2" sx={{ mt: 1 }}><strong>Follow-up:</strong> {new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(assignment.followUp.scheduledAt))}</Typography> : <Typography variant="body2" color="warning.main" sx={{ mt: 1 }}>Follow-up needs scheduling</Typography>}
+                        {assignment.followUp?.status === 'scheduled' ? <Typography variant="body2" sx={{ mt: 1 }}><strong>Follow-up:</strong> {new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(assignment.followUp.scheduledAt))}</Typography> : assignment.followUp?.status === 'completed' ? <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>Follow-up completed</Typography> : <Typography variant="body2" color="warning.main" sx={{ mt: 1 }}>Follow-up needs scheduling</Typography>}
                       </Box>
                       <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={.75} sx={{ flexShrink: 0 }}>
                         <Chip size="small" variant="outlined" label={assignment.status} color="primary" />
-                        <Button size="small" startIcon={<EventOutlinedIcon />} onClick={() => setFollowUpAssignment(assignment)}>{assignment.followUp?.status === 'scheduled' ? 'Reschedule' : 'Schedule follow-up'}</Button>
-                        {assignment.followUp?.status === 'scheduled' && <Button size="small" color="warning" onClick={() => void cancelFollowUp(assignment.id).then(() => setFeedback('Follow-up cancelled.')).catch((followUpError: Error) => setError(followUpError.message))}>Cancel follow-up</Button>}
+                        {assignment.followUp?.status !== 'completed' && <Button size="small" startIcon={<EventOutlinedIcon />} onClick={() => setFollowUpAssignment(assignment)}>{assignment.followUp?.status === 'scheduled' ? 'Reschedule' : 'Schedule follow-up'}</Button>}
+                        {assignment.followUp?.status === 'scheduled' && <><Button size="small" color="success" onClick={() => void completeFollowUp(assignment.id).then(() => setFeedback('Follow-up marked complete.')).catch((followUpError: Error) => setError(followUpError.message))}>Mark follow-up complete</Button><Button size="small" color="warning" onClick={() => void cancelFollowUp(assignment.id).then(() => setFeedback('Follow-up cancelled.')).catch((followUpError: Error) => setError(followUpError.message))}>Cancel follow-up</Button></>}
                         <Button size="small" color="error" onClick={() => setRemoval(assignment)}>Cancel assignment</Button>
                       </Stack>
                     </Stack>

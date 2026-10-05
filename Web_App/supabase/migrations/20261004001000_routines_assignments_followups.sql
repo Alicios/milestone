@@ -84,40 +84,40 @@ using (exists (
   where ra.id = appointments.routine_assignment_id and pp.provider_id = (select auth.uid())
 ));
 
-create or replace function public.save_routine(routine_id uuid, routine_name text, exercise_names text[])
+create or replace function public.save_routine(p_routine_id uuid, p_routine_name text, p_exercise_names text[])
 returns uuid language plpgsql security definer set search_path = '' as $function$
 declare
   current_provider uuid := auth.uid();
   saved_id uuid;
 begin
   if current_provider is null then raise exception 'Sign in before saving a routine' using errcode = '42501'; end if;
-  if nullif(btrim(routine_name), '') is null then raise exception 'Routine name is required' using errcode = '22023'; end if;
-  if routine_id is null then
-    insert into public.routines (provider_id, name) values (current_provider, btrim(routine_name)) returning id into saved_id;
+  if nullif(btrim(p_routine_name), '') is null then raise exception 'Routine name is required' using errcode = '22023'; end if;
+  if p_routine_id is null then
+    insert into public.routines (provider_id, name) values (current_provider, btrim(p_routine_name)) returning id into saved_id;
   else
-    update public.routines set name = btrim(routine_name), updated_at = now()
-    where id = routine_id and provider_id = current_provider and archived_at is null returning id into saved_id;
+    update public.routines set name = btrim(p_routine_name), updated_at = now()
+    where id = p_routine_id and provider_id = current_provider and archived_at is null returning id into saved_id;
     if saved_id is null then raise exception 'Routine not found' using errcode = 'P0002'; end if;
     delete from public.routine_exercises where routine_exercises.routine_id = saved_id;
   end if;
   insert into public.routine_exercises (routine_id, name, position)
   select saved_id, btrim(exercise_name), exercise_position - 1
-  from unnest(coalesce(exercise_names, array[]::text[])) with ordinality as exercises(exercise_name, exercise_position)
+  from unnest(coalesce(p_exercise_names, array[]::text[])) with ordinality as exercises(exercise_name, exercise_position)
   where nullif(btrim(exercise_name), '') is not null;
   return saved_id;
 end;
 $function$;
 
-create or replace function public.archive_routine(routine_id uuid)
+create or replace function public.archive_routine(p_routine_id uuid)
 returns void language plpgsql security definer set search_path = '' as $function$
 begin
   update public.routines set archived_at = now(), updated_at = now()
-  where id = routine_id and provider_id = auth.uid() and archived_at is null;
+  where id = p_routine_id and provider_id = auth.uid() and archived_at is null;
   if not found then raise exception 'Routine not found' using errcode = 'P0002'; end if;
 end;
 $function$;
 
-create or replace function public.assign_routine(patient_profile_id uuid, routine_id uuid, scheduled_date date)
+create or replace function public.assign_routine(p_patient_profile_id uuid, p_routine_id uuid, p_scheduled_date date)
 returns uuid language plpgsql security definer set search_path = '' as $function$
 declare
   current_provider uuid := auth.uid();
@@ -127,44 +127,44 @@ begin
   if current_provider is null then raise exception 'Sign in before assigning a routine' using errcode = '42501'; end if;
   if not exists (
     select 1 from public.provider_patient_profiles pp
-    where pp.id = patient_profile_id and pp.provider_id = current_provider and pp.discharged_at is null
+    where pp.id = p_patient_profile_id and pp.provider_id = current_provider and pp.discharged_at is null
   ) then raise exception 'Active patient profile not found' using errcode = '42501'; end if;
   select r.name into routine_name from public.routines r
-  where r.id = routine_id and r.provider_id = current_provider and r.archived_at is null;
+  where r.id = p_routine_id and r.provider_id = current_provider and r.archived_at is null;
   if routine_name is null then raise exception 'Active routine not found' using errcode = 'P0002'; end if;
   insert into public.routine_assignments (patient_profile_id, routine_id, scheduled_date, routine_name_snapshot)
-  values (patient_profile_id, routine_id, scheduled_date, routine_name) returning id into assignment_id;
+  values (p_patient_profile_id, p_routine_id, p_scheduled_date, routine_name) returning id into assignment_id;
   insert into public.routine_assignment_exercises (routine_assignment_id, name, position)
   select assignment_id, re.name, re.position from public.routine_exercises re
-  where re.routine_id = routine_id order by re.position;
+  where re.routine_id = p_routine_id order by re.position;
   return assignment_id;
 end;
 $function$;
 
-create or replace function public.cancel_routine_assignment(routine_assignment_id uuid)
+create or replace function public.cancel_routine_assignment(p_routine_assignment_id uuid)
 returns void language plpgsql security definer set search_path = '' as $function$
 begin
   update public.routine_assignments ra set status = 'cancelled', updated_at = now()
-  where ra.id = routine_assignment_id and ra.status <> 'cancelled'
+  where ra.id = p_routine_assignment_id and ra.status <> 'cancelled'
     and exists (select 1 from public.provider_patient_profiles pp where pp.id = ra.patient_profile_id and pp.provider_id = auth.uid());
   if not found then raise exception 'Routine assignment not found' using errcode = 'P0002'; end if;
   update public.appointments set status = 'cancelled', updated_at = now()
-  where appointments.routine_assignment_id = $1 and status = 'scheduled';
+  where appointments.routine_assignment_id = p_routine_assignment_id and status = 'scheduled';
 end;
 $function$;
 
-create or replace function public.schedule_routine_follow_up(routine_assignment_id uuid, scheduled_at timestamptz)
+create or replace function public.schedule_routine_follow_up(p_routine_assignment_id uuid, p_scheduled_at timestamptz)
 returns uuid language plpgsql security definer set search_path = '' as $function$
 declare appointment_id uuid;
 begin
-  if scheduled_at is null then raise exception 'Follow-up date and time are required' using errcode = '22023'; end if;
+  if p_scheduled_at is null then raise exception 'Follow-up date and time are required' using errcode = '22023'; end if;
   if not exists (
     select 1 from public.routine_assignments ra
     join public.provider_patient_profiles pp on pp.id = ra.patient_profile_id
-    where ra.id = routine_assignment_id and ra.status <> 'cancelled'
+    where ra.id = p_routine_assignment_id and ra.status <> 'cancelled'
       and pp.provider_id = auth.uid() and pp.discharged_at is null
   ) then raise exception 'Active routine assignment not found' using errcode = '42501'; end if;
-  insert into public.appointments (routine_assignment_id, scheduled_at) values (routine_assignment_id, scheduled_at)
+  insert into public.appointments (routine_assignment_id, scheduled_at) values (p_routine_assignment_id, p_scheduled_at)
   on conflict (routine_assignment_id) do update
     set scheduled_at = excluded.scheduled_at, status = 'scheduled', updated_at = now()
   returning id into appointment_id;
@@ -172,11 +172,25 @@ begin
 end;
 $function$;
 
-create or replace function public.cancel_routine_follow_up(routine_assignment_id uuid)
+create or replace function public.cancel_routine_follow_up(p_routine_assignment_id uuid)
 returns void language plpgsql security definer set search_path = '' as $function$
 begin
   update public.appointments a set status = 'cancelled', updated_at = now()
-  where a.routine_assignment_id = $1 and a.status = 'scheduled'
+  where a.routine_assignment_id = p_routine_assignment_id and a.status = 'scheduled'
+    and exists (
+      select 1 from public.routine_assignments ra
+      join public.provider_patient_profiles pp on pp.id = ra.patient_profile_id
+      where ra.id = a.routine_assignment_id and pp.provider_id = auth.uid()
+    );
+  if not found then raise exception 'Scheduled follow-up not found' using errcode = 'P0002'; end if;
+end;
+$function$;
+
+create or replace function public.complete_routine_follow_up(p_routine_assignment_id uuid)
+returns void language plpgsql security definer set search_path = '' as $function$
+begin
+  update public.appointments a set status = 'completed', updated_at = now()
+  where a.routine_assignment_id = p_routine_assignment_id and a.status = 'scheduled'
     and exists (
       select 1 from public.routine_assignments ra
       join public.provider_patient_profiles pp on pp.id = ra.patient_profile_id
@@ -201,12 +215,14 @@ revoke all on function public.assign_routine(uuid, uuid, date) from public, anon
 revoke all on function public.cancel_routine_assignment(uuid) from public, anon;
 revoke all on function public.schedule_routine_follow_up(uuid, timestamptz) from public, anon;
 revoke all on function public.cancel_routine_follow_up(uuid) from public, anon;
+revoke all on function public.complete_routine_follow_up(uuid) from public, anon;
 grant execute on function public.save_routine(uuid, text, text[]) to authenticated;
 grant execute on function public.archive_routine(uuid) to authenticated;
 grant execute on function public.assign_routine(uuid, uuid, date) to authenticated;
 grant execute on function public.cancel_routine_assignment(uuid) to authenticated;
 grant execute on function public.schedule_routine_follow_up(uuid, timestamptz) to authenticated;
 grant execute on function public.cancel_routine_follow_up(uuid) to authenticated;
+grant execute on function public.complete_routine_follow_up(uuid) to authenticated;
 
 comment on table public.routines is 'Reusable provider-owned routine templates.';
 comment on table public.routine_assignments is 'Dated prescriptions with immutable routine snapshots.';

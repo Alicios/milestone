@@ -2,9 +2,9 @@
 
 ## Final model: a separate patient profile for each provider
 
-Apply migrations in filename order: `001`, `002`, `003`, then `004`, `005`, and `006` (the suffixes
+Apply migrations in filename order: `001` through `010` (the suffixes
 of the timestamped filenames). If the first three have already been applied,
-run `20261004000400_rename_profiles_to_providers.sql`, then `005` and `006`. Migration 003
+run the remaining migrations in order. Migration 003
 supersedes the shared-status behavior described in the migration 002 section
 below. None of these migrations have been database-tested in this workspace.
 
@@ -20,9 +20,9 @@ The unique `(provider_id, patient_id)` constraint ensures a provider has exactly
 one profile for a particular patient whenever that relationship exists. A patient
 can have separate profiles with multiple providers. Each provider can see only
 their own profiles and statuses, even when they treat the same patient.
-Only `clinical_notes` is client-editable on the relationship profile for now;
-future routines, treatment plans, and assessments should reference this profile's
-ID. This migration does not implement those future tables or UI features.
+Only `clinical_notes` is client-editable on the relationship profile itself.
+Migration `010` attaches dated routine assignments and follow-ups to this
+profile ID; future treatment plans and assessments should do the same.
 
 The shared patient identity is read-only to providers after migration 003.
 Identity corrections and additional relationship creation are admin/backend
@@ -49,6 +49,29 @@ notes/statuses, and C should see neither the patient nor its profiles/statuses.
 Writing a status for another provider's profile must fail. Creating duplicate
 provider-patient pairs must fail. A new relationship starts with no statuses.
 Day indexes are still 0-6; dated progress history remains a separate change.
+
+## Routines, dated assignments, and follow-ups
+
+Migration `010` adds provider-owned `routines` and ordered `routine_exercises`,
+dated `routine_assignments`, immutable `routine_assignment_exercises`, and an
+optional one-to-one `appointments` follow-up. Multiple different routines can
+share a patient profile and calendar date. A partial unique index rejects an
+accidental duplicate of the same active routine on the same date.
+
+Routine, assignment, and follow-up writes use authenticated transactional RPCs.
+The browser receives read-only table grants, and RLS traces every row back to
+the signed-in provider. Editing or archiving a routine does not change existing
+assignment snapshots. Cancelling an assignment retains it and cancels its
+scheduled follow-up.
+
+`provider_patient_profiles.discharged_at` replaces destructive relationship
+deletion. The discharge RPC now marks the relationship inactive so its notes,
+legacy statuses, assignments, snapshots, and follow-ups remain available as
+history. Active patient queries must filter `discharged_at is null`.
+
+Legacy `patient_statuses` remains intact because its weekday indexes cannot be
+safely converted to calendar dates. New routine activity is represented by
+`routine_assignments.status`.
 
 ## Multiple providers per patient
 

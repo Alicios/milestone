@@ -12,7 +12,7 @@ import { AssignRoutineDialog } from '../components/AssignRoutineDialog'
 import type { DashboardOutletContext, DayAssignments } from '../components/DashboardLayout'
 import { weekdayNames, type Patient } from '../data/mockPatients'
 import type { Routine, RoutineAssignmentStatus } from '../types'
-import { formatCalendarDate } from '../lib/week'
+import { formatCalendarDate, toLocalDateKey } from '../lib/week'
 
 const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 type SortOrder = 'nameAsc' | 'nameDesc'
@@ -54,7 +54,7 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
             const dayAssignments = assignments[weekDates[index]] ?? []
 
             return <Box key={weekDates[index]} sx={{ flex: 1, minWidth: 0, textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-              <Typography sx={{ bgcolor: weekDates[index] === new Date().toLocaleDateString('en-CA') ? '#eb681d' : neutralSurface, color: 'white', border: `3px solid ${border}`, borderRadius: '28px', py: { xs: 1, sm: 1.5 }, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 700, fontSize: { xs: '.65rem', sm: '1.05rem' } }}>{day}<br />{formatCalendarDate(weekDates[index])}</Typography>
+              <Typography sx={{ bgcolor: weekDates[index] === toLocalDateKey(new Date()) ? '#eb681d' : neutralSurface, color: 'white', border: `3px solid ${border}`, borderRadius: '28px', py: { xs: 1, sm: 1.5 }, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 700, fontSize: { xs: '.65rem', sm: '1.05rem' } }}>{day}<br />{formatCalendarDate(weekDates[index])}</Typography>
               <Stack sx={{ mt: .5, bgcolor: dayAssignments.length ? surface : assignableSurface, border: `3px solid ${border}`, borderRadius: '24px', minHeight: { xs: 112, sm: 132 }, flexGrow: 1, p: .5 }} spacing={.5}>
                 {dayAssignments.map((assignment) => <Grow in key={assignment.id} timeout={220}><Typography sx={{ width: '100%', minWidth: 0, bgcolor: '#91c8c0', color: accentText, border: `2px solid ${border}`, borderRadius: '18px', px: .5, py: .75, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '.72rem', sm: '.82rem' }, lineHeight: 1.3, overflowWrap: 'anywhere' }}>{assignment.routineName}</Typography></Grow>)}
                 <Button onClick={() => onAssign(index)} aria-label={`Assign another routine to ${patient.name} on ${weekdayNames[index]}`} sx={{ minWidth: 0, width: '100%', flexGrow: dayAssignments.length ? 0 : 1, p: .5, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: .5, color: text, borderRadius: '18px', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '.7rem', sm: '.8rem' }, lineHeight: 1.2, '&:hover': { bgcolor: isDark ? '#35545c' : '#c8deda' }, '&.Mui-focusVisible': { outline: `3px solid ${border}`, outlineOffset: -2 } }}>
@@ -62,7 +62,6 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
                   <Box component="span">{dayAssignments.length ? 'Add another' : <>Assign<br />Routine</>}</Box>
                 </Button>
               </Stack>
-              </Box>
             </Box>
           })}
         </Stack>

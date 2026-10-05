@@ -1,0 +1,298 @@
+import { supabase } from './supabase'
+import type { EditableUserFields, FollowUpAppointment, Routine, RoutineAssignment, RoutineAssignmentStatus, RoutineExercise, User } from '../types'
+import type { Patient } from '../data/mockPatients'
+
+export const PROFILE_IMAGE_BUCKET = 'profile-images'
+
+type ProviderRow = {
+  id: string
+  name: string
+  role: string
+  initials: string
+  contact_email: string
+  avatar_url: string
+  phone: string
+  specialty: string
+  bio: string
+  department: string
+  facility: string
+  office_location: string
+  work_phone: string
+  work_phone_extension: string
+  preferred_contact: User['preferredContact']
+}
+
+function toUser(provider: ProviderRow, authEmail: string): User {
+  return {
+    id: provider.id,
+    name: provider.name,
+    email: authEmail || provider.contact_email,
+    role: provider.role,
+    initials: provider.initials,
+    avatarUrl: provider.avatar_url,
+    phone: provider.phone,
+    specialty: provider.specialty,
+    bio: provider.bio,
+    department: provider.department,
+    facility: provider.facility,
+    officeLocation: provider.office_location,
+    workPhone: provider.work_phone,
+    workPhoneExtension: provider.work_phone_extension,
+    preferredContact: provider.preferred_contact,
+  }
+}
+
+export async function loadProvider(userId: string, authEmail = '') {
+  const { data, error } = await supabase.from('providers').select('*').eq('id', userId).single()
+  if (error) throw error
+  return toUser(data as ProviderRow, authEmail)
+}
+
+export async function updateProvider(userId: string, profile: EditableUserFields) {
+  const { data, error } = await supabase.from('providers').update({
+    name: profile.name,
+    role: profile.role,
+    contact_email: profile.email,
+    phone: profile.phone,
+    specialty: profile.specialty,
+    bio: profile.bio,
+    avatar_url: profile.avatarUrl,
+    department: profile.department,
+    facility: profile.facility,
+    office_location: profile.officeLocation,
+    work_phone: profile.workPhone,
+    work_phone_extension: profile.workPhoneExtension,
+    preferred_contact: profile.preferredContact,
+  }).eq('id', userId).select('*').single()
+  if (error) throw error
+  return data as ProviderRow
+}
+
+export async function uploadProviderAvatar(userId: string, file: File) {
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+  if (authError) throw new Error(`Unable to verify the signed-in user: ${authError.message}`)
+  if (!authData.user) throw new Error('No authenticated Supabase user is available for the upload.')
+  if (authData.user.id !== userId) {
+    throw new Error(`Provider profile ID does not match the signed-in user (profile=${userId}, auth=${authData.user.id}).`)
+  }
+  const path = `${authData.user.id}/avatar`
+  const { error } = await supabase.storage.from(PROFILE_IMAGE_BUCKET).upload(path, file, {
+    cacheControl: '3600',
+    contentType: file.type,
+    upsert: true,
+  })
+  if (error) {
+    const details = error as { message?: string; statusCode?: string | number; error?: string }
+    throw new Error(`${details.message ?? 'Storage upload was rejected.'} (bucket=${PROFILE_IMAGE_BUCKET}, path=${path}, status=${details.statusCode ?? 'unknown'}, code=${details.error ?? 'unknown'})`)
+  }
+  return supabase.storage.from(PROFILE_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl
+}
+
+type PatientProfileRow = { id: string; patient_id: string }
+type PatientRow = { id: string; name: string; email?: string | null; phone?: string | null; primary_concern?: string | null; treatment_focus?: string | null; start_of_care?: string | null; care_status?: Patient['careStatus'] | null }
+type StatusRow = { patient_profile_id: string; day_index: number; status: Patient['statuses'][number] }
+
+export async function loadPatients(providerId: string): Promise<Patient[]> {
+  const { data: profiles, error: profileError } = await supabase
+    .from('provider_patient_profiles')
+    .select('id, patient_id')
+    .eq('provider_id', providerId)
+    .is('discharged_at', null)
+  if (profileError) throw profileError
+
+  const profileRows = (profiles ?? []) as PatientProfileRow[]
+  if (!profileRows.length) return []
+  const patientIds = profileRows.map((profile) => profile.patient_id)
+  const profileIds = profileRows.map((profile) => profile.id)
+
+  const extendedPatientQuery = await supabase.from('patients').select('id, name, email, phone, primary_concern, treatment_focus, start_of_care, care_status').in('id', patientIds)
+  const patientQuery = extendedPatientQuery.error?.code === '42703'
+    ? await supabase.from('patients').select('id, name').in('id', patientIds)
+    : extendedPatientQuery
+  const [{ data: patients, error: patientError }, { data: statuses, error: statusError }] = [patientQuery, await supabase.from('patient_statuses').select('patient_profile_id, day_index, status').in('patient_profile_id', profileIds)]
+  if (patientError) throw patientError
+  if (statusError) throw statusError
+
+  const statusByProfile = new Map<string, StatusRow[]>()
+  for (const status of (statuses ?? []) as StatusRow[]) {
+    const current = statusByProfile.get(status.patient_profile_id) ?? []
+    current.push(status)
+    statusByProfile.set(status.patient_profile_id, current)
+  }
+
+  return ((patients ?? []) as PatientRow[]).map((patient) => {
+    const profile = profileRows.find((item) => item.patient_id === patient.id)
+    const patientStatuses: Patient['statuses'] = Array(7).fill('none')
+    for (const status of profile ? statusByProfile.get(profile.id) ?? [] : []) {
+      if (status.day_index >= 0 && status.day_index < 7) patientStatuses[status.day_index] = status.status
+    }
+    return {
+      id: patient.id,
+      profileId: profile?.id ?? '',
+      name: patient.name,
+      careStatus: patient.care_status ?? 'active',
+      email: patient.email ?? undefined,
+      phone: patient.phone ?? undefined,
+      primaryConcern: patient.primary_concern ?? undefined,
+      treatmentFocus: patient.treatment_focus ?? undefined,
+      startOfCare: patient.start_of_care ?? undefined,
+      statuses: patientStatuses,
+    }
+  })
+}
+
+export async function createPatient(name: string, phone: string) {
+  const { data, error } = await supabase.rpc('create_patient', { patient_name: name.trim(), patient_phone: phone.trim() })
+  if (error?.code === 'PGRST202' || error?.code === '42883') {
+    const legacyResult = await supabase.rpc('create_patient', { patient_name: name.trim() })
+    if (legacyResult.error) throw legacyResult.error
+    return legacyResult.data as string
+  }
+  if (error) throw error
+  return data as string
+}
+
+export async function dischargePatient(patientId: string) {
+  const { error } = await supabase.rpc('discharge_patient', { patient_id: patientId })
+  if (error) throw error
+}
+
+type RoutineRow = { id: string; name: string; archived_at: string | null }
+type RoutineExerciseRow = { id: string; routine_id: string; name: string; position: number }
+type RoutineAssignmentRow = {
+  id: string
+  patient_profile_id: string
+  routine_id: string
+  scheduled_date: string
+  status: RoutineAssignmentStatus
+  routine_name_snapshot: string
+}
+type AssignmentExerciseRow = { id: string; routine_assignment_id: string; name: string; position: number }
+type AppointmentRow = { id: string; routine_assignment_id: string; scheduled_at: string; status: FollowUpAppointment['status'] }
+
+function toExercise(row: RoutineExerciseRow | AssignmentExerciseRow): RoutineExercise {
+  return { id: row.id, name: row.name, position: row.position }
+}
+
+export async function loadRoutines(includeArchived = false): Promise<Routine[]> {
+  let routineQuery = supabase.from('routines').select('id, name, archived_at').order('name')
+  if (!includeArchived) routineQuery = routineQuery.is('archived_at', null)
+  const { data: routines, error: routineError } = await routineQuery
+  if (routineError) throw routineError
+
+  const rows = (routines ?? []) as RoutineRow[]
+  if (!rows.length) return []
+  const { data: exercises, error: exerciseError } = await supabase
+    .from('routine_exercises')
+    .select('id, routine_id, name, position')
+    .in('routine_id', rows.map((routine) => routine.id))
+    .order('position')
+  if (exerciseError) throw exerciseError
+
+  const byRoutine = new Map<string, RoutineExercise[]>()
+  for (const exercise of (exercises ?? []) as RoutineExerciseRow[]) {
+    const current = byRoutine.get(exercise.routine_id) ?? []
+    current.push(toExercise(exercise))
+    byRoutine.set(exercise.routine_id, current)
+  }
+  return rows.map((routine) => ({
+    id: routine.id,
+    name: routine.name,
+    exercises: byRoutine.get(routine.id) ?? [],
+    archivedAt: routine.archived_at ?? undefined,
+  }))
+}
+
+export async function saveRoutine(routineId: string | null, name: string, exercises: string[]) {
+  const { data, error } = await supabase.rpc('save_routine', {
+    routine_id: routineId,
+    routine_name: name.trim(),
+    exercise_names: exercises.map((exercise) => exercise.trim()).filter(Boolean),
+  })
+  if (error) throw error
+  return data as string
+}
+
+export async function archiveRoutine(routineId: string) {
+  const { error } = await supabase.rpc('archive_routine', { routine_id: routineId })
+  if (error) throw error
+}
+
+export async function loadRoutineAssignments(profileIds: string[], startDate: string, endDate: string): Promise<RoutineAssignment[]> {
+  if (!profileIds.length) return []
+  const { data: assignments, error: assignmentError } = await supabase
+    .from('routine_assignments')
+    .select('id, patient_profile_id, routine_id, scheduled_date, status, routine_name_snapshot')
+    .in('patient_profile_id', profileIds)
+    .gte('scheduled_date', startDate)
+    .lte('scheduled_date', endDate)
+    .neq('status', 'cancelled')
+    .order('scheduled_date')
+  if (assignmentError) throw assignmentError
+
+  const rows = (assignments ?? []) as RoutineAssignmentRow[]
+  if (!rows.length) return []
+  const assignmentIds = rows.map((assignment) => assignment.id)
+  const [{ data: exercises, error: exerciseError }, { data: appointments, error: appointmentError }] = await Promise.all([
+    supabase.from('routine_assignment_exercises').select('id, routine_assignment_id, name, position').in('routine_assignment_id', assignmentIds).order('position'),
+    supabase.from('appointments').select('id, routine_assignment_id, scheduled_at, status').in('routine_assignment_id', assignmentIds),
+  ])
+  if (exerciseError) throw exerciseError
+  if (appointmentError) throw appointmentError
+
+  const exercisesByAssignment = new Map<string, RoutineExercise[]>()
+  for (const exercise of (exercises ?? []) as AssignmentExerciseRow[]) {
+    const current = exercisesByAssignment.get(exercise.routine_assignment_id) ?? []
+    current.push(toExercise(exercise))
+    exercisesByAssignment.set(exercise.routine_assignment_id, current)
+  }
+  const appointmentByAssignment = new Map<string, FollowUpAppointment>()
+  for (const appointment of (appointments ?? []) as AppointmentRow[]) {
+    appointmentByAssignment.set(appointment.routine_assignment_id, {
+      id: appointment.id,
+      routineAssignmentId: appointment.routine_assignment_id,
+      scheduledAt: appointment.scheduled_at,
+      status: appointment.status,
+    })
+  }
+
+  return rows.map((assignment) => ({
+    id: assignment.id,
+    patientProfileId: assignment.patient_profile_id,
+    routineId: assignment.routine_id,
+    scheduledDate: assignment.scheduled_date,
+    status: assignment.status,
+    routineName: assignment.routine_name_snapshot,
+    exercises: exercisesByAssignment.get(assignment.id) ?? [],
+    followUp: appointmentByAssignment.get(assignment.id),
+  }))
+}
+
+export async function assignRoutine(patientProfileId: string, routineId: string, scheduledDate: string) {
+  const { data, error } = await supabase.rpc('assign_routine', {
+    patient_profile_id: patientProfileId,
+    routine_id: routineId,
+    scheduled_date: scheduledDate,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export async function cancelRoutineAssignment(routineAssignmentId: string) {
+  const { error } = await supabase.rpc('cancel_routine_assignment', { routine_assignment_id: routineAssignmentId })
+  if (error) throw error
+}
+
+export async function scheduleRoutineFollowUp(routineAssignmentId: string, scheduledAt: string) {
+  const { data, error } = await supabase.rpc('schedule_routine_follow_up', {
+    routine_assignment_id: routineAssignmentId,
+    scheduled_at: scheduledAt,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export async function cancelRoutineFollowUp(routineAssignmentId: string) {
+  const { error } = await supabase.rpc('cancel_routine_follow_up', { routine_assignment_id: routineAssignmentId })
+  if (error) throw error
+}

@@ -17,7 +17,7 @@ This repository contains the provider-facing web front end, built with:
 - Material UI and Emotion
 - React Router
 
-The current implementation is a front-end prototype. It uses local mock data and mock authentication. A Supabase browser client is configured for backend integration, but the screens and authentication flow are not yet connected to it. There is no real patient information.
+The current implementation is a front-end prototype. Supabase Auth now powers provider login and registration, provider profile fields are stored in Supabase, and patient records/statuses are loaded from Supabase. Routines and messages remain local prototype data because their database tables are not part of the current schema.
 
 ## Getting started
 
@@ -36,7 +36,7 @@ npm install
 
 Before starting, copy `.env.example` to `.env.local` and set your Supabase project URL and publishable key. The local environment file is ignored by Git. Restart Vite after changing these values, and configure the same variables in your deployment environment before building.
 
-This is a Vite React app, so environment variables use the `VITE_` prefix. Import the shared client with `import { supabase } from './lib/supabase'` from files in `src` (adjust the relative path as needed). The client persists and refreshes Supabase sessions in the browser; Next.js server helpers, cookie middleware, and `@supabase/ssr` are not needed here. The existing mock login does not create a Supabase session.
+This is a Vite React app, so environment variables use the `VITE_` prefix. The shared client persists and refreshes Supabase sessions in the browser. Provider and patient data access lives in `src/lib/supabaseData.ts`.
 
 Only use a publishable key in the browser configuration, never a secret or `service_role` key. Database access must be protected by appropriate Row Level Security policies before connecting application data.
 
@@ -66,11 +66,11 @@ Open the local URL shown by Vite, typically `http://localhost:3000`.
 - `/dashboard/profile` — Provider profile
 - `/dashboard/settings` — Provider settings
 
-Routes under the dashboard require the mock authentication state.
+Routes under the dashboard require an active Supabase authentication session.
 
 ## Demo authentication
 
-The login form is prefilled for the prototype. Any password with at least six characters authenticates successfully. The registration form creates a mock provider account and signs the provider in immediately. This is mock authentication and must be replaced with a secure backend authentication flow before real patient information is used.
+Registration and login use Supabase Auth. If email confirmation is enabled in the Supabase project, the provider must confirm the email before signing in.
 
 ## Development commands
 
@@ -94,11 +94,11 @@ npm run preview
 
 ## Prototype limitations
 
-- Patient, routine, dashboard, and message data are local mock data.
-- Changes are held in front-end state and are not persisted to a server.
-- Patient pages use shared routine assignment and discharge state. Refreshing resets mock authentication and patient state; every successful login opens the main Patients dashboard at `/dashboard`.
+- Routine, dashboard summary, and message data are local mock data.
+- Provider profile fields and patient identities/statuses are persisted through Supabase.
+- Patient pages use Supabase patient relationships/statuses and local routine assignment state. Routine assignments are not persisted yet.
 - Session notes are marked “Coming Soon” and are not implemented.
-- Authentication and account creation do not connect to a real service.
+- Authentication and account creation require the Supabase Auth configuration.
 - Appointment functionality is currently represented by a placeholder route.
 - The patient mobile app and provider-to-patient account provisioning backend are not included in this repository.
 - Do not enter real protected health information into the prototype.

@@ -3,6 +3,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined'
 import { Alert, Avatar, Box, Button, ButtonBase, Card, Divider, FormControl, FormControlLabel, FormLabel, MenuItem, Radio, RadioGroup, Stack, TextField, Typography, useTheme } from '@mui/material'
 import { useAuth } from '../auth/AuthContext'
+import { uploadProviderAvatar } from '../lib/supabaseData'
 import type { PreferredContact, ProfileFields } from '../types'
 
 const fontSx = { fontFamily: 'Georgia, serif' }
@@ -65,6 +66,8 @@ export function ProfilePage() {
   const [draft, setDraft] = useState<ProfileFields | null>(null)
   const [errors, setErrors] = useState<Partial<Record<keyof ProfileFields, string>>>({})
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoLoading, setPhotoLoading] = useState(false)
   const photoInput = useRef<HTMLInputElement>(null)
   const photoReader = useRef<FileReader | null>(null)
@@ -78,6 +81,7 @@ export function ProfilePage() {
   useEffect(() => () => stopReadingPhoto(), [])
 
   if (!user) return null
+  const providerId = user.id
 
   const border = theme.palette.divider
   const text = theme.palette.text.primary
@@ -90,11 +94,14 @@ export function ProfilePage() {
     setDraft({ name, role, email, phone, specialty, bio, avatarUrl, department, facility, officeLocation, workPhone, workPhoneExtension, preferredContact })
     setErrors({})
     setSaved(false)
+    setSaveError('')
+    setPhotoFile(null)
   }
 
   function cancelEditing() {
     stopReadingPhoto()
     setPhotoLoading(false)
+    setPhotoFile(null)
     setDraft(null)
     setErrors({})
   }
@@ -133,6 +140,7 @@ export function ProfilePage() {
         await image.decode()
         if (photoReader.current !== reader) return
         setDraft((current) => current ? { ...current, avatarUrl: dataUrl } : null)
+        setPhotoFile(file)
         photoReader.current = null
         setPhotoLoading(false)
       } catch {
@@ -142,11 +150,11 @@ export function ProfilePage() {
     reader.readAsDataURL(file)
   }
 
-  function saveProfile(event: FormEvent<HTMLFormElement>) {
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!draft || photoLoading) return
 
-    const nextProfile: ProfileFields = {
+    let nextProfile: ProfileFields = {
       name: draft.name.trim(),
       role: draft.role.trim(),
       email: draft.email.trim(),
@@ -175,9 +183,28 @@ export function ProfilePage() {
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return
 
-    updateProfile(nextProfile)
-    setDraft(null)
-    setSaved(true)
+    try {
+      if (photoFile) {
+        try {
+          nextProfile = { ...nextProfile, avatarUrl: await uploadProviderAvatar(providerId, photoFile) }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'The image upload was rejected.'
+          throw new Error(`Profile image upload failed: ${message}`)
+        }
+      }
+      try {
+        await updateProfile(nextProfile)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'The provider profile update was rejected.'
+        throw new Error(`Profile details update failed: ${message}`)
+      }
+      setDraft(null)
+      setSaved(true)
+      setSaveError('')
+      setPhotoFile(null)
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Your profile could not be saved.')
+    }
   }
 
   const avatar = (
@@ -259,6 +286,7 @@ export function ProfilePage() {
       </Typography>
       <Typography sx={{ ...fontSx, mb: 3 }}>Help patients get to know you and your care.</Typography>
       {saved && <Alert severity="success" role="status" sx={{ mb: 2 }}>Your profile has been updated.</Alert>}
+      {saveError && <Alert severity="error" role="alert" sx={{ mb: 2 }}>{saveError}</Alert>}
     <Card sx={{ border: `4px solid ${border}`, borderRadius: '30px', bgcolor: 'background.paper', color: text, overflow: 'hidden' }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems="center" sx={{ p: { xs: 3, sm: 4 }, bgcolor: '#91c8c0', color: '#102b34', borderBottom: `3px solid ${border}` }}>
           <Stack alignItems="center" sx={{ width: 112, flexShrink: 0 }}>
@@ -282,6 +310,7 @@ export function ProfilePage() {
                     stopReadingPhoto()
                     setPhotoLoading(false)
                     setDraft((current) => current ? { ...current, avatarUrl: '' } : null)
+                    setPhotoFile(null)
                     setErrors((current) => ({ ...current, avatarUrl: undefined }))
                   }}>Remove Photo</Button>
                 )}

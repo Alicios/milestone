@@ -1,31 +1,16 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { EditableUserFields, User } from '../types'
-
-const demoUser: User = {
-  id: 'provider-001',
-  name: 'Lebron James',
-  email: 'lebron.james@milestone.example',
-  role: 'Physical Therapist',
-  initials: 'LBJ',
-  avatarUrl: '/lebron_profile.jpg',
-  phone: '(555) 010-2029',
-  specialty: 'Sports rehabilitation',
-  bio: 'I help patients build strength, improve mobility, and return to the activities they enjoy through personalized physical therapy.',
-  department: 'Physical Therapy',
-  facility: 'Milestone Rehabilitation Center',
-  officeLocation: 'Building A, Room 206',
-  workPhone: '(555) 010-2000',
-  workPhoneExtension: '206',
-  preferredContact: 'email',
-}
+import { supabase } from '../lib/supabase'
+import { loadProvider, updateProvider } from '../lib/supabaseData'
 
 interface AuthContextValue {
   user: User | null
+  loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (details: RegisterDetails) => Promise<void>
   logout: () => void
-  updateProfile: (profile: Partial<EditableUserFields>) => void
+  updateProfile: (profile: Partial<EditableUserFields>) => Promise<void>
 }
 
 export interface RegisterDetails {
@@ -40,52 +25,58 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    let active = true
+    async function restoreSession() {
+      const { data, error } = await supabase.auth.getSession()
+      if (error) console.error(error)
+      if (active && data.session) {
+        try { setUser(await loadProvider(data.session.user.id, data.session.user.email ?? '')) }
+        catch (providerError) { console.error(providerError) }
+      }
+      if (active) setLoading(false)
+    }
+    void restoreSession()
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') setUser(null)
+      if (event === 'SIGNED_IN' && session) void loadProvider(session.user.id, session.user.email ?? '').then(setUser).catch(console.error)
+    })
+    return () => { active = false; listener.subscription.unsubscribe() }
+  }, [])
 
   const value = useMemo<AuthContextValue>(() => ({
     user,
+    loading,
     login: async (email, password) => {
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      if (password.length < 6) throw new Error('For this demo, use a password with at least 6 characters.')
-      setUser({ ...demoUser, email: email || demoUser.email })
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
+      if (!data.user) throw new Error('Supabase did not return a signed-in user.')
+      setUser(await loadProvider(data.user.id, data.user.email ?? email))
     },
-    register: async ({ name, email, specialty }) => {
-      await new Promise((resolve) => setTimeout(resolve, 600))
-      const normalizedName = name.trim()
-      const initials = normalizedName.split(/\s+/).map((part) => part[0]).join('').slice(0, 3).toUpperCase()
-      setUser({
-        id: `provider-${Date.now()}`,
-        name: normalizedName,
+    register: async ({ name, email, password, specialty }) => {
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
-        role: 'Physical Therapist',
-        initials,
-        avatarUrl: '',
-        phone: '',
-        specialty: specialty.trim(),
-        bio: '',
-        department: specialty.trim(),
-        facility: 'Milestone Rehabilitation Center',
-        officeLocation: '',
-        workPhone: '',
-        workPhoneExtension: '',
-        preferredContact: 'email',
+        password,
+        options: { data: { name: name.trim(), specialty: specialty.trim(), role: 'Physical Therapist' } },
       })
+      if (error) throw error
+      if (!data.user || !data.session) throw new Error('Account created. Confirm your email before signing in.')
+      setUser(await loadProvider(data.user.id, data.user.email ?? email))
     },
     logout: () => {
+      void supabase.auth.signOut()
       setUser(null)
       navigate('/', { replace: true })
     },
-    updateProfile: (profile) => {
-      setUser((current) => {
-        if (!current) return current
-        const next = { ...current, ...profile }
-        if (next.name !== current.name) {
-          next.initials = next.name.trim().split(/\s+/).map((part) => part[0]).join('').toUpperCase()
-        }
-        return next
-      })
+    updateProfile: async (profile) => {
+      if (!user) return
+      await updateProvider(user.id, { ...user, ...profile })
+      setUser(await loadProvider(user.id, user.email))
     },
-  }), [navigate, user])
+  }), [loading, navigate, user])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

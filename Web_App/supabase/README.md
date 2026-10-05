@@ -2,9 +2,9 @@
 
 ## Final model: a separate patient profile for each provider
 
-Apply migrations in filename order: `001`, `002`, `003`, then `004` (the suffixes
+Apply migrations in filename order: `001`, `002`, `003`, then `004`, `005`, and `006` (the suffixes
 of the timestamped filenames). If the first three have already been applied,
-run only `20261004000400_rename_profiles_to_providers.sql`. Migration 003
+run `20261004000400_rename_profiles_to_providers.sql`, then `005` and `006`. Migration 003
 supersedes the shared-status behavior described in the migration 002 section
 below. None of these migrations have been database-tested in this workspace.
 
@@ -93,8 +93,9 @@ not by a database-wide minimum-count constraint: privileged SQL can still
 create an unassigned patient or remove its final assignment.
 
 Any consumers that filter or insert `patients.provider_id` must migrate to the
-linking table/RPC. The current web app still uses mock patients. This does not
-implement patient logins, provider invitations, or a sharing interface.
+linking table/RPC. The web app now reads and creates provider patient
+relationships through Supabase. This does not implement patient logins, provider
+invitations, or a sharing interface.
 
 After migration 004, application queries should use `providers` for provider
 attributes. Developer or troubleshooting access should be granted through
@@ -150,8 +151,8 @@ Profile photos require a separate Storage upload implementation; the current
 form previews local files as data URLs.
 
 Notification, alert, and appearance preferences remain session-only app settings.
-This migration prepares storage for profile fields; it does not connect the
-current mock authentication or profile save handler to Supabase.
+The profile migration prepares storage for provider fields; the web app now
+connects its provider profile save handler to Supabase.
 
 ## Verify after applying
 

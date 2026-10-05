@@ -22,15 +22,15 @@ export function RemoveRoutineDialog({ patientName, weekday, routineName, onCance
     aria-describedby={`${id}-description`}
     slotProps={{ transition: { onEntered: () => cancelButton.current?.focus() } }}
   >
-    <DialogTitle id={`${id}-title`}>Remove routine?</DialogTitle>
+    <DialogTitle id={`${id}-title`}>Cancel routine assignment?</DialogTitle>
     <DialogContent>
       <DialogContentText id={`${id}-description`} sx={{ overflowWrap: 'anywhere' }}>
-        Remove {routineName ? <strong>{routineName}</strong> : 'the scheduled routine'} from <strong>{weekday}</strong> for {patientName}? Only this day’s assignment will be removed. You can assign a routine again later.
+        Cancel {routineName ? <strong>{routineName}</strong> : 'the scheduled routine'} for <strong>{weekday}</strong> for {patientName}? Its history will be retained, and any scheduled follow-up will also be cancelled.
       </DialogContentText>
     </DialogContent>
     <DialogActions sx={{ px: 3, pb: 2 }}>
       <Button ref={cancelButton} autoFocus onClick={onCancel}>Cancel</Button>
-      <Button color="error" onClick={onRemove}>Remove</Button>
+      <Button color="error" onClick={onRemove}>Cancel Assignment</Button>
     </DialogActions>
   </Dialog>
 }

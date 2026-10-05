@@ -1,28 +1,27 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { Session, User as SupabaseUser } from '@supabase/supabase-js'
+import type { EditableUserFields, User } from '../types'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
-import type { User } from '../types'
+import { loadProvider, updateProvider } from '../lib/supabaseData'
 
 interface AuthContextValue {
   user: User | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
+  register: (details: RegisterDetails) => Promise<void>
   logout: () => Promise<void>
+  updateProfile: (profile: Partial<EditableUserFields>) => Promise<void>
+}
+
+export interface RegisterDetails {
+  name: string
+  email: string
+  password: string
+  confirmPassword: string
+  specialty: string
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
-
-function initialsFor(name: string) {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join('')
-}
-
-async function loadUser(authUser: SupabaseUser): Promise<User> {
-  const { data } = await supabase.from('profiles').select('name, role, initials').eq('id', authUser.id).maybeSingle()
-  const email = authUser.email ?? ''
-  const name = data?.name || email.split('@')[0]
-  return { id: authUser.id, email, name, role: data?.role || 'Physical Therapist', initials: data?.initials || initialsFor(name) }
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -33,14 +32,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isSupabaseConfigured) return
     let active = true
 
-    async function apply(session: Session | null) {
-      const next = session?.user ? await loadUser(session.user) : null
-      if (active) { setUser(next); setLoading(false) }
+    async function applySession(sessionUser: { id: string; email?: string } | null) {
+      if (!sessionUser) {
+        if (active) { setUser(null); setLoading(false) }
+        return
+      }
+      try {
+        const next = await loadProvider(sessionUser.id, sessionUser.email ?? '')
+        if (active) { setUser(next); setLoading(false) }
+      } catch (error) {
+        console.error(error)
+        if (active) setLoading(false)
+      }
     }
 
-    supabase.auth.getSession().then(({ data }) => apply(data.session))
-    // Defer the profile query out of the callback to avoid deadlocking supabase-js.
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { setTimeout(() => apply(session), 0) })
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) console.error(error)
+      void applySession(data.session?.user ?? null)
+    })
+    // Defer the provider query out of the auth callback to avoid deadlocking supabase-js.
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setTimeout(() => { void applySession(session?.user ?? null) }, 0)
+    })
     return () => { active = false; listener.subscription.unsubscribe() }
   }, [])
 
@@ -50,14 +63,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login: async (email, password) => {
       if (!isSupabaseConfigured) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local.')
       const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-      if (error) throw new Error(error.message)
-      // Set the user before returning so navigation to a protected route doesn't bounce back to /login.
-      if (data.user) setUser(await loadUser(data.user))
+      if (error) throw error
+      if (!data.user) throw new Error('Supabase did not return a signed-in user.')
+      setUser(await loadProvider(data.user.id, data.user.email ?? email))
+    },
+    register: async ({ name, email, password, specialty }) => {
+      if (!isSupabaseConfigured) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local.')
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: { data: { name: name.trim(), specialty: specialty.trim(), role: 'Physical Therapist' } },
+      })
+      if (error) throw error
+      if (!data.user || !data.session) throw new Error('Account created. Confirm your email before signing in.')
+      setUser(await loadProvider(data.user.id, data.user.email ?? email))
     },
     logout: async () => {
       await supabase.auth.signOut()
       setUser(null)
       navigate('/', { replace: true })
+    },
+    updateProfile: async (profile) => {
+      if (!user) return
+      await updateProvider(user.id, { ...user, ...profile })
+      setUser(await loadProvider(user.id, user.email))
     },
   }), [loading, navigate, user])
 

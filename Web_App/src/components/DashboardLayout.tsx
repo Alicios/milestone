@@ -1,20 +1,41 @@
-import { useState } from 'react'
-import { AppBar, Avatar, Box, Button, Container, Divider, IconButton, Menu, MenuItem, Stack, Toolbar, Typography } from '@mui/material'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Alert, AppBar, Avatar, Box, Button, Container, Divider, IconButton, Menu, MenuItem, Stack, Toolbar, Typography } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { mockPatients, type Patient } from '../data/mockPatients'
-import type { Routine } from '../data/mockRoutines'
+import type { Patient } from '../data/mockPatients'
+import type { Routine, RoutineAssignment } from '../types'
+import {
+  archiveRoutine as archiveRoutineInDatabase,
+  assignRoutine as assignRoutineInDatabase,
+  cancelRoutineAssignment as cancelAssignmentInDatabase,
+  cancelRoutineFollowUp as cancelFollowUpInDatabase,
+  completeRoutineFollowUp as completeFollowUpInDatabase,
+  dischargePatient as dischargePatientFromDatabase,
+  loadPatients,
+  loadRoutineAssignments,
+  loadRoutines,
+  saveRoutine as saveRoutineInDatabase,
+  scheduleRoutineFollowUp as scheduleFollowUpInDatabase,
+} from '../lib/supabaseData'
+import { getCurrentWeekDates } from '../lib/week'
 
-export type DayAssignments = Partial<Record<number, Routine>>
+export type DayAssignments = Record<string, RoutineAssignment[]>
 type RoutineAssignments = Record<string, DayAssignments>
 
 export interface DashboardOutletContext {
   patients: Patient[]
+  routines: Routine[]
   assignments: RoutineAssignments
-  assignRoutine: (patientId: string, dayIndex: number, routine: Routine) => void
-  removeRoutine: (patientId: string, dayIndex: number) => void
-  dischargePatient: (patientId: string) => void
+  weekDates: string[]
+  assignRoutine: (patientProfileId: string, scheduledDate: string, routineId: string) => Promise<void>
+  cancelAssignment: (assignmentId: string) => Promise<void>
+  scheduleFollowUp: (assignmentId: string, scheduledAt: string) => Promise<void>
+  cancelFollowUp: (assignmentId: string) => Promise<void>
+  completeFollowUp: (assignmentId: string) => Promise<void>
+  saveRoutine: (routineId: string | null, name: string, exercises: string[]) => Promise<void>
+  archiveRoutine: (routineId: string) => Promise<void>
+  dischargePatient: (patientId: string) => Promise<void>
 }
 
 const teal = '#4b9da9'
@@ -27,40 +48,85 @@ export function DashboardLayout() {
   const isPatientsPage = location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/patients')
   const [menuOpen, setMenuOpen] = useState(false)
   const [profileMenuAnchor, setProfileMenuAnchor] = useState<null | HTMLElement>(null)
-  const [patients, setPatients] = useState<Patient[]>(mockPatients)
+  const [patients, setPatients] = useState<Patient[]>([])
+  const [patientsLoading, setPatientsLoading] = useState(true)
+  const [patientsError, setPatientsError] = useState('')
+  const [routines, setRoutines] = useState<Routine[]>([])
   const [assignments, setAssignments] = useState<RoutineAssignments>({})
+  const weekDates = useMemo(() => getCurrentWeekDates(), [])
 
-  const assignRoutine = (patientId: string, dayIndex: number, routine: Routine) => {
-    const patient = patients.find((item) => item.id === patientId)
-    if (patient?.statuses[dayIndex] !== 'none') return
+  const refreshAssignments = useCallback(async (nextPatients: Patient[]) => {
+    const rows = await loadRoutineAssignments(nextPatients.map((patient) => patient.profileId), weekDates[0], weekDates[6])
+    const nextAssignments: RoutineAssignments = {}
+    for (const assignment of rows) {
+      const profileAssignments = nextAssignments[assignment.patientProfileId] ?? {}
+      const dayAssignments = profileAssignments[assignment.scheduledDate] ?? []
+      profileAssignments[assignment.scheduledDate] = [...dayAssignments, assignment]
+      nextAssignments[assignment.patientProfileId] = profileAssignments
+    }
+    setAssignments(nextAssignments)
+  }, [weekDates])
 
-    setAssignments((current) => {
-      if (current[patientId]?.[dayIndex]) return current
-      return { ...current, [patientId]: { ...current[patientId], [dayIndex]: routine } }
+  useEffect(() => {
+    let active = true
+    if (!user) return () => { active = false }
+    setPatientsLoading(true)
+    setPatientsError('')
+    void Promise.all([loadPatients(user.id), loadRoutines()]).then(async ([nextPatients, nextRoutines]) => {
+      if (!active) return
+      setPatients(nextPatients)
+      setRoutines(nextRoutines)
+      await refreshAssignments(nextPatients)
+    }).catch((error: Error) => {
+      if (active) setPatientsError(error.message || 'Patients could not be loaded from Supabase.')
+    }).finally(() => {
+      if (active) setPatientsLoading(false)
     })
+    return () => { active = false }
+  }, [refreshAssignments, user])
+
+  const assignRoutine = async (patientProfileId: string, scheduledDate: string, routineId: string) => {
+    await assignRoutineInDatabase(patientProfileId, routineId, scheduledDate)
+    await refreshAssignments(patients)
   }
 
-  const removeRoutine = (patientId: string, dayIndex: number) => {
-    const patient = patients.find((item) => item.id === patientId)
-    if (!patient || (!assignments[patientId]?.[dayIndex] && patient.statuses[dayIndex] !== 'routine')) return
-
-    setAssignments((current) => {
-      if (!current[patientId]?.[dayIndex]) return current
-      const remaining = { ...current[patientId] }
-      delete remaining[dayIndex]
-      return { ...current, [patientId]: remaining }
-    })
-    // Demo scheduled days can have a status without named routine details.
-    setPatients((current) => current.map((item) => item.id === patientId && item.statuses[dayIndex] === 'routine'
-      ? { ...item, statuses: item.statuses.map((status, index) => index === dayIndex ? 'none' : status) }
-      : item))
+  const cancelAssignment = async (assignmentId: string) => {
+    await cancelAssignmentInDatabase(assignmentId)
+    await refreshAssignments(patients)
   }
 
-  const dischargePatient = (patientId: string) => {
-    setPatients((current) => current.filter((patient) => patient.id !== patientId))
+  const scheduleFollowUp = async (assignmentId: string, scheduledAt: string) => {
+    await scheduleFollowUpInDatabase(assignmentId, scheduledAt)
+    await refreshAssignments(patients)
+  }
+
+  const cancelFollowUp = async (assignmentId: string) => {
+    await cancelFollowUpInDatabase(assignmentId)
+    await refreshAssignments(patients)
+  }
+
+  const completeFollowUp = async (assignmentId: string) => {
+    await completeFollowUpInDatabase(assignmentId)
+    await refreshAssignments(patients)
+  }
+
+  const saveRoutine = async (routineId: string | null, name: string, exercises: string[]) => {
+    await saveRoutineInDatabase(routineId, name, exercises)
+    setRoutines(await loadRoutines())
+  }
+
+  const archiveRoutine = async (routineId: string) => {
+    await archiveRoutineInDatabase(routineId)
+    setRoutines(await loadRoutines())
+  }
+
+  const dischargePatient = async (patientId: string) => {
+    await dischargePatientFromDatabase(patientId)
+    const patient = patients.find((item) => item.id === patientId)
+    setPatients((current) => current.filter((item) => item.id !== patientId))
     setAssignments((current) => {
       const remaining = { ...current }
-      delete remaining[patientId]
+      if (patient) delete remaining[patient.profileId]
       return remaining
     })
   }
@@ -99,7 +165,9 @@ export function DashboardLayout() {
       </Container>
     </AppBar>
     <Container maxWidth={false} sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: isMessagesPage ? 0 : { xs: 2, md: 3 } }}>
-      <Outlet context={{ patients, assignments, assignRoutine, removeRoutine, dischargePatient } satisfies DashboardOutletContext} />
+      {patientsLoading && <Alert severity="info" sx={{ mb: 2 }}>Loading patients from Supabase…</Alert>}
+      {patientsError && <Alert severity="error" sx={{ mb: 2 }}>{patientsError}</Alert>}
+      <Outlet context={{ patients, routines, assignments, weekDates, assignRoutine, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, archiveRoutine, dischargePatient } satisfies DashboardOutletContext} />
     </Container>
   </Box>
 }

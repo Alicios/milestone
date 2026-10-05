@@ -9,6 +9,8 @@
     "lint": "tsc -b --pretty false",
     "preview": "vite preview",
     "requests:list": "node scripts/list-access-requests.mjs",
+    "requests:approve": "node scripts/approve-access-request.mjs",
+    "requests:list": "node scripts/list-access-requests.mjs",
     "requests:approve": "node scripts/approve-access-request.mjs"
   },
   "dependencies": {
@@ -18,7 +20,7 @@
     "@fontsource/roboto": "^5.2.6",
     "@mui/icons-material": "^7.3.1",
     "@mui/material": "^7.3.1",
-    "@supabase/supabase-js": "^2.117.1",
+    "@supabase/supabase-js": "^2.117.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.2"

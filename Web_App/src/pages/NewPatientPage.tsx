@@ -5,6 +5,7 @@ import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1'
 import SmsOutlinedIcon from '@mui/icons-material/SmsOutlined'
 import { Alert, Box, Button, Card, Stack, TextField, Typography, useTheme } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
+import { createPatient } from '../lib/supabaseData'
 
 const fontSx = { fontFamily: 'Georgia, serif', fontStyle: 'italic' }
 const teal = '#4b9da9'
@@ -28,21 +29,33 @@ export function NewPatientPage() {
   const [phone, setPhone] = useState('')
   const [phoneError, setPhoneError] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!isValidPhone(phone)) {
       setPhoneError('Enter a valid 10-digit phone number.')
       return
     }
     setPhoneError('')
-    setSubmitted(true)
+    setSaveError('')
+    setSaving(true)
+    try {
+      await createPatient(name, phone)
+      setSubmitted(true)
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'The patient could not be saved.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   function reset() {
     setName('')
     setPhone('')
     setPhoneError('')
+    setSaveError('')
     setSubmitted(false)
   }
 
@@ -60,9 +73,10 @@ export function NewPatientPage() {
     <Button component={RouterLink} to="/dashboard" startIcon={<ArrowBackIcon />} sx={{ ...fontSx, color: text, mb: 2, fontSize: '1.1rem' }}>Back to Patients</Button>
     <Stack direction="row" spacing={2} alignItems="center" mb={3}><Box sx={{ width: 68, height: 68, flexShrink: 0, borderRadius: '50%', bgcolor: teal, border: `4px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><PersonAddAlt1Icon sx={{ color: 'white', fontSize: 40 }} /></Box><Box><Typography variant="h3" sx={{ ...fontSx, fontSize: { xs: '2.1rem', sm: '3rem' } }}>New Patient</Typography><Typography sx={{ ...fontSx, fontSize: '1.1rem' }}>Create a pending patient account</Typography></Box></Stack>
     <Card component="form" onSubmit={submit} sx={{ border: `4px solid ${border}`, borderRadius: '30px', bgcolor: surface, color: text, p: { xs: 2.5, sm: 4 } }}>
+      {saveError && <Alert severity="error" sx={{ mb: 2 }}>{saveError}</Alert>}
       <Stack spacing={2.5}><TextField label="Patient name" value={name} onChange={(event) => setName(event.target.value)} required placeholder="Enter full name" sx={{ '& .MuiOutlinedInput-root': { ...fontSx, borderRadius: '18px', '& fieldset': { border: `3px solid ${border}` } }, '& .MuiInputLabel-root': fontSx }} /><TextField label="Phone number" value={phone} onChange={(event) => { setPhone(event.target.value); setPhoneError('') }} required error={Boolean(phoneError)} helperText={phoneError || 'The patient will receive a secure sign-up link by text message.'} placeholder="(555) 123-4567" type="tel" inputMode="tel" sx={{ '& .MuiOutlinedInput-root': { ...fontSx, borderRadius: '18px', '& fieldset': { border: `3px solid ${border}` } }, '& .MuiInputLabel-root': fontSx, '& .MuiFormHelperText-root': { ...fontSx, ml: 0 } }} />
         <Box sx={{ bgcolor: noteSurface, border: `3px solid ${border}`, borderRadius: '18px', p: 2 }}><Typography sx={{ ...fontSx, fontWeight: 700 }}>What happens next?</Typography><Typography sx={{ ...fontSx }}>The account will appear as pending until the patient completes sign-up. They will receive a notification and link at the phone number above.</Typography></Box>
-        <Stack direction="row" spacing={1.5} justifyContent="flex-end"><Button component={RouterLink} to="/dashboard" sx={{ ...fontSx, color: text, border: `3px solid ${border}`, borderRadius: '20px', px: 3 }}>Cancel</Button><Button type="submit" disabled={!name.trim() || !phone.trim()} sx={{ ...fontSx, bgcolor: orange, color: 'white', border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#d15a17' }, '&.Mui-disabled': { bgcolor: '#d6b39f', color: 'white' } }}>Create Pending Account</Button></Stack>
+        <Stack direction="row" spacing={1.5} justifyContent="flex-end"><Button component={RouterLink} to="/dashboard" sx={{ ...fontSx, color: text, border: `3px solid ${border}`, borderRadius: '20px', px: 3 }}>Cancel</Button><Button type="submit" disabled={!name.trim() || !phone.trim() || saving} sx={{ ...fontSx, bgcolor: orange, color: 'white', border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#d15a17' }, '&.Mui-disabled': { bgcolor: '#d6b39f', color: 'white' } }}>{saving ? 'Saving…' : 'Create Pending Account'}</Button></Stack>
       </Stack>
     </Card>
   </Box>

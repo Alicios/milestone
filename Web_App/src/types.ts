@@ -37,3 +37,37 @@ export interface ActivityItem {
   time: string
   type: 'appointment' | 'message' | 'record'
 }
+
+export interface RoutineExercise {
+  id: string
+  name: string
+  position: number
+}
+
+export interface Routine {
+  id: string
+  name: string
+  exercises: RoutineExercise[]
+  archivedAt?: string
+}
+
+export type RoutineAssignmentStatus = 'scheduled' | 'completed' | 'missed' | 'modified' | 'cancelled'
+export type FollowUpStatus = 'scheduled' | 'completed' | 'cancelled'
+
+export interface FollowUpAppointment {
+  id: string
+  routineAssignmentId: string
+  scheduledAt: string
+  status: FollowUpStatus
+}
+
+export interface RoutineAssignment {
+  id: string
+  patientProfileId: string
+  routineId: string
+  scheduledDate: string
+  status: RoutineAssignmentStatus
+  routineName: string
+  exercises: RoutineExercise[]
+  followUp?: FollowUpAppointment
+}

@@ -2,7 +2,7 @@
 
 ## Final model: a separate patient profile for each provider
 
-Apply migrations in filename order: `001` through `010` (the suffixes
+Apply migrations in filename order: `001` through `011` (the suffixes
 of the timestamped filenames). If the first three have already been applied,
 run the remaining migrations in order. Migration 003
 supersedes the shared-status behavior described in the migration 002 section
@@ -72,6 +72,12 @@ history. Active patient queries must filter `discharged_at is null`.
 Legacy `patient_statuses` remains intact because its weekday indexes cannot be
 safely converted to calendar dates. New routine activity is represented by
 `routine_assignments.status`.
+
+Migration `011` restores the five former frontend demo routines as persisted
+templates for every provider that exists when the migration runs. It also adds
+the original ordered exercises for Lower Body, Upper Body, and Cardio. The seed
+is case-insensitively idempotent per provider, leaves matching existing routines
+unchanged, and does not seed providers created after the migration.
 
 ## Multiple providers per patient
 

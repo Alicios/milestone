@@ -9,6 +9,7 @@ import { AssignRoutineDialog } from '../components/AssignRoutineDialog'
 import type { DashboardOutletContext } from '../components/DashboardLayout'
 import { DischargePatientDialog } from '../components/DischargePatientDialog'
 import { FollowUpDialog } from '../components/FollowUpDialog'
+import { PatientAvatar } from '../components/PatientAvatar'
 import { RemoveRoutineDialog } from '../components/RemoveRoutineDialog'
 import { weekdayNames, type Patient } from '../data/mockPatients'
 import { formatCalendarDate } from '../lib/week'
@@ -45,10 +46,13 @@ function PatientOverview({ patient }: { patient: Patient }) {
   return <>
     <Card sx={{ p: { xs: 2.5, sm: 3 }, mb: 3 }}>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} justifyContent="space-between">
-        <Box minWidth={0}>
-          <Typography variant="overline" color="text.secondary">Patient overview</Typography>
-          <Typography ref={heading} tabIndex={-1} component="h1" variant="h3" sx={{ fontSize: { xs: '1.8rem', sm: '2.5rem' }, overflowWrap: 'anywhere' }}>{patient.name}</Typography>
-        </Box>
+        <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} alignItems="center" minWidth={0}>
+          <PatientAvatar name={patient.name} size="large" />
+          <Box minWidth={0}>
+            <Typography variant="overline" color="text.secondary">Patient overview</Typography>
+            <Typography ref={heading} tabIndex={-1} component="h1" variant="h3" sx={{ fontSize: { xs: '1.8rem', sm: '2.5rem' }, overflowWrap: 'anywhere' }}>{patient.name}</Typography>
+          </Box>
+        </Stack>
         <Chip label={patient.careStatus === 'active' ? 'Active patient' : 'Pending patient'} color={patient.careStatus === 'active' ? 'success' : 'default'} variant="outlined" sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }} />
       </Stack>
       <Typography color="text.secondary" sx={{ mt: 1.5 }}>Start of care: {startOfCare || 'Not provided'}</Typography>

@@ -9,6 +9,7 @@ import SortIcon from '@mui/icons-material/Sort'
 import { Box, Button, Card, Collapse, Divider, Fade, Grow, IconButton, InputAdornment, Menu, MenuItem, OutlinedInput, Stack, Typography, useTheme } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 import { AssignRoutineDialog } from '../components/AssignRoutineDialog'
+import { PatientAvatar } from '../components/PatientAvatar'
 import type { DashboardOutletContext, DayAssignments } from '../components/DashboardLayout'
 import { weekdayNames, type Patient } from '../data/mockPatients'
 import type { Routine, RoutineAssignmentStatus } from '../types'
@@ -39,8 +40,9 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
 
   return <Card sx={{ bgcolor: 'transparent', boxShadow: 'none', border: 0, overflow: 'visible', mb: 1.5 }}>
     <Stack direction="row" alignItems="center" sx={{ position: 'relative', zIndex: 1, bgcolor: '#91c8c0', border: `4px solid ${border}`, borderRadius: '10px' }}>
-      <Button component={RouterLink} to={`/dashboard/patients/${encodeURIComponent(patient.id)}`} sx={{ flex: 1, minWidth: 0, minHeight: 64, color: accentText, fontSize: { xs: '1.2rem', sm: '1.65rem' }, overflowWrap: 'anywhere', '&:hover': { bgcolor: '#82bdb5', textDecoration: 'underline' } }}>
-        {patient.name}
+      <Button component={RouterLink} to={`/dashboard/patients/${encodeURIComponent(patient.id)}`} sx={{ flex: 1, minWidth: 0, minHeight: 64, justifyContent: 'flex-start', gap: { xs: 1, sm: 1.5 }, px: { xs: 1, sm: 1.5 }, color: accentText, fontSize: { xs: '1.2rem', sm: '1.65rem' }, overflowWrap: 'anywhere', textAlign: 'left', '&:hover': { bgcolor: '#82bdb5', textDecoration: 'underline' } }}>
+        <PatientAvatar name={patient.name} />
+        <Box component="span" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>{patient.name}</Box>
       </Button>
       <IconButton onClick={onToggle} aria-label={`${expanded ? 'Collapse' : 'Expand'} weekly routines for ${patient.name}`} aria-expanded={expanded} aria-controls={`patient-week-${patient.id}`} sx={{ color: accentText, width: 44, height: 44, mr: 1, '&.Mui-focusVisible': { outline: '3px solid #eb681d', outlineOffset: 2 } }}>
         <ExpandMoreIcon sx={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 220ms ease' }} />

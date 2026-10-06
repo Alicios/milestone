@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { EditableUserFields, FollowUpAppointment, Routine, RoutineAssignment, RoutineAssignmentStatus, RoutineExercise, User } from '../types'
+import type { AssignmentExerciseSnapshot, EditableUserFields, Exercise, FollowUpAppointment, Routine, RoutineAssignment, RoutineAssignmentStatus, RoutineExercise, User } from '../types'
 import type { Patient } from '../data/mockPatients'
 
 export const PROFILE_IMAGE_BUCKET = 'profile-images'
@@ -176,8 +176,32 @@ export async function dischargePatient(patientId: string) {
   if (error) throw error
 }
 
+type ExerciseRow = { id: string; name: string; instructions: string; created_at: string; updated_at: string }
+
+function toExercise(row: ExerciseRow): Exercise {
+  return { id: row.id, name: row.name, instructions: row.instructions, createdAt: row.created_at, updatedAt: row.updated_at }
+}
+
+export async function loadExercises(): Promise<Exercise[]> {
+  const { data, error } = await supabase.from('exercises').select('id, name, instructions, created_at, updated_at').order('name').order('id')
+  if (error) throw error
+  return ((data ?? []) as ExerciseRow[]).map(toExercise)
+}
+
+export async function saveExercise(exerciseId: string | null, name: string, instructions: string): Promise<Exercise> {
+  const { data: id, error: saveError } = await supabase.rpc('save_exercise', {
+    p_exercise_id: exerciseId,
+    p_name: name.trim(),
+    p_instructions: instructions.trim(),
+  })
+  if (saveError) throw saveError
+  const { data, error } = await supabase.from('exercises').select('id, name, instructions, created_at, updated_at').eq('id', id).single()
+  if (error) throw error
+  return toExercise(data as ExerciseRow)
+}
+
 type RoutineRow = { id: string; name: string; archived_at: string | null }
-type RoutineExerciseRow = { id: string; routine_id: string; name: string; position: number }
+type RoutineExerciseRow = { id: string; routine_id: string; exercise_id: string; position: number; exercise: { name: string; instructions: string } }
 type RoutineAssignmentRow = {
   id: string
   patient_profile_id: string
@@ -186,34 +210,36 @@ type RoutineAssignmentRow = {
   status: RoutineAssignmentStatus
   routine_name_snapshot: string
 }
-type AssignmentExerciseRow = { id: string; routine_assignment_id: string; exercise_name_snapshot: string; position: number }
-type LegacyAssignmentExerciseRow = { id: string; routine_assignment_id: string; name: string; position: number }
+type AssignmentExerciseRow = { id: string; routine_assignment_id: string; exercise_name_snapshot: string; instructions?: string; position: number }
+type LegacyAssignmentExerciseRow = { id: string; routine_assignment_id: string; name: string; instructions?: string; position: number }
 type RoutineFollowUpRow = { id: string; routine_assignment_id: string; scheduled_at: string; status: FollowUpAppointment['status'] }
 
-function toExercise(row: RoutineExerciseRow | AssignmentExerciseRow): RoutineExercise {
-  const name = 'exercise_name_snapshot' in row ? row.exercise_name_snapshot : row.name
-  return { id: row.id, name, position: row.position }
-}
-
 async function loadAssignmentExerciseSnapshots(assignmentIds: string[]) {
-  const currentResult = await supabase
-    .from('routine_assignment_exercises')
-    .select('id, routine_assignment_id, exercise_name_snapshot, position')
-    .in('routine_assignment_id', assignmentIds)
-    .order('position')
-  if (!currentResult.error) return (currentResult.data ?? []) as AssignmentExerciseRow[]
+  async function loadRows(nameColumn: 'exercise_name_snapshot' | 'name') {
+    const columns = `id, routine_assignment_id, ${nameColumn}, position`
+    const withInstructions = await supabase
+      .from('routine_assignment_exercises')
+      .select(`${columns}, instructions`)
+      .in('routine_assignment_id', assignmentIds)
+      .order('position')
+    // Before SCRUM-43, snapshots have no recorded instructions. Never load
+    // historical information from the mutable exercise catalog as a fallback.
+    if (!isMissingSchemaObject(withInstructions.error, ['instructions'])) return withInstructions
+    return supabase.from('routine_assignment_exercises').select(columns)
+      .in('routine_assignment_id', assignmentIds).order('position')
+  }
+
+  const currentResult = await loadRows('exercise_name_snapshot')
+  if (!currentResult.error) return (currentResult.data ?? []) as unknown as AssignmentExerciseRow[]
   if (!isMissingSchemaObject(currentResult.error, ['exercise_name_snapshot'])) throw currentResult.error
 
-  const legacyResult = await supabase
-    .from('routine_assignment_exercises')
-    .select('id, routine_assignment_id, name, position')
-    .in('routine_assignment_id', assignmentIds)
-    .order('position')
+  const legacyResult = await loadRows('name')
   if (legacyResult.error) throw legacyResult.error
-  return ((legacyResult.data ?? []) as LegacyAssignmentExerciseRow[]).map((exercise) => ({
+  return ((legacyResult.data ?? []) as unknown as LegacyAssignmentExerciseRow[]).map((exercise) => ({
     id: exercise.id,
     routine_assignment_id: exercise.routine_assignment_id,
     exercise_name_snapshot: exercise.name,
+    instructions: exercise.instructions,
     position: exercise.position,
   }))
 }
@@ -244,15 +270,15 @@ export async function loadRoutines(includeArchived = false): Promise<Routine[]> 
   if (!rows.length) return []
   const { data: exercises, error: exerciseError } = await supabase
     .from('routine_exercises')
-    .select('id, routine_id, name, position')
+    .select('id, routine_id, exercise_id, position, exercise:exercises!routine_exercises_exercise_id_fkey(name, instructions)')
     .in('routine_id', rows.map((routine) => routine.id))
     .order('position')
   if (exerciseError) throw exerciseError
 
   const byRoutine = new Map<string, RoutineExercise[]>()
-  for (const exercise of (exercises ?? []) as RoutineExerciseRow[]) {
+  for (const exercise of (exercises ?? []) as unknown as RoutineExerciseRow[]) {
     const current = byRoutine.get(exercise.routine_id) ?? []
-    current.push(toExercise(exercise))
+    current.push({ id: exercise.id, exerciseId: exercise.exercise_id, name: exercise.exercise.name, instructions: exercise.exercise.instructions, position: exercise.position })
     byRoutine.set(exercise.routine_id, current)
   }
   return rows.map((routine) => ({
@@ -263,11 +289,11 @@ export async function loadRoutines(includeArchived = false): Promise<Routine[]> 
   }))
 }
 
-export async function saveRoutine(routineId: string | null, name: string, exercises: string[]) {
+export async function saveRoutine(routineId: string | null, name: string, exerciseIds: string[]) {
   const { data, error } = await supabase.rpc('save_routine', {
     p_routine_id: routineId,
     p_routine_name: name.trim(),
-    p_exercise_names: exercises.map((exercise) => exercise.trim()).filter(Boolean),
+    p_exercise_ids: exerciseIds,
   })
   if (error) throw error
   return data as string
@@ -298,10 +324,10 @@ export async function loadRoutineAssignments(profileIds: string[], startDate: st
     loadRoutineFollowUps(assignmentIds),
   ])
 
-  const exercisesByAssignment = new Map<string, RoutineExercise[]>()
+  const exercisesByAssignment = new Map<string, AssignmentExerciseSnapshot[]>()
   for (const exercise of exercises) {
     const current = exercisesByAssignment.get(exercise.routine_assignment_id) ?? []
-    current.push(toExercise(exercise))
+    current.push({ id: exercise.id, name: exercise.exercise_name_snapshot, instructions: exercise.instructions ?? '', position: exercise.position })
     exercisesByAssignment.set(exercise.routine_assignment_id, current)
   }
   const followUpByAssignment = new Map<string, FollowUpAppointment>()

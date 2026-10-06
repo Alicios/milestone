@@ -33,7 +33,7 @@ export interface DashboardOutletContext {
   scheduleFollowUp: (assignmentId: string, scheduledAt: string) => Promise<void>
   cancelFollowUp: (assignmentId: string) => Promise<void>
   completeFollowUp: (assignmentId: string) => Promise<void>
-  saveRoutine: (routineId: string | null, name: string, exercises: string[]) => Promise<void>
+  saveRoutine: (routineId: string | null, name: string, exerciseIds: string[]) => Promise<void>
   archiveRoutine: (routineId: string) => Promise<void>
   dischargePatient: (patientId: string) => Promise<void>
 }
@@ -110,8 +110,8 @@ export function DashboardLayout() {
     await refreshAssignments(patients)
   }
 
-  const saveRoutine = async (routineId: string | null, name: string, exercises: string[]) => {
-    await saveRoutineInDatabase(routineId, name, exercises)
+  const saveRoutine = async (routineId: string | null, name: string, exerciseIds: string[]) => {
+    await saveRoutineInDatabase(routineId, name, exerciseIds)
     setRoutines(await loadRoutines())
   }
 

@@ -38,9 +38,28 @@ export interface ActivityItem {
   type: 'appointment' | 'message' | 'record'
 }
 
-export interface RoutineExercise {
+export interface Exercise {
   id: string
   name: string
+  instructions: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RoutineExercise {
+  /** Membership ID, distinct from the reusable exercise ID. */
+  id: string
+  exerciseId: string
+  name: string
+  instructions: string
+  position: number
+}
+
+export interface AssignmentExerciseSnapshot {
+  /** Historical snapshot ID; this record never loads mutable catalog content. */
+  id: string
+  name: string
+  instructions: string
   position: number
 }
 
@@ -68,6 +87,6 @@ export interface RoutineAssignment {
   scheduledDate: string
   status: RoutineAssignmentStatus
   routineName: string
-  exercises: RoutineExercise[]
+  exercises: AssignmentExerciseSnapshot[]
   followUp?: FollowUpAppointment
 }

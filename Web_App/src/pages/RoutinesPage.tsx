@@ -1,13 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import AddIcon from '@mui/icons-material/Add'
 import CloseIcon from '@mui/icons-material/Close'
 import EditIcon from '@mui/icons-material/Edit'
 import SearchIcon from '@mui/icons-material/Search'
-import { Alert, Box, Button, IconButton, InputAdornment, OutlinedInput, Stack, TextField, Typography, useTheme } from '@mui/material'
+import { Alert, Box, Button, IconButton, InputAdornment, OutlinedInput, MenuItem, Stack, TextField, Typography, useTheme } from '@mui/material'
 import type { DashboardOutletContext } from '../components/DashboardLayout'
-import type { Routine } from '../types'
 import { RoutineDemo } from '../components/RoutineDemo'
+import type { Exercise, Routine } from '../types'
+import { loadExercises, saveExercise } from '../lib/supabaseData'
 
 const teal = '#4b9da9'
 const aqua = '#91c8c0'
@@ -54,36 +55,67 @@ function RoutineColumn({ routine, dimmed, highlighted, onClick }: {
   )
 }
 
-function ExerciseEditor({ exercises, onChange }: { exercises: string[]; onChange: (next: string[]) => void }) {
-  const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
-  const border = theme.palette.divider
-  const chipSurface = isDark ? '#29454d' : '#d9d9d9'
-  const updateAt = (index: number, value: string) => onChange(exercises.map((exercise, i) => (i === index ? value : exercise)))
-  const removeAt = (index: number) => onChange(exercises.filter((_, i) => i !== index))
-  const add = () => onChange([...exercises, ''])
+function ExerciseEditor({ exerciseIds, catalog, disabled, onChange, onCreate }: {
+  exerciseIds: string[]
+  catalog: Exercise[]
+  disabled: boolean
+  onChange: (next: string[]) => void
+  onCreate: (name: string, instructions: string) => Promise<Exercise>
+}) {
+  const [name, setName] = useState('')
+  const [instructions, setInstructions] = useState('')
+  const [error, setError] = useState('')
 
-  return (
-    <Stack spacing={1.5}>
-      {exercises.map((exercise, index) => (
-        <Stack key={index} direction="row" spacing={1} alignItems="center">
-          <TextField
-            value={exercise}
-            onChange={(event) => updateAt(index, event.target.value)}
-            placeholder="Exercise name"
-            size="small"
-            sx={{ '& .MuiOutlinedInput-root': { ...fontSx, bgcolor: chipSurface, borderRadius: '20px', '& fieldset': { border: `3px solid ${border}` } } }}
-          />
-          <IconButton aria-label="Remove exercise" onClick={() => removeAt(index)} sx={{ bgcolor: '#ff333c', color: 'white', border: `2px solid ${border}`, '&:hover': { bgcolor: '#e02c34' } }}>
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        </Stack>
-      ))}
-      <Button onClick={add} startIcon={<AddIcon />} sx={{ ...fontSx, alignSelf: 'flex-start', bgcolor: aqua, color: '#102b34', border: `3px solid ${border}`, borderRadius: '20px', px: 2, '&:hover': { bgcolor: '#82bdb5' } }}>
-        Add Exercise
-      </Button>
-    </Stack>
-  )
+  function move(index: number, offset: number) {
+    const next = [...exerciseIds]
+    ;[next[index], next[index + offset]] = [next[index + offset], next[index]]
+    onChange(next)
+  }
+
+  async function create() {
+    setError('')
+    try {
+      const exercise = await onCreate(name, instructions)
+      const emptyIndex = exerciseIds.indexOf('')
+      onChange(emptyIndex === -1 ? [...exerciseIds, exercise.id] : exerciseIds.map((id, index) => index === emptyIndex ? exercise.id : id))
+      setName('')
+      setInstructions('')
+    } catch (creationError) {
+      setError(creationError instanceof Error ? creationError.message : 'The exercise could not be created.')
+    }
+  }
+
+  return <Stack spacing={1.5}>
+    <Typography variant="body2">Choose exercises from your library. The same exercise can be used in multiple routines.</Typography>
+    {exerciseIds.map((exerciseId, index) => <Box key={index}>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <TextField select fullWidth size="small" label={`Exercise ${index + 1}`} value={exerciseId} disabled={disabled}
+          onChange={(event) => onChange(exerciseIds.map((id, i) => i === index ? event.target.value : id))}>
+          <MenuItem value="" disabled>Select an exercise</MenuItem>
+          {catalog.map((exercise) => <MenuItem key={exercise.id} value={exercise.id}>
+            {exercise.name}{catalog.some((other) => other.id !== exercise.id && other.name === exercise.name) ? ` (${exercise.id.slice(0, 8)})` : ''}
+          </MenuItem>)}
+        </TextField>
+        <IconButton aria-label={`Remove exercise ${index + 1}`} disabled={disabled} onClick={() => onChange(exerciseIds.filter((_, i) => i !== index))}><CloseIcon /></IconButton>
+      </Stack>
+      <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>{catalog.find((exercise) => exercise.id === exerciseId)?.instructions}</Typography>
+      <Stack direction="row">
+        <Button size="small" disabled={disabled || index === 0} onClick={() => move(index, -1)} aria-label={`Move exercise ${index + 1} up`}>Move up</Button>
+        <Button size="small" disabled={disabled || index === exerciseIds.length - 1} onClick={() => move(index, 1)} aria-label={`Move exercise ${index + 1} down`}>Move down</Button>
+      </Stack>
+    </Box>)}
+    <Button disabled={disabled || !catalog.length} onClick={() => onChange([...exerciseIds, ''])} startIcon={<AddIcon />}>Add existing exercise</Button>
+    <Box sx={{ borderTop: 1, borderColor: 'divider', pt: 2 }}>
+      <Stack spacing={1.5}>
+        <Typography variant="subtitle2">Create a reusable exercise</Typography>
+        <Typography variant="body2" color="text.secondary">Saved to your library immediately, even if you cancel this routine.</Typography>
+        {error && <Alert severity="error">{error}</Alert>}
+        <TextField label="Exercise name" value={name} disabled={disabled} onChange={(event) => setName(event.target.value)} />
+        <TextField label="Instructions (optional)" value={instructions} disabled={disabled} onChange={(event) => setInstructions(event.target.value)} multiline minRows={2} />
+        <Button disabled={disabled || !name.trim()} onClick={() => void create()}>Create and add exercise</Button>
+      </Stack>
+    </Box>
+  </Stack>
 }
 
 function SavedRoutinesPage() {
@@ -99,9 +131,33 @@ function SavedRoutinesPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [catalog, setCatalog] = useState<Exercise[]>([])
+  const [catalogLoading, setCatalogLoading] = useState(true)
+  const [catalogError, setCatalogError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    void loadExercises().then((exercises) => { if (active) setCatalog(exercises) })
+      .catch((loadError: Error) => { if (active) setCatalogError(loadError.message || 'Exercise library could not be loaded.') })
+      .finally(() => { if (active) setCatalogLoading(false) })
+    return () => { active = false }
+  }, [])
+
+  async function createExercise(name: string, instructions: string) {
+    setSaving(true)
+    try {
+      const exercise = await saveExercise(null, name, instructions)
+      setCatalog((current) => [...current, exercise].sort((a, b) => a.name.localeCompare(b.name)))
+      return exercise
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const editorDisabled = saving || catalogLoading || Boolean(catalogError)
 
   const [newName, setNewName] = useState('')
-  const [newExercises, setNewExercises] = useState<string[]>([''])
+  const [newExercises, setNewExercises] = useState<string[]>([])
 
   const [editName, setEditName] = useState('')
   const [editExercises, setEditExercises] = useState<string[]>([])
@@ -111,7 +167,7 @@ function SavedRoutinesPage() {
 
   function startNew() {
     setNewName('')
-    setNewExercises([''])
+    setNewExercises([])
     setMode('new')
   }
 
@@ -134,7 +190,7 @@ function SavedRoutinesPage() {
     if (!routine) return
     setEditingId(id)
     setEditName(routine.name)
-    setEditExercises(routine.exercises.map((exercise) => exercise.name))
+    setEditExercises(routine.exercises.map((exercise) => exercise.exerciseId))
     setMode('edit')
   }
 
@@ -173,16 +229,18 @@ function SavedRoutinesPage() {
         <Box sx={{ border: `4px solid ${border}`, borderRadius: '30px', bgcolor: surface, color: text, p: 3 }}>
           <Stack spacing={2.5}>
             {error && <Alert severity="error">{error}</Alert>}
+            {catalogError && <Alert severity="error">{catalogError}</Alert>}
+            {catalogLoading && <Typography>Loading exercise library…</Typography>}
             <TextField
               label="Routine name"
               value={newName}
               onChange={(event) => setNewName(event.target.value)}
               sx={{ '& .MuiOutlinedInput-root': { ...fontSx, borderRadius: '20px', '& fieldset': { border: `3px solid ${border}` } } }}
             />
-            <ExerciseEditor exercises={newExercises} onChange={setNewExercises} />
+            <ExerciseEditor exerciseIds={newExercises} catalog={catalog} disabled={editorDisabled} onChange={setNewExercises} onCreate={createExercise} />
             <Stack direction="row" spacing={1.5} justifyContent="flex-end" mt={2}>
-              <Button onClick={() => setMode('list')} sx={{ ...fontSx, color: text, border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: isDark ? '#29454d' : '#f0f0f0' } }}>Cancel</Button>
-              <Button onClick={() => void submitNew()} disabled={!newName.trim() || saving} sx={{ ...fontSx, bgcolor: orange, color: 'white', border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#d15a17' } }}>{saving ? 'Creating…' : 'Create Routine'}</Button>
+              <Button disabled={saving} onClick={() => setMode('list')} sx={{ ...fontSx, color: text, border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: isDark ? '#29454d' : '#f0f0f0' } }}>Cancel</Button>
+              <Button onClick={() => void submitNew()} disabled={!newName.trim() || newExercises.some((id) => !id) || editorDisabled} sx={{ ...fontSx, bgcolor: orange, color: 'white', border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#d15a17' } }}>{saving ? 'Creating…' : 'Create Routine'}</Button>
             </Stack>
           </Stack>
         </Box>
@@ -197,15 +255,17 @@ function SavedRoutinesPage() {
         <Box sx={{ border: `4px solid ${border}`, borderRadius: '30px', bgcolor: surface, color: text, p: 3 }}>
           <Stack spacing={2.5}>
             {error && <Alert severity="error">{error}</Alert>}
+            {catalogError && <Alert severity="error">{catalogError}</Alert>}
+            {catalogLoading && <Typography>Loading exercise library…</Typography>}
             <TextField
               label="Routine name"
               value={editName}
               onChange={(event) => setEditName(event.target.value)}
               sx={{ '& .MuiOutlinedInput-root': { ...fontSx, borderRadius: '20px', '& fieldset': { border: `3px solid ${border}` } } }}
             />
-            <ExerciseEditor exercises={editExercises} onChange={setEditExercises} />
+            <ExerciseEditor exerciseIds={editExercises} catalog={catalog} disabled={editorDisabled} onChange={setEditExercises} onCreate={createExercise} />
             <Stack direction="row" justifyContent="flex-end" mt={2}>
-              <Button disabled={!editName.trim() || saving} onClick={() => void finishEditing()} sx={{ ...fontSx, bgcolor: orange, color: 'white', border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#d15a17' } }}>{saving ? 'Saving…' : 'Finish Editing'}</Button>
+              <Button disabled={!editName.trim() || editExercises.some((id) => !id) || editorDisabled} onClick={() => void finishEditing()} sx={{ ...fontSx, bgcolor: orange, color: 'white', border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#d15a17' } }}>{saving ? 'Saving…' : 'Finish Editing'}</Button>
             </Stack>
           </Stack>
         </Box>

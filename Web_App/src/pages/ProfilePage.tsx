@@ -38,7 +38,7 @@ type ProfileField = {
 const sections: { id: string; title: string; fields: ProfileField[] }[] = [
   { id: 'personal', title: 'Personal & Professional', fields: [
     { key: 'name', label: 'Full name', autoComplete: 'name', required: true },
-    { key: 'role', label: 'Professional role/title', autoComplete: 'organization-title' },
+    { key: 'professionalTitle', label: 'Professional role/title', autoComplete: 'organization-title' },
     { key: 'specialty', label: 'Specialty' },
     { key: 'bio', label: 'Short professional bio', fullRow: true },
   ] },
@@ -90,8 +90,8 @@ export function ProfilePage() {
 
   function startEditing() {
     if (!user) return
-    const { name, role, email, phone, specialty, bio, avatarUrl, department, facility, officeLocation, workPhone, workPhoneExtension, preferredContact } = user
-    setDraft({ name, role, email, phone, specialty, bio, avatarUrl, department, facility, officeLocation, workPhone, workPhoneExtension, preferredContact })
+    const { name, professionalTitle, email, phone, specialty, bio, avatarUrl, department, facility, officeLocation, workPhone, workPhoneExtension, preferredContact } = user
+    setDraft({ name, professionalTitle, email, phone, specialty, bio, avatarUrl, department, facility, officeLocation, workPhone, workPhoneExtension, preferredContact })
     setErrors({})
     setSaved(false)
     setSaveError('')
@@ -156,7 +156,7 @@ export function ProfilePage() {
 
     let nextProfile: ProfileFields = {
       name: draft.name.trim(),
-      role: draft.role.trim(),
+      professionalTitle: draft.professionalTitle.trim(),
       email: draft.email.trim(),
       phone: draft.phone.trim(),
       specialty: draft.specialty.trim(),
@@ -319,7 +319,7 @@ export function ProfilePage() {
           </Stack>
           <Box sx={{ minWidth: 0, textAlign: { xs: 'center', sm: 'left' }, overflowWrap: 'anywhere' }}>
             <Typography component="h2" variant="h4" sx={{ ...headingSx, fontWeight: 700 }}>{user.name}</Typography>
-            <Typography sx={{ ...fontSx, fontSize: '1.2rem', mt: 1 }}>{user.role || 'No professional title added'}</Typography>
+            <Typography sx={{ ...fontSx, fontSize: '1.2rem', mt: 1 }}>{user.professionalTitle || 'No professional title added'}</Typography>
             {draft && photoLoading && <Typography variant="body2" role="status" sx={{ ...fontSx, mt: 1 }}>Opening image…</Typography>}
             {draft && errors.avatarUrl && <Typography role="alert" variant="body2" color="error" sx={{ ...fontSx, mt: 1 }}>{errors.avatarUrl}</Typography>}
           </Box>

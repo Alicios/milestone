@@ -72,7 +72,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: { data: { name: name.trim(), specialty: specialty.trim(), role: 'Physical Therapist' } },
+        options: {
+          data: {
+            name: name.trim(),
+            specialty: specialty.trim(),
+            professional_title: 'Physical Therapist',
+            role: 'Physical Therapist',
+          },
+        },
       })
       if (error) throw error
       if (!data.user || !data.session) throw new Error('Account created. Confirm your email before signing in.')

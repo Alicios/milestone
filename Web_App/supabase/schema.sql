@@ -1,6 +1,9 @@
--- Run in Supabase Dashboard -> SQL Editor.
--- Patient, routine and message data are still mock data in the web app, so only
--- provider profiles and access requests are stored for now.
+-- HISTORICAL BOOTSTRAP ONLY. Do not use this file to recreate or update the
+-- current hosted database. Apply the ordered files in supabase/migrations and
+-- use supabase/SCHEMA.md as the canonical current schema reference.
+--
+-- This original bootstrap created only `profiles` and `access_requests` before
+-- the provider, patient, routine, assignment, and follow-up migrations existed.
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,

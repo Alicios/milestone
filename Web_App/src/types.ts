@@ -2,7 +2,7 @@ export interface User {
   id: string
   name: string
   email: string
-  role: string
+  professionalTitle: string
   initials: string
   avatarUrl: string
   phone: string
@@ -20,7 +20,7 @@ export type PreferredContact = 'email' | 'phone' | 'in-app'
 
 export type EditableUserFields = Omit<User, 'id' | 'initials'>
 
-export type ProfileFields = Pick<User, 'name' | 'role' | 'email' | 'phone' | 'specialty' | 'bio' | 'avatarUrl' | 'department' | 'facility' | 'officeLocation' | 'workPhone' | 'workPhoneExtension' | 'preferredContact'>
+export type ProfileFields = Pick<User, 'name' | 'professionalTitle' | 'email' | 'phone' | 'specialty' | 'bio' | 'avatarUrl' | 'department' | 'facility' | 'officeLocation' | 'workPhone' | 'workPhoneExtension' | 'preferredContact'>
 
 export interface DashboardMetric {
   label: string

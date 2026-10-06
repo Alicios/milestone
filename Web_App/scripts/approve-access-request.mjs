@@ -1,5 +1,5 @@
 // Usage:
-//   node scripts/approve-access-request.mjs <email> [password] [--role "Physical Therapist"]
+//   node scripts/approve-access-request.mjs <email> [password] [--professional-title "Physical Therapist"]
 //
 // Creates a confirmed Supabase Auth user for a pending access request, using the
 // requester's name/email already on file, then marks the request approved.
@@ -8,16 +8,29 @@
 import { randomBytes } from 'node:crypto'
 import { adminClient } from './admin-client.mjs'
 
-const [, , email, maybePassword, ...rest] = process.argv
+const [email, ...argumentsAfterEmail] = process.argv.slice(2)
 
 if (!email) {
-  console.error('Usage: node scripts/approve-access-request.mjs <email> [password] [--role "Physical Therapist"]')
+  console.error(
+    'Usage: node scripts/approve-access-request.mjs <email> [password] [--professional-title "Physical Therapist"]',
+  )
   process.exit(1)
 }
 
-const roleFlagIndex = rest.indexOf('--role')
-const role = roleFlagIndex !== -1 ? rest[roleFlagIndex + 1] : undefined
-const password = maybePassword && !maybePassword.startsWith('--') ? maybePassword : randomBytes(9).toString('base64url')
+const maybePassword = argumentsAfterEmail[0]
+const optionArguments = maybePassword && !maybePassword.startsWith('--')
+  ? argumentsAfterEmail.slice(1)
+  : argumentsAfterEmail
+const professionalTitleFlagIndex = optionArguments.indexOf('--professional-title')
+const legacyRoleFlagIndex = optionArguments.indexOf('--role')
+const professionalTitle = professionalTitleFlagIndex !== -1
+  ? optionArguments[professionalTitleFlagIndex + 1]
+  : legacyRoleFlagIndex !== -1
+    ? optionArguments[legacyRoleFlagIndex + 1]
+    : undefined
+const password = maybePassword && !maybePassword.startsWith('--')
+  ? maybePassword
+  : randomBytes(9).toString('base64url')
 
 const { data: request, error: findError } = await adminClient
   .from('access_requests')
@@ -43,7 +56,11 @@ const { data: created, error: createError } = await adminClient.auth.admin.creat
   email: request.email,
   password,
   email_confirm: true, // skip the confirmation email; this is an admin-created account
-  user_metadata: { name: request.name, role: role || request.department },
+  user_metadata: {
+    name: request.name,
+    professional_title: professionalTitle || request.department,
+    role: professionalTitle || request.department,
+  },
 })
 
 if (createError) {
@@ -62,4 +79,4 @@ if (updateError) {
 
 console.log(`Created user ${created.user.email} (id: ${created.user.id})`)
 console.log(`Temporary password: ${password}`)
-console.log('Share this with the provider and have them sign in and change it. A matching row in `profiles` was created automatically by the on_auth_user_created trigger.')
+console.log('Share this with the provider and have them sign in and change it. A matching row in `providers` was created automatically by the on_auth_user_created trigger.')

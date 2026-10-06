@@ -7,7 +7,8 @@ export const PROFILE_IMAGE_BUCKET = 'profile-images'
 type ProviderRow = {
   id: string
   name: string
-  role: string
+  professional_title?: string
+  role?: string
   initials: string
   contact_email: string
   avatar_url: string
@@ -22,12 +23,20 @@ type ProviderRow = {
   preferred_contact: User['preferredContact']
 }
 
+type SchemaError = { code?: string; message?: string; details?: string; hint?: string }
+
+function isMissingSchemaObject(error: SchemaError | null, identifiers: string[]) {
+  if (!error || !['42703', '42P01', 'PGRST204', 'PGRST205'].includes(error.code ?? '')) return false
+  const context = [error.message, error.details, error.hint].filter(Boolean).join(' ').toLowerCase()
+  return identifiers.some((identifier) => context.includes(identifier.toLowerCase()))
+}
+
 function toUser(provider: ProviderRow, authEmail: string): User {
   return {
     id: provider.id,
     name: provider.name,
     email: authEmail || provider.contact_email,
-    role: provider.role,
+    professionalTitle: provider.professional_title ?? provider.role ?? '',
     initials: provider.initials,
     avatarUrl: provider.avatar_url,
     phone: provider.phone,
@@ -49,9 +58,8 @@ export async function loadProvider(userId: string, authEmail = '') {
 }
 
 export async function updateProvider(userId: string, profile: EditableUserFields) {
-  const { data, error } = await supabase.from('providers').update({
+  const sharedUpdate = {
     name: profile.name,
-    role: profile.role,
     contact_email: profile.email,
     phone: profile.phone,
     specialty: profile.specialty,
@@ -63,9 +71,20 @@ export async function updateProvider(userId: string, profile: EditableUserFields
     work_phone: profile.workPhone,
     work_phone_extension: profile.workPhoneExtension,
     preferred_contact: profile.preferredContact,
+  }
+  const currentResult = await supabase.from('providers').update({
+    ...sharedUpdate,
+    professional_title: profile.professionalTitle,
   }).eq('id', userId).select('*').single()
-  if (error) throw error
-  return data as ProviderRow
+  if (!currentResult.error) return currentResult.data as ProviderRow
+  if (!isMissingSchemaObject(currentResult.error, ['professional_title'])) throw currentResult.error
+
+  const legacyResult = await supabase.from('providers').update({
+    ...sharedUpdate,
+    role: profile.professionalTitle,
+  }).eq('id', userId).select('*').single()
+  if (legacyResult.error) throw legacyResult.error
+  return legacyResult.data as ProviderRow
 }
 
 export async function uploadProviderAvatar(userId: string, file: File) {
@@ -167,11 +186,52 @@ type RoutineAssignmentRow = {
   status: RoutineAssignmentStatus
   routine_name_snapshot: string
 }
-type AssignmentExerciseRow = { id: string; routine_assignment_id: string; name: string; position: number }
-type AppointmentRow = { id: string; routine_assignment_id: string; scheduled_at: string; status: FollowUpAppointment['status'] }
+type AssignmentExerciseRow = { id: string; routine_assignment_id: string; exercise_name_snapshot: string; position: number }
+type LegacyAssignmentExerciseRow = { id: string; routine_assignment_id: string; name: string; position: number }
+type RoutineFollowUpRow = { id: string; routine_assignment_id: string; scheduled_at: string; status: FollowUpAppointment['status'] }
 
 function toExercise(row: RoutineExerciseRow | AssignmentExerciseRow): RoutineExercise {
-  return { id: row.id, name: row.name, position: row.position }
+  const name = 'exercise_name_snapshot' in row ? row.exercise_name_snapshot : row.name
+  return { id: row.id, name, position: row.position }
+}
+
+async function loadAssignmentExerciseSnapshots(assignmentIds: string[]) {
+  const currentResult = await supabase
+    .from('routine_assignment_exercises')
+    .select('id, routine_assignment_id, exercise_name_snapshot, position')
+    .in('routine_assignment_id', assignmentIds)
+    .order('position')
+  if (!currentResult.error) return (currentResult.data ?? []) as AssignmentExerciseRow[]
+  if (!isMissingSchemaObject(currentResult.error, ['exercise_name_snapshot'])) throw currentResult.error
+
+  const legacyResult = await supabase
+    .from('routine_assignment_exercises')
+    .select('id, routine_assignment_id, name, position')
+    .in('routine_assignment_id', assignmentIds)
+    .order('position')
+  if (legacyResult.error) throw legacyResult.error
+  return ((legacyResult.data ?? []) as LegacyAssignmentExerciseRow[]).map((exercise) => ({
+    id: exercise.id,
+    routine_assignment_id: exercise.routine_assignment_id,
+    exercise_name_snapshot: exercise.name,
+    position: exercise.position,
+  }))
+}
+
+async function loadRoutineFollowUps(assignmentIds: string[]) {
+  const currentResult = await supabase
+    .from('routine_follow_ups')
+    .select('id, routine_assignment_id, scheduled_at, status')
+    .in('routine_assignment_id', assignmentIds)
+  if (!currentResult.error) return (currentResult.data ?? []) as RoutineFollowUpRow[]
+  if (!isMissingSchemaObject(currentResult.error, ['routine_follow_ups'])) throw currentResult.error
+
+  const legacyResult = await supabase
+    .from('appointments')
+    .select('id, routine_assignment_id, scheduled_at, status')
+    .in('routine_assignment_id', assignmentIds)
+  if (legacyResult.error) throw legacyResult.error
+  return (legacyResult.data ?? []) as RoutineFollowUpRow[]
 }
 
 export async function loadRoutines(includeArchived = false): Promise<Routine[]> {
@@ -233,26 +293,24 @@ export async function loadRoutineAssignments(profileIds: string[], startDate: st
   const rows = (assignments ?? []) as RoutineAssignmentRow[]
   if (!rows.length) return []
   const assignmentIds = rows.map((assignment) => assignment.id)
-  const [{ data: exercises, error: exerciseError }, { data: appointments, error: appointmentError }] = await Promise.all([
-    supabase.from('routine_assignment_exercises').select('id, routine_assignment_id, name, position').in('routine_assignment_id', assignmentIds).order('position'),
-    supabase.from('appointments').select('id, routine_assignment_id, scheduled_at, status').in('routine_assignment_id', assignmentIds),
+  const [exercises, followUps] = await Promise.all([
+    loadAssignmentExerciseSnapshots(assignmentIds),
+    loadRoutineFollowUps(assignmentIds),
   ])
-  if (exerciseError) throw exerciseError
-  if (appointmentError) throw appointmentError
 
   const exercisesByAssignment = new Map<string, RoutineExercise[]>()
-  for (const exercise of (exercises ?? []) as AssignmentExerciseRow[]) {
+  for (const exercise of exercises) {
     const current = exercisesByAssignment.get(exercise.routine_assignment_id) ?? []
     current.push(toExercise(exercise))
     exercisesByAssignment.set(exercise.routine_assignment_id, current)
   }
-  const appointmentByAssignment = new Map<string, FollowUpAppointment>()
-  for (const appointment of (appointments ?? []) as AppointmentRow[]) {
-    appointmentByAssignment.set(appointment.routine_assignment_id, {
-      id: appointment.id,
-      routineAssignmentId: appointment.routine_assignment_id,
-      scheduledAt: appointment.scheduled_at,
-      status: appointment.status,
+  const followUpByAssignment = new Map<string, FollowUpAppointment>()
+  for (const followUp of followUps) {
+    followUpByAssignment.set(followUp.routine_assignment_id, {
+      id: followUp.id,
+      routineAssignmentId: followUp.routine_assignment_id,
+      scheduledAt: followUp.scheduled_at,
+      status: followUp.status,
     })
   }
 
@@ -264,7 +322,7 @@ export async function loadRoutineAssignments(profileIds: string[], startDate: st
     status: assignment.status,
     routineName: assignment.routine_name_snapshot,
     exercises: exercisesByAssignment.get(assignment.id) ?? [],
-    followUp: appointmentByAssignment.get(assignment.id),
+    followUp: followUpByAssignment.get(assignment.id),
   }))
 }
 

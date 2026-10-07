@@ -6,9 +6,9 @@ export interface User {
   initials: string
   avatarUrl: string
   phone: string
-  specialty: string
   bio: string
-  department: string
+  medicalPracticeId: string
+  medicalPracticeName: string
   facility: string
   officeLocation: string
   workPhone: string
@@ -20,7 +20,13 @@ export type PreferredContact = 'email' | 'phone' | 'in-app'
 
 export type EditableUserFields = Omit<User, 'id' | 'initials'>
 
-export type ProfileFields = Pick<User, 'name' | 'professionalTitle' | 'email' | 'phone' | 'specialty' | 'bio' | 'avatarUrl' | 'department' | 'facility' | 'officeLocation' | 'workPhone' | 'workPhoneExtension' | 'preferredContact'>
+export type ProfileFields = Pick<User, 'name' | 'professionalTitle' | 'email' | 'phone' | 'bio' | 'avatarUrl' | 'medicalPracticeId' | 'facility' | 'officeLocation' | 'workPhone' | 'workPhoneExtension' | 'preferredContact'>
+
+export interface MedicalPractice {
+  id: string
+  name: string
+  description: string
+}
 
 export interface DashboardMetric {
   label: string

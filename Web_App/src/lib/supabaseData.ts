@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { EditableUserFields, FollowUpAppointment, Routine, RoutineAssignment, RoutineAssignmentStatus, RoutineExercise, User } from '../types'
+import type { EditableUserFields, FollowUpAppointment, MedicalPractice, Routine, RoutineAssignment, RoutineAssignmentStatus, RoutineExercise, User } from '../types'
 import type { Patient } from '../data/mockPatients'
 
 export const PROFILE_IMAGE_BUCKET = 'profile-images'
@@ -13,9 +13,9 @@ type ProviderRow = {
   contact_email: string
   avatar_url: string
   phone: string
-  specialty: string
   bio: string
-  department: string
+  medical_practice_id: string | null
+  medical_practices?: Pick<MedicalPractice, 'id' | 'name'> | null
   facility: string
   office_location: string
   work_phone: string
@@ -40,9 +40,9 @@ function toUser(provider: ProviderRow, authEmail: string): User {
     initials: provider.initials,
     avatarUrl: provider.avatar_url,
     phone: provider.phone,
-    specialty: provider.specialty,
     bio: provider.bio,
-    department: provider.department,
+    medicalPracticeId: provider.medical_practice_id ?? '',
+    medicalPracticeName: provider.medical_practices?.name ?? '',
     facility: provider.facility,
     officeLocation: provider.office_location,
     workPhone: provider.work_phone,
@@ -52,9 +52,15 @@ function toUser(provider: ProviderRow, authEmail: string): User {
 }
 
 export async function loadProvider(userId: string, authEmail = '') {
-  const { data, error } = await supabase.from('providers').select('*').eq('id', userId).single()
+  const { data, error } = await supabase.from('providers').select('*, medical_practices(id, name)').eq('id', userId).single()
   if (error) throw error
   return toUser(data as ProviderRow, authEmail)
+}
+
+export async function loadMedicalPractices(): Promise<MedicalPractice[]> {
+  const { data, error } = await supabase.from('medical_practices').select('id, name, description').order('name')
+  if (error) throw error
+  return data as MedicalPractice[]
 }
 
 export async function updateProvider(userId: string, profile: EditableUserFields) {
@@ -62,10 +68,9 @@ export async function updateProvider(userId: string, profile: EditableUserFields
     name: profile.name,
     contact_email: profile.email,
     phone: profile.phone,
-    specialty: profile.specialty,
     bio: profile.bio,
     avatar_url: profile.avatarUrl,
-    department: profile.department,
+    medical_practice_id: profile.medicalPracticeId || null,
     facility: profile.facility,
     office_location: profile.officeLocation,
     work_phone: profile.workPhone,
@@ -75,14 +80,14 @@ export async function updateProvider(userId: string, profile: EditableUserFields
   const currentResult = await supabase.from('providers').update({
     ...sharedUpdate,
     professional_title: profile.professionalTitle,
-  }).eq('id', userId).select('*').single()
+  }).eq('id', userId).select('*, medical_practices(id, name)').single()
   if (!currentResult.error) return currentResult.data as ProviderRow
   if (!isMissingSchemaObject(currentResult.error, ['professional_title'])) throw currentResult.error
 
   const legacyResult = await supabase.from('providers').update({
     ...sharedUpdate,
     role: profile.professionalTitle,
-  }).eq('id', userId).select('*').single()
+  }).eq('id', userId).select('*, medical_practices(id, name)').single()
   if (legacyResult.error) throw legacyResult.error
   return legacyResult.data as ProviderRow
 }

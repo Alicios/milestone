@@ -18,7 +18,7 @@ export interface RegisterDetails {
   email: string
   password: string
   confirmPassword: string
-  specialty: string
+  medicalPracticeId: string
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!data.user) throw new Error('Supabase did not return a signed-in user.')
       setUser(await loadProvider(data.user.id, data.user.email ?? email))
     },
-    register: async ({ name, email, password, specialty }) => {
+    register: async ({ name, email, password, medicalPracticeId }) => {
       if (!isSupabaseConfigured) throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.local.')
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         options: {
           data: {
             name: name.trim(),
-            specialty: specialty.trim(),
+            medical_practice_id: medicalPracticeId,
             professional_title: 'Physical Therapist',
             role: 'Physical Therapist',
           },

@@ -6,8 +6,8 @@ import { Alert, Box, Button, CircularProgress, Container, Grid, IconButton, Inpu
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { Brand } from '../components/Brand'
 import { useAuth } from '../auth/AuthContext'
-
-const SPECIALTIES = ['Physical Therapy', 'Occupational Therapy', 'Sports Medicine', 'Administration', 'Other']
+import { loadMedicalPractices } from '../lib/supabaseData'
+import type { MedicalPractice } from '../types'
 
 const registerImages = [
   { src: '/login-therapists.png', alt: 'A male and female physical therapist standing back-to-back in a rehabilitation clinic.' },
@@ -40,7 +40,10 @@ export function RegisterPage() {
   const [email, setEmail] = useState('lebron.james@milestone.example')
   const [password, setPassword] = useState('provider123')
   const [confirmPassword, setConfirmPassword] = useState('provider123')
-  const [specialty, setSpecialty] = useState('Physical Therapy')
+  const [medicalPracticeId, setMedicalPracticeId] = useState('')
+  const [medicalPractices, setMedicalPractices] = useState<MedicalPractice[]>([])
+  const [practicesLoading, setPracticesLoading] = useState(true)
+  const [practicesError, setPracticesError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState('')
@@ -57,6 +60,22 @@ export function RegisterPage() {
     return () => window.clearInterval(imageTimer)
   }, [])
 
+  useEffect(() => {
+    let active = true
+    loadMedicalPractices()
+      .then((practices) => {
+        if (!active) return
+        setMedicalPractices(practices)
+        setPracticesError('')
+      })
+      .catch((loadError) => {
+        if (!active) return
+        setPracticesError(loadError instanceof Error ? `Medical practices could not be loaded: ${loadError.message}` : 'Medical practices could not be loaded.')
+      })
+      .finally(() => { if (active) setPracticesLoading(false) })
+    return () => { active = false }
+  }, [])
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
@@ -65,11 +84,11 @@ export function RegisterPage() {
     if (!email.trim() || !email.includes('@')) return setError('Enter a valid work email address.')
     if (password.length < 6) return setError('Password must be at least 6 characters.')
     if (password !== confirmPassword) return setError('Passwords must match.')
-    if (!specialty) return setError('Select your specialty or department.')
+    if (!medicalPracticeId) return setError('Select your medical practice.')
 
     setLoading(true)
     try {
-      await register({ name, email, password, confirmPassword, specialty })
+      await register({ name, email, password, confirmPassword, medicalPracticeId })
       navigate('/dashboard', { replace: true })
     } catch (submissionError) {
       setError(submissionError instanceof Error ? submissionError.message : 'Unable to create your account.')
@@ -91,14 +110,15 @@ export function RegisterPage() {
             </Box>
             <Stack spacing={3}>
               {error && <Alert severity="error">{error}</Alert>}
+              {practicesError && <Alert severity="error">{practicesError}</Alert>}
               <TextField label="Full name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required />
               <TextField label="Work email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
-              <TextField select label="Specialty or department" value={specialty} onChange={(event) => setSpecialty(event.target.value)} required>
-                {SPECIALTIES.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
+              <TextField select label="Medical practice" value={medicalPracticeId} onChange={(event) => setMedicalPracticeId(event.target.value)} disabled={practicesLoading || Boolean(practicesError)} required>
+                {medicalPractices.map((practice) => <MenuItem key={practice.id} value={practice.id}>{practice.name}</MenuItem>)}
               </TextField>
               <TextField label="Password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" helperText="Use at least 6 characters." required InputProps={{ endAdornment: <InputAdornment position="end"><IconButton aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)} edge="end">{showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}</IconButton></InputAdornment> }} />
               <TextField label="Confirm password" type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" required InputProps={{ endAdornment: <InputAdornment position="end"><IconButton aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'} onClick={() => setShowConfirmPassword((visible) => !visible)} edge="end">{showConfirmPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}</IconButton></InputAdornment> }} />
-              <Button type="submit" variant="contained" size="large" disabled={loading}>
+              <Button type="submit" variant="contained" size="large" disabled={loading || practicesLoading || Boolean(practicesError)}>
                 {loading ? <CircularProgress size={24} color="inherit" /> : 'Create account'}
               </Button>
               <Typography textAlign="center" variant="body2" color="text.secondary">

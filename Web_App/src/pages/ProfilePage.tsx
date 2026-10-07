@@ -3,8 +3,8 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined'
 import { Alert, Avatar, Box, Button, ButtonBase, Card, Divider, FormControl, FormControlLabel, FormLabel, MenuItem, Radio, RadioGroup, Stack, TextField, Typography, useTheme } from '@mui/material'
 import { useAuth } from '../auth/AuthContext'
-import { uploadProviderAvatar } from '../lib/supabaseData'
-import type { PreferredContact, ProfileFields } from '../types'
+import { loadMedicalPractices, uploadProviderAvatar } from '../lib/supabaseData'
+import type { MedicalPractice, PreferredContact, ProfileFields } from '../types'
 
 const fontSx = { fontFamily: 'Georgia, serif' }
 const headingSx = { ...fontSx, fontStyle: 'italic' }
@@ -13,11 +13,6 @@ const fieldSx = {
   '& .MuiOutlinedInput-notchedOutline': { borderWidth: '2px' },
   '& .MuiInputLabel-root': fontSx,
 }
-
-const departments = [
-  'Physical Therapy', 'Occupational Therapy', 'Sports Medicine', 'Orthopedics',
-  'Neurological Rehabilitation', 'Pediatric Therapy', 'Cardiopulmonary Rehabilitation', 'Other',
-]
 
 const contactOptions: { value: PreferredContact; label: string }[] = [
   { value: 'email', label: 'Email' },
@@ -39,11 +34,10 @@ const sections: { id: string; title: string; fields: ProfileField[] }[] = [
   { id: 'personal', title: 'Personal & Professional', fields: [
     { key: 'name', label: 'Full name', autoComplete: 'name', required: true },
     { key: 'professionalTitle', label: 'Professional role/title', autoComplete: 'organization-title' },
-    { key: 'specialty', label: 'Specialty' },
     { key: 'bio', label: 'Short professional bio', fullRow: true },
   ] },
   { id: 'workplace', title: 'Workplace', fields: [
-    { key: 'department', label: 'Department' },
+    { key: 'medicalPracticeId', label: 'Medical practice', required: true },
     { key: 'facility', label: 'Clinic/facility', autoComplete: 'organization' },
     { key: 'officeLocation', label: 'Office location', helperText: 'Building, floor, or room number.' },
   ] },
@@ -67,6 +61,8 @@ export function ProfilePage() {
   const [errors, setErrors] = useState<Partial<Record<keyof ProfileFields, string>>>({})
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [medicalPractices, setMedicalPractices] = useState<MedicalPractice[]>([])
+  const [practicesError, setPracticesError] = useState('')
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoLoading, setPhotoLoading] = useState(false)
   const photoInput = useRef<HTMLInputElement>(null)
@@ -80,6 +76,21 @@ export function ProfilePage() {
 
   useEffect(() => () => stopReadingPhoto(), [])
 
+  useEffect(() => {
+    let active = true
+    loadMedicalPractices()
+      .then((practices) => {
+        if (!active) return
+        setMedicalPractices(practices)
+        setPracticesError('')
+      })
+      .catch((loadError) => {
+        if (!active) return
+        setPracticesError(loadError instanceof Error ? `Medical practices could not be loaded: ${loadError.message}` : 'Medical practices could not be loaded.')
+      })
+    return () => { active = false }
+  }, [])
+
   if (!user) return null
   const providerId = user.id
 
@@ -90,8 +101,8 @@ export function ProfilePage() {
 
   function startEditing() {
     if (!user) return
-    const { name, professionalTitle, email, phone, specialty, bio, avatarUrl, department, facility, officeLocation, workPhone, workPhoneExtension, preferredContact } = user
-    setDraft({ name, professionalTitle, email, phone, specialty, bio, avatarUrl, department, facility, officeLocation, workPhone, workPhoneExtension, preferredContact })
+    const { name, professionalTitle, email, phone, bio, avatarUrl, medicalPracticeId, facility, officeLocation, workPhone, workPhoneExtension, preferredContact } = user
+    setDraft({ name, professionalTitle, email, phone, bio, avatarUrl, medicalPracticeId, facility, officeLocation, workPhone, workPhoneExtension, preferredContact })
     setErrors({})
     setSaved(false)
     setSaveError('')
@@ -159,10 +170,9 @@ export function ProfilePage() {
       professionalTitle: draft.professionalTitle.trim(),
       email: draft.email.trim(),
       phone: draft.phone.trim(),
-      specialty: draft.specialty.trim(),
       bio: draft.bio.trim(),
       avatarUrl: draft.avatarUrl.trim(),
-      department: draft.department.trim(),
+      medicalPracticeId: draft.medicalPracticeId,
       facility: draft.facility.trim(),
       officeLocation: draft.officeLocation.trim(),
       workPhone: draft.workPhone.trim(),
@@ -171,6 +181,7 @@ export function ProfilePage() {
     }
     const nextErrors: typeof errors = {}
     if (!nextProfile.name) nextErrors.name = 'Enter your full name.'
+    if (!nextProfile.medicalPracticeId) nextErrors.medicalPracticeId = 'Select your medical practice.'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextProfile.email)) {
       nextErrors.email = 'Enter a valid email address, such as name@example.com.'
     }
@@ -234,8 +245,9 @@ export function ProfilePage() {
                 autoComplete={field.autoComplete}
                 required={field.required}
                 autoFocus={field.key === 'name'}
-                select={field.key === 'department'}
-                value={field.key === 'department' && draft.department && !departments.includes(draft.department) ? 'Other' : draft[field.key]}
+                select={field.key === 'medicalPracticeId'}
+                value={draft[field.key]}
+                disabled={field.key === 'medicalPracticeId' && Boolean(practicesError)}
                 onChange={(event) => {
                   const value = event.target.value
                   setDraft((current) => current ? { ...current, [field.key]: value } : null)
@@ -247,12 +259,12 @@ export function ProfilePage() {
                 minRows={field.key === 'bio' ? 3 : undefined}
                 sx={{ ...fieldSx, gridColumn: field.fullRow ? '1 / -1' : undefined }}
               >
-                {field.key === 'department' && departments.map((department) => <MenuItem key={department} value={department} sx={fontSx}>{department}</MenuItem>)}
+                {field.key === 'medicalPracticeId' && medicalPractices.map((practice) => <MenuItem key={practice.id} value={practice.id} sx={fontSx}>{practice.name}</MenuItem>)}
               </TextField>
             ) : (
               <Box key={field.key} sx={{ minWidth: 0, gridColumn: field.fullRow ? '1 / -1' : undefined }}>
                 <Typography component="dt" sx={{ ...fontSx, fontWeight: 700, mb: .75 }}>{field.label}</Typography>
-                <Typography component="dd" sx={{ ...fontSx, m: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{user[field.key] || 'Not provided'}</Typography>
+                <Typography component="dd" sx={{ ...fontSx, m: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{field.key === 'medicalPracticeId' ? user.medicalPracticeName || 'Not provided' : user[field.key] || 'Not provided'}</Typography>
               </Box>
             ))}
             {section.id === 'contact' && (draft ? (
@@ -287,6 +299,7 @@ export function ProfilePage() {
       <Typography sx={{ ...fontSx, mb: 3 }}>Help patients get to know you and your care.</Typography>
       {saved && <Alert severity="success" role="status" sx={{ mb: 2 }}>Your profile has been updated.</Alert>}
       {saveError && <Alert severity="error" role="alert" sx={{ mb: 2 }}>{saveError}</Alert>}
+      {practicesError && <Alert severity="error" role="alert" sx={{ mb: 2 }}>{practicesError}</Alert>}
     <Card sx={{ border: `4px solid ${border}`, borderRadius: '30px', bgcolor: 'background.paper', color: text, overflow: 'hidden' }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems="center" sx={{ p: { xs: 3, sm: 4 }, bgcolor: '#91c8c0', color: '#102b34', borderBottom: `3px solid ${border}` }}>
           <Stack alignItems="center" sx={{ width: 112, flexShrink: 0 }}>

@@ -10,6 +10,7 @@ hashes in `public` tables.
 ```text
 auth.users
 |-- providers
+|   `-- medical_practices
 |   `-- routines
 |       `-- routine_exercises
 `-- provider_patient_profiles -- patients
@@ -101,6 +102,17 @@ context and active or discharged state. Each provider-patient pair is unique.
 | `clinical_notes` | `text` | Provider-private notes, not shared with other providers treating the patient. |
 | `discharged_at` | `timestamptz`, nullable | Soft-discharge time; null means active care. |
 
+### `medical_practices`
+
+Reference list of clinical practices available to providers during registration
+and profile editing.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| `id` | `uuid` | Stable primary key for the practice. |
+| `name` | `text` | Unique, non-empty practice name shown in selection controls. |
+| `description` | `text` | Non-empty description of the practice's service area. |
+
 ### `providers`
 
 Provider profiles linked one-to-one to Supabase Auth users. Authentication and
@@ -115,10 +127,9 @@ administrative authorization remain separate concerns.
 | `avatar_url` | `text` | Public URL of the profile image stored in `profile-images`. |
 | `contact_email` | `text` | Professional contact address; changing it does not change the Auth login email. |
 | `phone` | `text` | Mobile telephone number stored as text. |
-| `specialty` | `text` | Clinical specialty used for profile display. |
 | `bio` | `text` | Provider-authored short professional biography. |
-| `department` | `text` | Department or clinical service. |
-| `facility` | `text` | Clinic or facility display text, not a normalized practice relationship. |
+| `medical_practice_id` | `uuid`, nullable | Selected practice reference. It is nullable only for existing providers whose removed department could not be mapped. |
+| `facility` | `text` | Clinic or facility display text retained independently of the normalized practice relationship. |
 | `office_location` | `text` | Building, floor, room, or other office location. |
 | `work_phone` | `text` | Work telephone number stored as text. |
 | `work_phone_extension` | `text` | Work extension stored as text to preserve leading zeros. |
@@ -250,18 +261,20 @@ concepts, but they are not a literal relational schema:
 - `provider_patient_profiles` replaces `patient_list[]`, `providers[]`, and a
   single patient-side provider ID while supporting multiple providers safely.
 - `routine_exercises` replaces an exercise array embedded in a routine.
+- `medical_practices` replaces the provider `department` and `specialty` text
+  fields with one selected practice reference.
 - Assignment snapshots, dated assignments, soft discharge, follow-ups, and RLS
   strengthen the original design.
 
 The following planning concepts are intentionally deferred until an implemented
-workflow needs them: provider license numbers, normalized medical practices,
-patient invitations and login accounts, sets/repetitions/duration, a reusable
-exercise library, exercise help/media, persisted messaging, and notifications.
+workflow needs them: provider license numbers, patient invitations and login
+accounts, sets/repetitions/duration, a reusable exercise library, exercise
+help/media, persisted messaging, and notifications.
 
 ## Verification query
 
-After applying both migrations, this query must return `10` tables and `69`
-columns:
+After applying all migrations through `20261007000100_medical_practices.sql`,
+this query must return `11` tables and `71` columns:
 
 ```sql
 select

@@ -11,12 +11,13 @@ import { useEffect, useRef, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { PublicHeader } from '../components/PublicHeader'
 import { Brand } from '../components/Brand'
+import { publicAsset } from '../lib/assets'
 
 type Feature = { eyebrow: string; title: string; body: string; image: string; alt: string; icon: SvgIconComponent }
 
 const featureSections: Feature[] = [
-  { eyebrow: 'Manage every routine', title: 'Keep each patient’s plan clear and actionable.', body: 'Create personalized exercise routines, assign them to the right days, and keep patient progress visible in one organized workspace for your care team.', image: '/Therapy-Instagram-Post-Template-Website-1-1024x576.webp', alt: 'A therapist helping a patient exercise in a bright physical therapy clinic.', icon: InsightsOutlinedIcon },
-  { eyebrow: 'Coordinate between visits', title: 'Stay connected beyond the clinic.', body: 'Milestone gives providers a shared place for patient updates, messages, and next steps so care can continue without relying on paperwork, extra visits, or scattered email threads.', image: '/telehealth-physical-therapy-1.webp', alt: 'A therapist supporting a patient through a remote exercise session on a tablet.', icon: ForumOutlinedIcon },
+  { eyebrow: 'Manage every routine', title: 'Keep each patient’s plan clear and actionable.', body: 'Create personalized exercise routines, assign them to the right days, and keep patient progress visible in one organized workspace for your care team.', image: publicAsset('Therapy-Instagram-Post-Template-Website-1-1024x576.webp'), alt: 'A therapist helping a patient exercise in a bright physical therapy clinic.', icon: InsightsOutlinedIcon },
+  { eyebrow: 'Coordinate between visits', title: 'Stay connected beyond the clinic.', body: 'Milestone gives providers a shared place for patient updates, messages, and next steps so care can continue without relying on paperwork, extra visits, or scattered email threads.', image: publicAsset('telehealth-physical-therapy-1.webp'), alt: 'A therapist supporting a patient through a remote exercise session on a tablet.', icon: ForumOutlinedIcon },
 ]
 
 const workflowSteps = [
@@ -32,7 +33,7 @@ const resources = [
 ]
 
 export function HomePage() {
-  return <Box className="home-page" minHeight="100vh" bgcolor="background.default">
+  return <Box className="home-page" minHeight="100vh" bgcolor="background.default" sx={{ backgroundImage: `linear-gradient(rgba(232, 221, 186, .88), rgba(232, 221, 186, .94)), url('${publicAsset('home/clinic-background.png')}')` }}>
     <PublicHeader />
     <Box component="main">
       <Container maxWidth="lg">
@@ -51,7 +52,7 @@ export function HomePage() {
           <Grid size={{ xs: 12, md: 7 }}>
             <Reveal delay={120}>
               <Box className="home-hero-image" sx={{ position: 'relative', minHeight: { xs: 320, sm: 430, md: 510 }, borderRadius: { xs: 4, md: 6 }, overflow: 'hidden', boxShadow: '0 24px 60px rgba(11, 61, 80, .2)' }}>
-                <ParallaxImage src="/physical-therapy.webp" alt="A physical therapist guiding an older patient through a strengthening exercise." />
+                <ParallaxImage src={publicAsset('physical-therapy.webp')} alt="A physical therapist guiding an older patient through a strengthening exercise." />
                 <Paper sx={{ position: 'absolute', left: { xs: 16, md: 28 }, bottom: { xs: 16, md: 28 }, p: 2, maxWidth: 245, borderRadius: 3, bgcolor: 'rgba(255,255,255,.92)' }}>
                   <Typography variant="caption" color="secondary.main" fontWeight={800} textTransform="uppercase">A clearer care plan</Typography>
                   <Typography fontWeight={700} mt={0.5}>Personalized routines. Connected care.</Typography>

@@ -5,6 +5,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import LinkIcon from '@mui/icons-material/Link'
 import { Alert, Box, Button, Card, CardContent, Chip, Divider, Stack, TextField, Typography, useTheme } from '@mui/material'
 import { alpha } from '@mui/material/styles'
+import { publicAsset } from '../lib/assets'
 
 type MediaKind = 'image' | 'uploaded-video' | 'youtube' | 'vimeo'
 type DemoMedia = { id: string; kind: MediaKind; url: string; caption: string; name: string }
@@ -36,7 +37,7 @@ const sampleRoutines: DemoRoutine[] = [
     id: 'demo-lower-body',
     name: 'Lower Body Mobility',
     description: 'A gentle mobility routine to prepare for walking and daily movement.',
-    media: [{ id: 'demo-photo', kind: 'image', url: '/physical-therapy.webp', caption: 'Routine overview', name: 'Example picture' }],
+    media: [{ id: 'demo-photo', kind: 'image', url: publicAsset('physical-therapy.webp'), caption: 'Routine overview', name: 'Example picture' }],
     exercises: [
       { id: 'demo-squat', name: 'Supported Sit to Stand', description: 'Rise from a chair with controlled movement. Use the armrests if needed.', sets: '2', repetitions: '8', duration: '', rest: '60', notes: 'Stop if pain increases.', media: [] },
       { id: 'demo-raise', name: 'Standing Heel Raise', description: 'Hold a stable surface and lift both heels slowly.', sets: '2', repetitions: '10', duration: '', rest: '45', notes: '', media: [] },

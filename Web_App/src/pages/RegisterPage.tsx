@@ -8,11 +8,12 @@ import { Brand } from '../components/Brand'
 import { useAuth } from '../auth/AuthContext'
 import { loadMedicalPractices } from '../lib/supabaseData'
 import type { MedicalPractice } from '../types'
+import { publicAsset } from '../lib/assets'
 
 const registerImages = [
-  { src: '/login-therapists.png', alt: 'A male and female physical therapist standing back-to-back in a rehabilitation clinic.' },
-  { src: '/login-therapist-male.png', alt: 'A male physical therapist standing confidently in a rehabilitation clinic.' },
-  { src: '/login-therapist-female.png', alt: 'A female physical therapist standing confidently in a rehabilitation clinic.' },
+  { src: publicAsset('login-therapists.png'), alt: 'A male and female physical therapist standing back-to-back in a rehabilitation clinic.' },
+  { src: publicAsset('login-therapist-male.png'), alt: 'A male physical therapist standing confidently in a rehabilitation clinic.' },
+  { src: publicAsset('login-therapist-female.png'), alt: 'A female physical therapist standing confidently in a rehabilitation clinic.' },
 ]
 
 const registerCaptions = [

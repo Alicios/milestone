@@ -26,7 +26,10 @@ html {
 .home-page {
   position: relative;
   isolation: isolate;
-  background: linear-gradient(rgba(232, 221, 186, .88), rgba(232, 221, 186, .94)), url('/home/clinic-background.png') center / cover fixed !important;
+  background-color: #e8ddba !important;
+  background-position: center;
+  background-size: cover;
+  background-attachment: fixed;
 }
 
 .home-page .home-anchor {

@@ -3,6 +3,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import PauseIcon from '@mui/icons-material/Pause'
 import { useRef, useState, type MouseEvent } from 'react'
 import { PublicHeader } from '../components/PublicHeader'
+import { publicAsset } from '../lib/assets'
 
 export function AboutUsPage() {
   const [imageTilt, setImageTilt] = useState({ rotateX: 0, rotateY: 0, hovering: false })
@@ -38,7 +39,7 @@ export function AboutUsPage() {
         <Stack alignItems="center" spacing={2}>
           <Typography variant="h2" color="primary.dark" textAlign="center" sx={{ fontSize: { xs: '2.4rem', md: '3.5rem' }, fontWeight: 800 }}>LeTeam</Typography>
           <Box className="about-easter-egg-image-shell" sx={{ position: 'relative', width: '100%', maxWidth: 1100, transform: `perspective(1000px) rotateX(${imageTilt.rotateX}deg) rotateY(${imageTilt.rotateY}deg) scale(${imageTilt.hovering ? 1.04 : 1})` }}>
-            <Box component="img" className="about-easter-egg-image" src="/wallpapersden.com_king-lebron-james-hd-la-lakers-ai_1920x1080.jpg" alt="LeBron James in a Los Angeles Lakers uniform." onMouseMove={handleImageMove} onMouseLeave={() => setImageTilt({ rotateX: 0, rotateY: 0, hovering: false })} sx={{ display: 'block', width: '100%', maxHeight: 'calc(100vh - 190px)', objectFit: 'contain', borderRadius: { xs: 2, md: 4 }, boxShadow: '0 20px 50px rgba(11, 61, 80, .2)' }} />
+            <Box component="img" className="about-easter-egg-image" src={publicAsset('wallpapersden.com_king-lebron-james-hd-la-lakers-ai_1920x1080.jpg')} alt="LeBron James in a Los Angeles Lakers uniform." onMouseMove={handleImageMove} onMouseLeave={() => setImageTilt({ rotateX: 0, rotateY: 0, hovering: false })} sx={{ display: 'block', width: '100%', maxHeight: 'calc(100vh - 190px)', objectFit: 'contain', borderRadius: { xs: 2, md: 4 }, boxShadow: '0 20px 50px rgba(11, 61, 80, .2)' }} />
             <Box className="about-easter-egg-glare" sx={{ opacity: imageTilt.hovering ? 1 : 0, background: `radial-gradient(circle at ${glareX}% ${glareY}%, rgba(255, 255, 255, .46), rgba(255, 255, 255, .14) 16%, transparent 44%)` }} />
           </Box>
           <audio ref={audioRef} src="/lebroooon-james.mp3" onEnded={() => setIsPlaying(false)} />

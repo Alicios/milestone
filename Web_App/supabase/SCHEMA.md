@@ -314,7 +314,9 @@ where c.table_schema = 'public'
   and t.table_type = 'BASE TABLE';
 ```
 
-This description audit must return no rows:
+This description audit reports any missing column descriptions. The new
+messaging tables have complete descriptions; ten older columns in `exercises`,
+`medical_practices`, and `routines` still need comments:
 
 ```sql
 with public_tables as (

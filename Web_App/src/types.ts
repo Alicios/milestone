@@ -54,7 +54,6 @@ export interface Routine {
   id: string
   name: string
   exercises: RoutineExercise[]
-  archivedAt?: string
 }
 
 export type RoutineAssignmentStatus = 'scheduled' | 'completed' | 'missed' | 'modified' | 'cancelled'

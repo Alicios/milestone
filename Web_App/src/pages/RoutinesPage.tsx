@@ -92,7 +92,7 @@ function SavedRoutinesPage() {
   const border = theme.palette.divider
   const surface = theme.palette.background.paper
   const text = theme.palette.text.primary
-  const { routines, saveRoutine, archiveRoutine } = useOutletContext<DashboardOutletContext>()
+  const { routines, saveRoutine } = useOutletContext<DashboardOutletContext>()
   const [mode, setMode] = useState<'list' | 'new' | 'edit-pick' | 'edit'>('list')
   const [query, setQuery] = useState('')
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -148,19 +148,6 @@ function SavedRoutinesPage() {
       setMode('list')
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'The routine could not be updated.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function deleteRoutine(id: string) {
-    setSaving(true)
-    setError('')
-    try {
-      await archiveRoutine(id)
-      setHoveredId((current) => (current === id ? null : current))
-    } catch (archiveError) {
-      setError(archiveError instanceof Error ? archiveError.message : 'The routine could not be archived.')
     } finally {
       setSaving(false)
     }
@@ -251,23 +238,6 @@ function SavedRoutinesPage() {
                   highlighted={isHovered}
                   onClick={mode === 'edit-pick' ? () => selectForEdit(routine.id) : undefined}
                 />
-                <IconButton
-                  aria-label={`Archive ${routine.name}`}
-                  disabled={saving}
-                  onClick={(event) => { event.stopPropagation(); void deleteRoutine(routine.id) }}
-                  sx={{
-                    mt: 1.5,
-                    width: 52,
-                    height: 52,
-                    bgcolor: '#ff333c',
-                    color: 'white',
-                    border: `4px solid ${border}`,
-                    visibility: isHovered ? 'visible' : 'hidden',
-                    '&:hover': { bgcolor: '#d81f28' },
-                  }}
-                >
-                  <CloseIcon />
-                </IconButton>
               </Box>
             )
           })}

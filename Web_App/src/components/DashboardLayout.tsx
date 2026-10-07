@@ -6,7 +6,6 @@ import { useAuth } from '../auth/AuthContext'
 import type { Patient } from '../data/mockPatients'
 import type { Routine, RoutineAssignment } from '../types'
 import {
-  archiveRoutine as archiveRoutineInDatabase,
   assignRoutine as assignRoutineInDatabase,
   cancelRoutineAssignment as cancelAssignmentInDatabase,
   cancelRoutineFollowUp as cancelFollowUpInDatabase,
@@ -34,7 +33,6 @@ export interface DashboardOutletContext {
   cancelFollowUp: (assignmentId: string) => Promise<void>
   completeFollowUp: (assignmentId: string) => Promise<void>
   saveRoutine: (routineId: string | null, name: string, exercises: string[]) => Promise<void>
-  archiveRoutine: (routineId: string) => Promise<void>
   dischargePatient: (patientId: string) => Promise<void>
 }
 
@@ -115,11 +113,6 @@ export function DashboardLayout() {
     setRoutines(await loadRoutines())
   }
 
-  const archiveRoutine = async (routineId: string) => {
-    await archiveRoutineInDatabase(routineId)
-    setRoutines(await loadRoutines())
-  }
-
   const dischargePatient = async (patientId: string) => {
     await dischargePatientFromDatabase(patientId)
     const patient = patients.find((item) => item.id === patientId)
@@ -167,7 +160,7 @@ export function DashboardLayout() {
     <Container maxWidth={false} sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: isMessagesPage ? 0 : { xs: 2, md: 3 } }}>
       {patientsLoading && <Alert severity="info" sx={{ mb: 2 }}>Loading patients from Supabase…</Alert>}
       {patientsError && <Alert severity="error" sx={{ mb: 2 }}>{patientsError}</Alert>}
-      <Outlet context={{ patients, routines, assignments, weekDates, assignRoutine, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, archiveRoutine, dischargePatient } satisfies DashboardOutletContext} />
+      <Outlet context={{ patients, routines, assignments, weekDates, assignRoutine, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, dischargePatient } satisfies DashboardOutletContext} />
     </Container>
   </Box>
 }

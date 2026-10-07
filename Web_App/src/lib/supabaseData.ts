@@ -181,7 +181,7 @@ export async function dischargePatient(patientId: string) {
   if (error) throw error
 }
 
-type RoutineRow = { id: string; name: string; archived_at: string | null }
+type RoutineRow = { id: string; name: string; exercise_list: unknown[] | null }
 type RoutineExerciseRow = { id: string; routine_id: string; name: string; position: number }
 type RoutineAssignmentRow = {
   id: string
@@ -239,32 +239,32 @@ async function loadRoutineFollowUps(assignmentIds: string[]) {
   return (legacyResult.data ?? []) as RoutineFollowUpRow[]
 }
 
-export async function loadRoutines(includeArchived = false): Promise<Routine[]> {
-  let routineQuery = supabase.from('routines').select('id, name, archived_at').order('name')
-  if (!includeArchived) routineQuery = routineQuery.is('archived_at', null)
-  const { data: routines, error: routineError } = await routineQuery
+function routineExerciseName(entry: unknown) {
+  if (typeof entry === 'string') return entry.trim() || null
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null
+  const record = entry as Record<string, unknown>
+  for (const key of ['name', 'exerciseName', 'title']) {
+    const value = record[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return null
+}
+
+export async function loadRoutines(): Promise<Routine[]> {
+  const { data: routines, error: routineError } = await supabase
+    .from('routines')
+    .select('id, name, exercise_list')
+    .order('name')
   if (routineError) throw routineError
 
   const rows = (routines ?? []) as RoutineRow[]
-  if (!rows.length) return []
-  const { data: exercises, error: exerciseError } = await supabase
-    .from('routine_exercises')
-    .select('id, routine_id, name, position')
-    .in('routine_id', rows.map((routine) => routine.id))
-    .order('position')
-  if (exerciseError) throw exerciseError
-
-  const byRoutine = new Map<string, RoutineExercise[]>()
-  for (const exercise of (exercises ?? []) as RoutineExerciseRow[]) {
-    const current = byRoutine.get(exercise.routine_id) ?? []
-    current.push(toExercise(exercise))
-    byRoutine.set(exercise.routine_id, current)
-  }
   return rows.map((routine) => ({
     id: routine.id,
     name: routine.name,
-    exercises: byRoutine.get(routine.id) ?? [],
-    archivedAt: routine.archived_at ?? undefined,
+    exercises: (routine.exercise_list ?? []).flatMap((entry, position) => {
+      const name = routineExerciseName(entry)
+      return name ? [{ id: `${routine.id}-${position}`, name, position }] : []
+    }),
   }))
 }
 
@@ -276,11 +276,6 @@ export async function saveRoutine(routineId: string | null, name: string, exerci
   })
   if (error) throw error
   return data as string
-}
-
-export async function archiveRoutine(routineId: string) {
-  const { error } = await supabase.rpc('archive_routine', { p_routine_id: routineId })
-  if (error) throw error
 }
 
 export async function loadRoutineAssignments(profileIds: string[], startDate: string, endDate: string): Promise<RoutineAssignment[]> {

@@ -12,7 +12,6 @@ auth.users
 |-- providers
 |   `-- medical_practices
 |   `-- routines
-|       `-- routine_exercises
 `-- provider_patient_profiles -- patients
     |-- patient_statuses
     `-- routine_assignments -- routines
@@ -165,8 +164,8 @@ profiles, with immutable routine and exercise snapshots.
 
 ### `routine_exercises`
 
-Ordered exercises in reusable provider routine templates. Template edits do
-not alter existing assignment snapshots.
+Legacy normalized template exercises retained for historical compatibility.
+Current routine editing stores ordered exercise values in `routines.exercise_list`.
 
 | Column | Type | Description |
 | --- | --- | --- |
@@ -177,17 +176,17 @@ not alter existing assignment snapshots.
 
 ### `routines`
 
-Reusable provider-owned routine templates. Templates are archived rather than
-deleted so historical assignments remain valid.
+Reusable provider-owned routine templates. The live routine editor stores the
+ordered exercise names in `exercise_list`.
 
 | Column | Type | Description |
 | --- | --- | --- |
 | `id` | `uuid` | Stable primary key for the template. |
 | `provider_id` | `uuid` | Provider profile that owns and manages the template. |
 | `name` | `text` | Current template display name. |
-| `archived_at` | `timestamptz`, nullable | Soft-archive time; null means available for editing and assignment. |
-| `created_at` | `timestamptz` | Time the template was created. |
-| `updated_at` | `timestamptz` | Time the supported routine workflow last changed the template. |
+| `created_at` | `date`, nullable | Optional calendar date associated with the template. |
+| `description` | `text`, nullable | Optional free-text routine description. |
+| `exercise_list` | `jsonb[]`, nullable | Ordered exercise values used by the routine editor and copied into assignment snapshots. |
 
 ## Constraints and indexes
 
@@ -260,7 +259,8 @@ concepts, but they are not a literal relational schema:
   table.
 - `provider_patient_profiles` replaces `patient_list[]`, `providers[]`, and a
   single patient-side provider ID while supporting multiple providers safely.
-- `routine_exercises` replaces an exercise array embedded in a routine.
+- `routines.exercise_list` stores the current ordered exercise list; the
+  legacy `routine_exercises` table is retained for compatibility.
 - `medical_practices` replaces the provider `department` and `specialty` text
   fields with one selected practice reference.
 - Assignment snapshots, dated assignments, soft discharge, follow-ups, and RLS

@@ -49,6 +49,61 @@ const sampleRoutines: DemoRoutine[] = [
     media: [],
     exercises: [{ id: 'demo-stand', name: 'Supported Single Leg Stand', description: 'Stand near a counter and lift one foot slightly.', sets: '2', repetitions: '', duration: '20', rest: '30', notes: 'Repeat on each side.', media: [] }],
   },
+  {
+    id: 'demo-upper-body-mobility',
+    name: 'Upper Body Mobility',
+    description: 'Gentle movements for the upper back, chest, and shoulders to support comfortable reaching and upright posture.',
+    media: [{ id: 'demo-upper-body-video', kind: 'youtube', url: 'https://www.youtube.com/watch?v=XXwXJ1IAzxc', caption: 'NHS guidance for preventing and easing shoulder pain', name: 'Upper body mobility overview' }],
+    exercises: [
+      { id: 'demo-thoracic-rotation', name: 'Seated Thoracic Rotation', description: 'Sit tall with your arms crossed over your chest. Rotate your upper body slowly to one side, return to center, and repeat on the other side.', sets: '2', repetitions: '8', duration: '', rest: '30', notes: 'Keep your hips facing forward and move only through a comfortable range.', media: [] },
+      { id: 'demo-doorway-stretch', name: 'Doorway Chest Stretch', description: 'Place your forearms against a doorway and step forward gently until you feel a stretch across the front of your chest.', sets: '2', repetitions: '', duration: '30', rest: '30', notes: 'Keep your shoulders relaxed and stop if the stretch causes pain or tingling.', media: [] },
+      { id: 'demo-wall-slides', name: 'Wall Slides', description: 'Stand with your back near a wall and slide your arms upward slowly, then return to the starting position with control.', sets: '2', repetitions: '10', duration: '', rest: '45', notes: 'Use the range prescribed by your clinician and avoid shrugging your shoulders.', media: [] },
+    ],
+  },
+  {
+    id: 'demo-core-stability',
+    name: 'Core Stability',
+    description: 'Controlled trunk exercises that build support for everyday movement while maintaining a neutral spine.',
+    media: [{ id: 'demo-core-video', kind: 'youtube', url: 'https://www.youtube.com/watch?v=E2VEV505574', caption: 'NHS back care class focused on strength and flexibility', name: 'Core stability overview' }],
+    exercises: [
+      { id: 'demo-abdominal-brace', name: 'Abdominal Brace', description: 'Lie on your back with your knees bent. Gently tighten your lower abdominal muscles while breathing normally.', sets: '2', repetitions: '10', duration: '5', rest: '30', notes: 'Do not hold your breath or press your lower back forcefully into the floor.', media: [] },
+      { id: 'demo-bridge', name: 'Bridge', description: 'From a bent-knee position, tighten your abdomen and lift your hips until your shoulders, hips, and knees form a comfortable line.', sets: '2', repetitions: '10', duration: '', rest: '45', notes: 'Lower slowly and stop if symptoms increase in your back or legs.', media: [] },
+      { id: 'demo-bird-dog', name: 'Bird Dog', description: 'From hands and knees, extend one arm and the opposite leg while keeping your trunk steady, then alternate sides.', sets: '2', repetitions: '8', duration: '', rest: '45', notes: 'Use an arm-only or leg-only variation if directed by your clinician.', media: [] },
+    ],
+  },
+  {
+    id: 'demo-post-op-knee',
+    name: 'Post-Op Knee Recovery',
+    description: 'Early mobility and strengthening examples for rebuilding knee motion and quadriceps control after surgery.',
+    media: [{ id: 'demo-post-op-knee-video', kind: 'youtube', url: 'https://www.youtube.com/watch?v=emO4tQxtR0U', caption: 'CHKD sports medicine home exercise program for post-operative knee recovery', name: 'Post-op knee recovery overview' }],
+    exercises: [
+      { id: 'demo-heel-slides', name: 'Heel Slides', description: 'Lie on your back and slowly slide your heel toward your body to bend the knee, then return the leg to a comfortable straight position.', sets: '3', repetitions: '10', duration: '', rest: '30', notes: 'Follow the motion limits and weight-bearing precautions provided by your surgical team.', media: [] },
+      { id: 'demo-quad-sets', name: 'Quad Sets', description: 'With your leg supported and straight, tighten the muscle on the front of your thigh by gently pressing the knee downward.', sets: '3', repetitions: '10', duration: '5', rest: '30', notes: 'Keep the rest of your leg relaxed and do not force the knee into pain.', media: [] },
+      { id: 'demo-straight-leg-raise', name: 'Straight-Leg Raise', description: 'Tighten your thigh, keep the knee straight, and lift the leg a short distance before lowering it slowly.', sets: '2', repetitions: '8', duration: '', rest: '60', notes: 'Perform only after your clinician confirms you can keep the knee fully straight during the lift.', media: [] },
+    ],
+  },
+  {
+    id: 'demo-shoulder-rehabilitation',
+    name: 'Shoulder Rehabilitation',
+    description: 'A gradual shoulder program emphasizing relaxed motion, shoulder-blade control, and assisted range of motion.',
+    media: [{ id: 'demo-shoulder-rehabilitation-video', kind: 'youtube', url: 'https://www.youtube.com/watch?v=5duN9yeTFYk', caption: 'Shoulder exercises demonstrated by North Bristol NHS Trust physiotherapists', name: 'Shoulder rehabilitation overview' }],
+    exercises: [
+      { id: 'demo-pendulum', name: 'Pendulum', description: 'Support yourself with one hand, let the involved arm relax, and use gentle body movement to create small circles.', sets: '2', repetitions: '', duration: '30', rest: '30', notes: 'Keep the arm relaxed and stay within the restrictions provided by your clinician.', media: [] },
+      { id: 'demo-scapular-retraction', name: 'Scapular Retraction', description: 'Sit or stand tall and draw your shoulder blades gently back and down without lifting your shoulders.', sets: '2', repetitions: '10', duration: '5', rest: '30', notes: 'Avoid arching your lower back or forcing the shoulder blades together.', media: [] },
+      { id: 'demo-assisted-flexion', name: 'Assisted Shoulder Flexion', description: 'Use the unaffected arm or a cane to help raise the involved arm forward, then lower it slowly.', sets: '2', repetitions: '10', duration: '', rest: '45', notes: 'Do not move beyond your prescribed range or through increasing pain.', media: [] },
+    ],
+  },
+  {
+    id: 'demo-low-back-relief',
+    name: 'Low-Back Relief',
+    description: 'Low-impact mobility exercises intended to reduce stiffness and encourage comfortable lower-back movement.',
+    media: [{ id: 'demo-low-back-video', kind: 'youtube', url: 'https://www.youtube.com/watch?v=nII38aNoSKc', caption: 'NHS back care class with low-impact strength and flexibility exercises', name: 'Low-back relief overview' }],
+    exercises: [
+      { id: 'demo-knee-rolls', name: 'Knee Rolls', description: 'Lie on your back with your knees bent and slowly roll both knees from side to side within a comfortable range.', sets: '2', repetitions: '10', duration: '', rest: '30', notes: 'Keep your shoulders relaxed against the surface and make the movement small if needed.', media: [] },
+      { id: 'demo-single-knee-to-chest', name: 'Single Knee-to-Chest', description: 'Bring one knee gently toward your chest while the other leg stays comfortable, then switch sides.', sets: '2', repetitions: '8', duration: '10', rest: '30', notes: 'Hold behind the thigh if gripping the knee is uncomfortable.', media: [] },
+      { id: 'demo-pelvic-tilts', name: 'Pelvic Tilts', description: 'With your knees bent, gently tilt your pelvis to flatten and release the curve of your lower back.', sets: '2', repetitions: '10', duration: '', rest: '30', notes: 'Use slow, comfortable motion and stop if back or leg symptoms worsen.', media: [] },
+    ],
+  },
 ]
 
 function videoEmbed(media: DemoMedia) {

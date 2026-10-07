@@ -1,7 +1,7 @@
 # Milestone Supabase Schema
 
 This is the canonical reference for the application-owned `public` schema after
-all migrations through `20261006000200_document_public_schema.sql`. Supabase
+all migrations through `20261007000700_document_messages.sql`. Supabase
 manages authentication in `auth`; this application never stores password
 hashes in `public` tables.
 
@@ -14,6 +14,7 @@ auth.users
 |   `-- routines
 `-- provider_patient_profiles -- patients
     |-- patient_statuses
+    |-- messages -- message_thread_state
     `-- routine_assignments -- routines
         |-- routine_assignment_exercises
         `-- routine_follow_ups
@@ -25,8 +26,29 @@ auth.users
 - Assignments belong to a provider-specific patient profile and preserve
   immutable routine and exercise-name snapshots.
 - Each routine assignment can have at most one follow-up.
+- Text messages currently belong to one provider-patient relationship. Future
+  provider, administrator, and IT conversations need a broader participant model.
 
 ## Data dictionary
+
+### `messages`
+
+Provider-patient text messages. `patient_profile_id` references the
+provider-specific relationship, so a shared patient has a separate conversation
+with each provider. `sender_kind` is `provider` or `patient`; only providers
+can send through the browser today. `body` must contain 1–4000 non-whitespace
+characters. Messages are immutable to browser clients.
+
+`source` and `seed_key` are internal provenance fields for the twelve imported
+sample messages. They are not displayed in the inbox. `created_at` is a server
+timestamp, and `id` is a UUID. Sample image attachments are not stored.
+
+### `message_thread_state`
+
+Per-participant read cursor and starred state, keyed by
+`(patient_profile_id, participant_user_id)`. Existing provider relationships
+were backfilled, and a trigger creates provider state for new relationships.
+The browser can update only its own `last_read_at` and `starred` values.
 
 ### `access_requests`
 
@@ -205,6 +227,8 @@ behavior at the database boundary:
 | `routine_assignments.routine_id` | `routines.id` | Restrict template deletion when assignment history exists. |
 | `routine_assignment_exercises.routine_assignment_id` | `routine_assignments.id` | Restrict assignment deletion when snapshots exist. |
 | `routine_follow_ups.routine_assignment_id` | `routine_assignments.id` | Restrict assignment deletion when a follow-up exists. |
+| `messages.patient_profile_id` | `provider_patient_profiles.id` | Restrict relationship deletion while message history exists. |
+| `message_thread_state.patient_profile_id` | `provider_patient_profiles.id` | Cascade participant state with the relationship. |
 
 Uniqueness and checks enforce the application invariants:
 
@@ -242,6 +266,8 @@ RLS is enabled on every public table. The effective browser boundaries are:
 | `routine_assignments` | Authenticated providers select assignments for their own relationships; writes use RPCs. |
 | `routine_assignment_exercises` | Authenticated providers select snapshots for their own assignments; writes occur through assignment RPCs. |
 | `routine_follow_ups` | Authenticated providers select follow-ups for their own assignments; writes use RPCs. |
+| `messages` | Authenticated providers select messages for their own relationships and insert provider-authored live text; patient inserts, edits, and deletes are denied. |
+| `message_thread_state` | Authenticated providers select and update their own read/starred state. |
 
 The security-definer RPCs validate `auth.uid()` and ownership before changing
 routine, assignment, discharge, or follow-up data. The Supabase `service_role`
@@ -269,12 +295,12 @@ concepts, but they are not a literal relational schema:
 The following planning concepts are intentionally deferred until an implemented
 workflow needs them: provider license numbers, patient invitations and login
 accounts, sets/repetitions/duration, a reusable exercise library, exercise
-help/media, persisted messaging, and notifications.
+help/media, patient-authenticated messaging, and notifications.
 
 ## Verification query
 
-After applying all migrations through `20261007000100_medical_practices.sql`,
-this query must return `11` tables and `71` columns:
+After applying all migrations through `20261007000700_document_messages.sql`,
+this query must return `14` tables and `86` columns:
 
 ```sql
 select

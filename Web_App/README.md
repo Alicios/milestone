@@ -17,7 +17,7 @@ This repository contains the provider-facing web front end, built with:
 - Material UI and Emotion
 - React Router
 
-The current implementation is a provider-facing prototype backed by Supabase Auth and database records for provider profiles, patients, routines, dated routine assignments, and assignment follow-ups. Messages and dashboard summary metrics remain local prototype data.
+The current implementation is a provider-facing prototype backed by Supabase Auth and database records for provider profiles, patients, routines, dated routine assignments, assignment follow-ups, and text messages. Other dashboard summary metrics remain local prototype data.
 
 ## Getting started
 
@@ -62,7 +62,7 @@ Open the local URL shown by Vite, typically `http://localhost:3000`.
 - `/dashboard/patients/:patientId` — Individual patient overview, weekly routines, and patient actions
 - `/dashboard/routines` — Exercise routine management
 - `/dashboard/appointments` — Appointment placeholder
-- `/dashboard/messages` — Patient messaging prototype
+- `/dashboard/messages` — Persisted provider-to-patient text messaging
 - `/dashboard/profile` — Provider profile
 - `/dashboard/settings` — Provider settings
 
@@ -94,7 +94,8 @@ npm run preview
 
 ## Prototype limitations
 
-- Dashboard summary and message data are local mock data.
+- Some dashboard summary data remains local mock data; the message inbox and its unread shortcut count use Supabase.
+- The initial message history is seeded from twelve sample texts. Sample image attachments are not stored, and patient accounts cannot send messages until trusted patient authentication is implemented.
 - Provider profile fields and patient identities/statuses are persisted through Supabase.
 - Provider routine templates, ordered exercises, dated patient assignments, immutable assignment snapshots, and assignment follow-ups are persisted through Supabase.
 - Session notes are marked “Coming Soon” and are not implemented.

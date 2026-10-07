@@ -7,10 +7,11 @@ the original `profiles` and `access_requests` tables.
 
 ## Applying migrations
 
-Apply migrations in filename order through:
+Apply migrations in filename order. The messaging addition is:
 
-1. `20261006000100_clarify_schema_names.sql`
-2. `20261006000200_document_public_schema.sql`
+1. `20261007000500_messages.sql` — tables, grants, RLS, and Realtime publication
+2. `20261007000600_seed_demo_messages.sql` — twelve idempotent text imports
+3. `20261007000700_document_messages.sql` — column descriptions
 
 For the existing hosted project, use Supabase Dashboard → SQL Editor while
 signed in as the database owner. Each migration is transactional. Stop on the
@@ -36,9 +37,9 @@ only for confirmed missing-table or missing-column errors.
 
 ## Verification
 
-After applying both migrations, verify that the public schema contains ten base
-tables, including `routine_follow_ups` and excluding `appointments`. Run the
-description audit in [SCHEMA.md](SCHEMA.md); it must return no rows.
+After applying the current migrations, verify that the public schema contains
+fourteen base tables, including `messages` and `message_thread_state`. Run the
+description audit in [SCHEMA.md](SCHEMA.md).
 
 Also verify with at least two provider accounts that:
 
@@ -48,6 +49,8 @@ Also verify with at least two provider accounts that:
 - cancelling an assignment preserves it and cancels a scheduled follow-up;
 - discharging a patient retains the provider-specific history; and
 - duplicate active assignments for the same profile, routine, and date fail.
+- each provider sees only their own messages and cannot insert a patient-authored
+  message; messaging continues after discharge.
 
 ## Authentication and ownership
 
@@ -65,6 +68,12 @@ patients.
 Routine and follow-up writes use authenticated security-definer RPCs. Browser
 table access remains read-only where required, and RLS traces rows back to the
 signed-in provider.
+
+The `messages` table currently links text to provider-patient profiles. The
+provider browser may insert only provider-authored live messages. Patient
+messaging needs a trusted Auth-to-patient link before patient policies are
+added. Provider-to-provider and staff conversations require a later participant
+model; the general table name does not grant those capabilities yet.
 
 ## Storage
 

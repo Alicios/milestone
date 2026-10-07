@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import AddIcon from '@mui/icons-material/Add'
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline'
@@ -14,6 +14,9 @@ import type { DashboardOutletContext, DayAssignments } from '../components/Dashb
 import { weekdayNames, type Patient } from '../data/mockPatients'
 import type { Routine, RoutineAssignmentStatus } from '../types'
 import { formatCalendarDate, toLocalDateKey } from '../lib/week'
+import { useAuth } from '../auth/AuthContext'
+import { loadMessageConversations } from '../lib/messages'
+import { supabase } from '../lib/supabase'
 
 const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 type SortOrder = 'nameAsc' | 'nameDesc'
@@ -74,6 +77,7 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
 }
 
 export function DashboardPage() {
+  const { user } = useAuth()
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
   const surface = theme.palette.background.paper
@@ -85,7 +89,27 @@ export function DashboardPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(null)
   const [filterMenuAnchor, setFilterMenuAnchor] = useState<null | HTMLElement>(null)
+  const [unreadMessages, setUnreadMessages] = useState(0)
   const { patients, routines, assignments, weekDates, assignRoutine } = useOutletContext<DashboardOutletContext>()
+  useEffect(() => {
+    if (!user) return
+    let active = true
+    const refreshUnread = () => {
+      void loadMessageConversations(user.id)
+        .then((threads) => { if (active) setUnreadMessages(threads.reduce((count, thread) => count + thread.unread, 0)) })
+        .catch(() => { if (active) setUnreadMessages(0) })
+    }
+    refreshUnread()
+    const channel = supabase.channel(`dashboard-message-count-${user.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, refreshUnread)
+      .subscribe()
+    window.addEventListener('focus', refreshUnread)
+    return () => {
+      active = false
+      window.removeEventListener('focus', refreshUnread)
+      void supabase.removeChannel(channel)
+    }
+  }, [user])
   const [assignmentTarget, setAssignmentTarget] = useState<{ patient: Patient; dayIndex: number } | null>(null)
   const visiblePatients = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -131,7 +155,7 @@ export function DashboardPage() {
           {visiblePatients.length ? visiblePatients.map((patient) => <PatientRow key={patient.id} patient={patient} expanded={expanded.includes(patient.id)} onToggle={() => togglePatient(patient.id)} assignments={assignments[patient.profileId] ?? {}} weekDates={weekDates} onAssign={(dayIndex) => setAssignmentTarget({ patient, dayIndex })} />) : <Card sx={{ p: 5, textAlign: 'center', border: `4px solid ${border}`, bgcolor: surface, color: text }}><Typography variant="h6" fontFamily="Georgia, serif">No patients found</Typography></Card>}
         </Stack>
       </Box>
-      <Box sx={{ width: { xs: '100%', lg: 250 }, display: 'flex', flexDirection: { xs: 'row', lg: 'column' }, justifyContent: 'center', gap: { xs: 2, lg: 6 }, alignItems: 'center' }}><Button component={RouterLink} to="/dashboard/patients/new" sx={{ color: 'white', display: 'flex', flexDirection: 'column', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.65rem', transition: 'transform 180ms ease', '&:hover': { bgcolor: 'transparent', transform: 'translateY(-4px)' } }}><Box className="dashboard-shortcut-orb" sx={{ width: { xs: 110, sm: 170 }, height: { xs: 110, sm: 170 }, borderRadius: '50%', bgcolor: '#4b9da9', border: '4px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 180ms ease, box-shadow 180ms ease' }}><AddIcon sx={{ color: 'white', fontSize: { xs: 70, sm: 120 } }} /></Box><Box component="span" mt={1}>New Patient</Box></Button><Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', lg: 'block' }, borderColor: 'black', borderWidth: 2 }} /><Button component={RouterLink} to="/dashboard/messages" sx={{ color: 'white', display: 'flex', flexDirection: 'column', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.65rem', transition: 'transform 180ms ease', '&:hover': { bgcolor: 'transparent', transform: 'translateY(-4px)' } }}><Box className="dashboard-shortcut-orb" sx={{ position: 'relative', width: { xs: 110, sm: 170 }, height: { xs: 110, sm: 170 }, borderRadius: '50%', bgcolor: '#4b9da9', border: '4px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 180ms ease, box-shadow 180ms ease' }}><ChatBubbleOutlineIcon sx={{ color: 'white', fontSize: { xs: 65, sm: 95 } }} /><Box sx={{ position: 'absolute', top: -2, right: -2, width: 46, height: 46, bgcolor: '#ef1640', borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Georgia, serif', fontStyle: 'normal', fontWeight: 700 }}>3</Box></Box><Box component="span" mt={1}>Messages</Box></Button></Box>
+      <Box sx={{ width: { xs: '100%', lg: 250 }, display: 'flex', flexDirection: { xs: 'row', lg: 'column' }, justifyContent: 'center', gap: { xs: 2, lg: 6 }, alignItems: 'center' }}><Button component={RouterLink} to="/dashboard/patients/new" sx={{ color: 'white', display: 'flex', flexDirection: 'column', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.65rem', transition: 'transform 180ms ease', '&:hover': { bgcolor: 'transparent', transform: 'translateY(-4px)' } }}><Box className="dashboard-shortcut-orb" sx={{ width: { xs: 110, sm: 170 }, height: { xs: 110, sm: 170 }, borderRadius: '50%', bgcolor: '#4b9da9', border: '4px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 180ms ease, box-shadow 180ms ease' }}><AddIcon sx={{ color: 'white', fontSize: { xs: 70, sm: 120 } }} /></Box><Box component="span" mt={1}>New Patient</Box></Button><Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', lg: 'block' }, borderColor: 'black', borderWidth: 2 }} /><Button component={RouterLink} to="/dashboard/messages" sx={{ color: 'white', display: 'flex', flexDirection: 'column', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.65rem', transition: 'transform 180ms ease', '&:hover': { bgcolor: 'transparent', transform: 'translateY(-4px)' } }}><Box className="dashboard-shortcut-orb" sx={{ position: 'relative', width: { xs: 110, sm: 170 }, height: { xs: 110, sm: 170 }, borderRadius: '50%', bgcolor: '#4b9da9', border: '4px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 180ms ease, box-shadow 180ms ease' }}><ChatBubbleOutlineIcon sx={{ color: 'white', fontSize: { xs: 65, sm: 95 } }} />{unreadMessages > 0 && <Box sx={{ position: 'absolute', top: -2, right: -2, width: 46, height: 46, bgcolor: '#ef1640', borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Georgia, serif', fontStyle: 'normal', fontWeight: 700 }}>{unreadMessages}</Box>}</Box><Box component="span" mt={1}>Messages</Box></Button></Box>
       </Stack>
     </Fade>
     {assignmentTarget && <AssignRoutineDialog

@@ -7,6 +7,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import { Alert, Box, Button, IconButton, InputAdornment, OutlinedInput, Stack, TextField, Typography, useTheme } from '@mui/material'
 import type { DashboardOutletContext } from '../components/DashboardLayout'
 import type { Routine } from '../types'
+import { RoutineDemo } from '../components/RoutineDemo'
 
 const teal = '#4b9da9'
 const aqua = '#91c8c0'
@@ -85,7 +86,7 @@ function ExerciseEditor({ exercises, onChange }: { exercises: string[]; onChange
   )
 }
 
-export function RoutinesPage() {
+function SavedRoutinesPage() {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
   const border = theme.palette.divider
@@ -288,4 +289,23 @@ export function RoutinesPage() {
       </Box>
     </Stack>
   )
+}
+
+export function RoutinesPage() {
+  const [showDemo, setShowDemo] = useState(true)
+
+  return <Box>
+    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} justifyContent="space-between" sx={{ mb: 3 }}>
+      <Box>
+        <Typography component="h1" variant="h4" sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>Routines</Typography>
+        <Typography color="text.secondary">{showDemo ? 'Preview the expanded routine editor with sample data.' : 'Your saved provider routines.'}</Typography>
+      </Box>
+      <Stack direction="row" spacing={1}>
+        <Button variant={showDemo ? 'contained' : 'outlined'} onClick={() => setShowDemo(true)}>Editor demo</Button>
+        <Button variant={showDemo ? 'outlined' : 'contained'} onClick={() => setShowDemo(false)}>Saved routines</Button>
+      </Stack>
+    </Stack>
+    <Box sx={{ display: showDemo ? 'block' : 'none' }}><RoutineDemo /></Box>
+    <Box sx={{ display: showDemo ? 'none' : 'block' }}><SavedRoutinesPage /></Box>
+  </Box>
 }

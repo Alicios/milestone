@@ -1,8 +1,10 @@
 # Milestone Supabase Schema
 
-This is the canonical reference for the application-owned `public` schema after
-all migrations through `20261006000200_document_public_schema.sql`. Supabase
-manages authentication in `auth`; this application never stores password
+This describes the proposed application-owned `public` schema after
+`20261007000100_reusable_exercises.sql` (SCRUM-43). Production was confirmed at the
+October 6 rename baseline; SCRUM-43 has not been deployed as part of this work.
+See [README.md](README.md) for the staged rollout and legacy compatibility.
+Supabase manages authentication in `auth`; this application never stores password
 hashes in `public` tables.
 
 ## Relationship overview
@@ -10,8 +12,9 @@ hashes in `public` tables.
 ```text
 auth.users
 |-- providers
-|   `-- routines
-|       `-- routine_exercises
+|   |-- exercises <-----------------+
+|   `-- routines                    |
+|       `-- routine_exercises ------+
 `-- provider_patient_profiles -- patients
     |-- patient_statuses
     `-- routine_assignments -- routines
@@ -23,10 +26,24 @@ auth.users
 - Each provider-patient pair has one private relationship profile.
 - Routine templates belong to a provider.
 - Assignments belong to a provider-specific patient profile and preserve
-  immutable routine and exercise-name snapshots.
+  immutable routine-name, exercise-name, and instruction snapshots.
 - Each routine assignment can have at most one follow-up.
 
 ## Data dictionary
+
+### `exercises` (SCRUM-43)
+
+Provider-owned reusable definitions. Equal names never establish shared identity.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| `id` | `uuid` | Primary key, default `gen_random_uuid()`. |
+| `provider_id` | `uuid` | Required owning provider. |
+| `name` | `text` | Required nonblank name, deliberately not unique. |
+| `instructions` | `text` | Required reusable instructions, default empty string. |
+| `created_at` | `timestamptz` | Required catalog creation time, default `now()`. |
+| `updated_at` | `timestamptz` | Required catalog update time, default `now()`; updated by `save_exercise`. |
+
 
 ### `access_requests`
 
@@ -126,14 +143,15 @@ administrative authorization remain separate concerns.
 
 ### `routine_assignment_exercises`
 
-Immutable ordered exercise-name snapshots copied when a routine is assigned.
-Later template edits do not alter these rows.
+Independent ordered name/instruction snapshots copied when a routine is assigned.
+Later template/catalog edits do not alter these rows. There is no catalog FK.
 
 | Column | Type | Description |
 | --- | --- | --- |
 | `id` | `uuid` | Stable primary key for the snapshot row. |
 | `routine_assignment_id` | `uuid` | Assignment whose historical exercise list contains this snapshot. |
 | `exercise_name_snapshot` | `text` | Exercise name captured at assignment time. |
+| `instructions` | `text` | SCRUM-43: recorded instructions; required, default empty for preexisting snapshots. |
 | `position` | `integer` | Zero-based display order within the assignment snapshot. |
 
 ### `routine_assignments`
@@ -154,14 +172,16 @@ profiles, with immutable routine and exercise snapshots.
 
 ### `routine_exercises`
 
-Ordered exercises in reusable provider routine templates. Template edits do
-not alter existing assignment snapshots.
+Ordered memberships referencing provider-owned exercise definitions. Template
+edits do not alter existing assignment snapshots. Existing membership IDs and
+positions survive migration. Subsequent saves preserve IDs at retained positions.
 
 | Column | Type | Description |
 | --- | --- | --- |
 | `id` | `uuid` | Stable primary key for the routine exercise. |
 | `routine_id` | `uuid` | Reusable routine template that owns the exercise. |
-| `name` | `text` | Current exercise name in the reusable template. |
+| `exercise_id` | `uuid` | SCRUM-43: required reference to an exercise owned by the routine provider. |
+| `name` | `text` | Retained compatibility mirror of catalog name, maintained by triggers. |
 | `position` | `integer` | Zero-based display order within the template. |
 
 ### `routines`
@@ -189,6 +209,8 @@ behavior at the database boundary:
 | `provider_patient_profiles.provider_id` | `auth.users.id` | Restrict deletion while provider-patient history exists. |
 | `provider_patient_profiles.patient_id` | `patients.id` | Cascade relationship deletion with a deleted shared patient. |
 | `patient_statuses.patient_profile_id` | `provider_patient_profiles.id` | Cascade legacy statuses with the relationship. |
+| `exercises.provider_id` | `providers.id` | Restrict provider deletion while catalog definitions exist. |
+| `routine_exercises.exercise_id` | `exercises.id` | Restrict catalog deletion while memberships reference it. |
 | `routines.provider_id` | `providers.id` | Restrict provider deletion while templates exist. |
 | `routine_exercises.routine_id` | `routines.id` | Cascade current template exercises with the template. |
 | `routine_assignments.patient_profile_id` | `provider_patient_profiles.id` | Restrict relationship deletion when assignment history exists. |
@@ -196,7 +218,14 @@ behavior at the database boundary:
 | `routine_assignment_exercises.routine_assignment_id` | `routine_assignments.id` | Restrict assignment deletion when snapshots exist. |
 | `routine_follow_ups.routine_assignment_id` | `routine_assignments.id` | Restrict assignment deletion when a follow-up exists. |
 
-Uniqueness and checks enforce the application invariants:
+Uniqueness, checks, and write guards enforce the application invariants:
+
+- A membership trigger requires matching routine/exercise ownership and derives
+  its mirrored name from the catalog. Catalog renames synchronize all mirrors.
+- Parent-table triggers make provider ownership immutable for exercises and
+  routines, including unreferenced definitions and empty routines.
+- Catalog names are not unique; repeated use at different positions is permitted.
+- Existing `routine_exercises.name` nonempty and routine/position checks remain.
 
 - `provider_patient_profiles (provider_id, patient_id)` is unique.
 - `patient_statuses (patient_profile_id, day_index)` is unique, and
@@ -215,6 +244,8 @@ Important non-primary indexes are:
 | `routine_assignments_active_unique_idx` | Rejects duplicate non-cancelled assignments for the same profile, routine, and date while preserving cancelled history. |
 | `routine_assignments_profile_date_idx` | Supports patient-profile calendar and date-range loading. |
 | `routines_provider_active_idx` | Supports provider routine-name lookup for non-archived templates. |
+| `exercises_provider_name_idx` | Nonunique provider/name catalog lookup. |
+| `routine_exercises_exercise_id_idx` | Catalog membership lookup and name synchronization. |
 
 ## Row Level Security
 
@@ -227,6 +258,7 @@ RLS is enabled on every public table. The effective browser boundaries are:
 | `patients` | Authenticated providers select patients linked through their own relationship profiles. |
 | `provider_patient_profiles` | Authenticated providers select and update their own relationships. |
 | `patient_statuses` | Authenticated providers manage statuses belonging to their own relationships. |
+| `exercises` | Authenticated providers SELECT their own catalog; writes only through ownership-checked RPCs. |
 | `routines` | Authenticated providers select their own templates; writes use RPCs. |
 | `routine_exercises` | Authenticated providers select exercises from their own templates; writes use RPCs. |
 | `routine_assignments` | Authenticated providers select assignments for their own relationships; writes use RPCs. |
@@ -237,6 +269,27 @@ The security-definer RPCs validate `auth.uid()` and ownership before changing
 routine, assignment, discharge, or follow-up data. The Supabase `service_role`
 and database owners remain trusted administrative paths and can bypass normal
 RLS behavior.
+
+## Routine write contracts
+
+- `save_exercise(uuid, text, text)` creates/updates an owned reusable definition.
+- `save_routine_with_exercises(uuid, text, uuid[])` is the new ID-based writer.
+- `save_routine(uuid, text, text[])` is a transitional legacy adapter. New routines
+  receive separate catalog definitions with empty instructions. Existing routines
+  accept only an unchanged ordered name list (after input trimming/blank filtering);
+  only the routine name/timestamp can change. Membership IDs, positions, and
+  instructions are never modified by an accepted legacy edit. Structural or stale
+  list changes fail with SQLSTATE `55000` before any write. Equal-name swaps cannot
+  be expressed; identical lists leave IDs untouched. Use the ID-based API for
+  structural edits. No global name matching or deduplication is performed.
+- `assign_routine(uuid, uuid, date)` keeps its signature and snapshots catalog
+  names/instructions using `exercise_name_snapshot`, `instructions`, and position.
+
+All four RPCs serialize on the authenticated provider row. Assignment creation
+also locks the active relationship and routine while taking the snapshot. The
+upstream follow-up, archive, and discharge RPCs remain unchanged. Catalog records
+are retained when memberships are removed; no public deletion API is introduced and parent-table triggers reject ownership
+transfers. Contracting the legacy column/API is a later migration.
 
 ## Planning-document mapping
 
@@ -249,19 +302,22 @@ concepts, but they are not a literal relational schema:
   table.
 - `provider_patient_profiles` replaces `patient_list[]`, `providers[]`, and a
   single patient-side provider ID while supporting multiple providers safely.
-- `routine_exercises` replaces an exercise array embedded in a routine.
+- `exercises` stores reusable definitions; `routine_exercises` stores ordered
+  memberships and a temporary name mirror for old clients.
 - Assignment snapshots, dated assignments, soft discharge, follow-ups, and RLS
   strengthen the original design.
 
 The following planning concepts are intentionally deferred until an implemented
 workflow needs them: provider license numbers, normalized medical practices,
-patient invitations and login accounts, sets/repetitions/duration, a reusable
-exercise library, exercise help/media, persisted messaging, and notifications.
+patient invitations and login accounts, sets/repetitions/duration/rest, a full
+catalog-management UI, exercise media, persisted messaging, and notifications.
 
 ## Verification query
 
-After applying both migrations, this query must return `10` tables and `69`
-columns:
+For the documented baseline, the October 6 migrations yield `10` tables and `69`
+columns. SCRUM-43 adds one table and eight columns across three tables, yielding
+`11` tables and `77` columns if no other team schema changes have intervened.
+These are expected schema counts, not claims about the current hosted database:
 
 ```sql
 select

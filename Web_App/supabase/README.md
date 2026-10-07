@@ -1,157 +1,189 @@
 # Supabase database
 
-The canonical current model is documented in [SCHEMA.md](SCHEMA.md). The SQL
-files in `migrations/` are incremental migrations for the existing hosted
-Milestone project; `schema.sql` is only the historical bootstrap that created
-the original `profiles` and `access_requests` tables.
+The confirmed production baseline has the October 6 renames:
+`providers.professional_title`, `routine_follow_ups`, and
+`routine_assignment_exercises.exercise_name_snapshot`. It still stores exercise
+names in `routine_exercises` and has no `exercises` table. This confirmation was
+provided by the team; this change does not contact or update hosted Supabase.
 
-## SCRUM-43: reusable exercises
+[SCHEMA.md](SCHEMA.md) documents the proposed schema after SCRUM-43. `schema.sql`
+is the historical bootstrap, not a fresh-database or production-update script.
 
-**Integration in progress: do not apply the SCRUM-43 migration or run this
-branch's migrations in filename order.** The original
-`migrations/20261005000100_reusable_exercises.sql` is preserved unchanged for the
-next migration-design step; it has not been applied as part of this integration.
-It sorts before the team's `20261006...` migrations and is incompatible with them:
-the rename migration replaces its catalog-aware `assign_routine`, the documentation
-migration references the removed `routine_exercises.name`, and the original
-assignment writer targets `name` instead of `exercise_name_snapshot`.
+## SCRUM-43 migration order
 
-Retimestamping/redesign and the client rollout strategy require a separate review.
-The saved-routine editor now expects the reusable catalog schema; it is not ready
-for end-to-end use against the upstream database schema. The upstream rename
-fallbacks remain in place but do not bridge the name-array versus exercise-ID
-`save_routine` contracts. `SCHEMA.md` describes the upstream baseline, not the
-pending reusable exercise model below.
+The unpublished `20261005000100_reusable_exercises.sql` draft is retired and
+replaced by **`20261007000100_reusable_exercises.sql`**, after:
 
-The preserved SCRUM-43 design provides:
+1. `20261004001000_routines_assignments_followups.sql`
+2. `20261004001100_seed_demo_routines.sql`
+3. `20261006000100_clarify_schema_names.sql`
+4. `20261006000200_document_public_schema.sql`
+5. `20261007000100_reusable_exercises.sql`
 
-- `exercises` is the provider-private catalog: UUID, provider UUID, nonblank name,
-  instructions, and creation/update timestamps. Names are intentionally not unique.
-- `routine_exercises` retains its membership UUID, routine UUID, position, and
-  unique routine/position constraint. Its required `exercise_id` references the
-  catalog; its old `name` column is removed. Repeated use at different positions
-  is allowed, including within the same routine.
-- Backfill creates **one catalog row per existing membership**, including entries
-  in archived routines. Matching names are never deduplicated. Membership IDs and
-  ordering are preserved. The previously applied seed migration must not be rerun
-  against the new association schema.
-- `save_exercise(p_exercise_id, p_name, p_instructions)` creates a catalog entry
-  when its ID is null, or updates an owned entry and its `updated_at` timestamp.
-  `save_routine(p_routine_id, p_routine_name, p_exercise_ids)` accepts an ordered
-  UUID array, validates every exercise's ownership, and preserves retained slot
-  IDs. Empty routines remain supported. Routine changes do not delete catalog rows.
-- Authenticated clients have SELECT-only catalog access with provider RLS. Writes
-  use authenticated SECURITY DEFINER RPCs with explicit ownership validation and
-  an empty search path. There is no public catalog access or browser admin key.
-- `assign_routine` copies current catalog names and instructions into independent
-  assignment snapshots. Existing snapshots keep their names/order and receive
-  empty instructions because no historical instructions were recorded. There is
-  deliberately no catalog foreign key on assignment exercise snapshots.
-- Catalog edits affect future template reads/assignments across referencing
-  routines, but never rewrite existing assignment snapshots. The RPC/data layer
-  supports editing; a catalog-editing/deletion UI is outside this story.
+All earlier applied migrations remain unchanged. For the existing production
+baseline, do not replay the historical migrations or seed: only the new pending
+migration is required once its deployment is separately approved. The migration
+checks the renamed baseline and rejects an already-existing catalog. It runs in
+one transaction, takes exclusive locks on routines/memberships for the backfill,
+and uses a 10-second lock timeout. A lock timeout or SQL error rolls back the
+transaction; inspect the error before retrying. Schedule a low-traffic window
+because these locks briefly block routine reads/writes. In-flight requests may
+need retrying during the schema transition.
 
-The Saved routines editor can select an existing exercise, reorder memberships, or
-create an exercise with instructions inline. Creation persists immediately to the
-library, even if the routine is subsequently cancelled. Equal-name entries remain
-separate choices. The upstream Editor demo remains an independent in-memory
-prototype, with its original fields and temporary IDs; it does not use catalog
-IDs or persist to Supabase. No full library-management page or mobile integration
-is added.
+Do not run `supabase db push` against the existing project until its migration
+history has been baselined. Local filenames do not establish hosted application
+history. An environment where someone applied the old draft needs a separate
+repair plan; do not apply this replacement on top of that draft.
 
-Persisted sets, reps, duration, rest, timer mode, and estimates are deferred.
-The new Editor demo includes dosage fields, notes, descriptions, and media, but
-does not establish a database prescription contract (including per-set versus
-whole-exercise timing). When agreed, prescription values belong on the routine
-membership, with their effective values copied into assignment snapshots.
+## Staged deployment and rollback
 
-### Preserved database tests (not run during this integration)
+This is an **expand-only compatibility stage**, not a coordinated client cutover:
 
-`tests/run-exercises.sh` and `tests/reusable_exercises.sql` retain the original
-SCRUM-43 tests. They do not include the new `20261006...` migrations and must be
-updated before they can establish compatibility with the integrated schema.
-Database validation is deferred to the next approved migration-design step.
+1. After separate approval, back up and record current counts/IDs and schema,
+   verify the October 6 baseline, and apply only the new migration.
+2. Verify legacy reads, `save_routine` and `assign_routine` still work, and check
+   provider isolation with separate accounts. Existing web clients remain usable.
+3. Deploy the catalog-aware web client after database verification. Its new
+   `save_routine_with_exercises` RPC requires this migration.
+4. Keep the old name column/API until all consumers have migrated. Removing them
+   requires a separately reviewed forward migration; no removal is scheduled here.
 
-The original runner creates/stops a disposable PostgreSQL cluster in `/tmp`,
-using a private Unix socket and no TCP listener. It never reads a hosted database
-URL or Supabase key.
-It applies migrations 010, 011, and the new migration to a **minimal test fixture**,
-not to the team's database. The fixture is not a replacement for the missing
-complete baseline. Tests cover backfill without deduplication, seed preservation,
-reuse/repetition/order, invalid references, ownership/RLS/grants, removal/archive
-behavior, and immutable snapshots after catalog edits. Test artifacts are retained
-in the printed temporary directory for inspection.
+If the new client needs rollback, the old client can still read, assign, create
+new routines, and rename existing routines whose submitted exercise list is
+unchanged. It cannot structurally edit existing exercise lists: those requests
+fail intentionally until the catalog-aware client is restored. Retain the expanded
+database; do not drop the catalog or reverse the backfill after writes, which
+would lose reusable identities/instructions. An SQL failure before migration
+commit rolls the whole migration back. The migration notifies PostgREST to reload
+its schema cache on commit; REST behavior still needs deployment smoke tests.
 
-## Upstream migration reference
+## Catalog, memberships, and legacy compatibility
 
-The following describes the upstream baseline only. The SCRUM-43 warning above
-takes precedence for this feature branch; do not apply the combined migration
-set as-is. Upstream's ordered migration sequence ends with:
+- `exercises`: provider-owned UUID, nonblank name, instructions (default empty),
+  and creation/update timestamps. Names are deliberately not unique.
+- `routine_exercises`: existing ID, routine ID, name, and position are preserved;
+  a required `exercise_id` foreign key is added. Unique routine/position remains.
+- Backfill creates one new catalog record for **every** existing membership,
+  including archived routines. Names are never deduplicated across or within
+  providers. Catalog timestamps record creation of the catalog records, not the
+  original memberships. The historic CSV counts are not hardcoded.
+- `routine_exercises.name` is a compatibility mirror. A membership trigger checks
+  exercise/routine ownership and derives this value from the catalog. A catalog
+  rename trigger updates the mirror in every referencing membership, including
+  archived routines. Existing name-based readers continue to work.
+- `save_exercise(p_exercise_id, p_name, p_instructions)` creates or edits an owned
+  definition. Edits affect current/future template reads, not existing assignments.
+- `save_routine_with_exercises(p_routine_id, p_routine_name, p_exercise_ids)` saves
+  ordered owned exercise IDs. It supports cross-routine reuse and repeated use
+  within a routine. Retained positions keep their membership IDs; IDs identify
+  slots, not permanent exercise identity after reordering.
+- `save_routine(p_routine_id, p_routine_name, p_exercise_names)` retains its exact
+  signature and named arguments under a **transitional conservative policy**:
+  - New routines may be created, generating a separate owned definition with
+    empty instructions for each nonblank entry. No name-based deduplication.
+  - For existing routines, normalize the submitted names by trimming/filtering
+    blanks and compare the entire ordered list to the stored ordered names.
+    Only an equal list is accepted. A safe save can change the routine name but
+    never writes memberships or definitions, even for equal-name entries or
+    stored gaps in position values. Pass the current list for name-only changes;
+    a null list means an empty list, not "leave exercises unchanged."
+  - Adding, removing, renaming, or reordering entries, including stale submissions
+    after a catalog rename, is rejected with SQLSTATE `55000` and the message:
+    "Legacy exercise-list changes are not supported. Use the catalog-aware routine
+    editor." Validation happens before any write; a rejected RPC changes nothing.
+  - Equal-name swaps are not representable by this API. An identical name list
+    is a no-op for memberships; it cannot swap their IDs or instructions.
 
-1. `20261006000100_clarify_schema_names.sql`
-2. `20261006000200_document_public_schema.sql`
+**Structural exercise-list editing of migrated/existing routines requires the
+new catalog-aware client.** Old clients remain usable only for safe legacy
+operations; compatibility does not promise that every historical edit succeeds.
+The new ID-based API continues to support structural edits and cross-routine
+reuse without guessing identity. Ambiguous legacy requests fail intentionally.
 
-For the existing hosted project, use Supabase Dashboard → SQL Editor while
-signed in as the database owner. Each migration is transactional. Stop on the
-first error and inspect the hosted state before retrying; a browser publishable
-key cannot apply schema migrations.
+The distinct new RPC name avoids PostgREST overload ambiguity. Catalog creation
+in the new editor persists immediately even if the containing edit is cancelled.
+The saved editor refreshes the catalog on entry, editor-mode changes, and routine
+refreshes, and blocks editing when a referenced definition cannot be reconciled.
+Routine loading reports an explicit integrity error for hidden/missing definitions.
 
-Do not run `supabase db push` against the existing project until its hosted
-migration history has been baselined with an explicitly configured Supabase CLI
-or database connection. Local migration files alone do not prove that the
-hosted project has been updated.
+## Snapshots and security
 
-The rename migration preserves rows and IDs while changing these identifiers:
+`assign_routine` keeps its public signature. It validates the active owned
+provider-patient relationship and routine, then copies the current catalog name,
+instructions, and membership position into independent snapshot rows. The live
+`exercise_name_snapshot` name is retained. New snapshot `instructions` is NOT NULL
+with an empty default; existing snapshots receive empty instructions without
+rewriting their IDs, names, positions, or parent assignments. There is no catalog
+foreign key or catalog lookup when displaying assignment history.
 
-| Previous identifier | Current identifier |
-| --- | --- |
-| `appointments` | `routine_follow_ups` |
-| `providers.role` | `providers.professional_title` |
-| `routine_assignment_exercises.name` | `routine_assignment_exercises.exercise_name_snapshot` |
+Catalog RLS allows authenticated providers to SELECT only their own definitions.
+Browser INSERT/UPDATE/DELETE is not granted; writes use SECURITY DEFINER RPCs with
+an empty search path and explicit authenticated ownership checks. New trigger
+helpers have no public/anon/authenticated EXECUTE grant. Existing table RLS is
+unchanged. Supported exercise saves, both routine writers, and assignment creation
+lock the provider row before other writes, serializing these operations per
+provider and keeping snapshot/mirror writes consistent. Different providers can
+operate independently. Exercise and routine provider ownership is immutable via
+parent-table triggers, including for empty routines/unreferenced definitions.
+Neither application RPCs nor ordinary privileged UPDATEs can transfer ownership.
+Administrators who disable constraints/triggers remain trusted administrative paths.
 
-The web app retains upstream's narrow compatibility fallbacks for these renames.
-Those fallbacks trigger only for confirmed missing-table or missing-column
-errors. Snapshot reads also allow absent pre-SCRUM-43 instructions, representing
-unrecorded instructions as empty strings rather than reading mutable catalog
-content. These fallbacks do not make the catalog editor compatible with a
-database lacking SCRUM-43.
+The renamed follow-up RPCs, patient relationships, profile handling, and existing
+Supabase rename fallbacks are retained. Snapshot reads allow missing historical
+instructions and never substitute mutable catalog content.
 
-## Verification
+## Frontend scope
 
-After applying both migrations, verify that the public schema contains ten base
-tables, including `routine_follow_ups` and excluding `appointments`. Run the
-description audit in [SCHEMA.md](SCHEMA.md); it must return no rows.
+Saved routines uses the reusable catalog. The upstream Editor demo remains an
+unchanged in-memory prototype with independent temporary IDs, fields, and media
+previews. No demo-only sets, repetitions, duration, rest, notes, descriptions, or
+media are persisted by this migration. `instructions` is the existing SCRUM-43
+reusable definition field. Prescription semantics, catalog deletion/management,
+and mobile integration remain separate work.
 
-Also verify with at least two provider accounts that:
+## Local validation
 
-- each provider sees only their own profile, patient relationships, statuses,
-  routines, assignments, snapshots, and follow-ups;
-- editing a routine does not change existing assignment snapshots;
-- cancelling an assignment preserves it and cancels a scheduled follow-up;
-- discharging a patient retains the provider-specific history; and
-- duplicate active assignments for the same profile, routine, and date fail.
+With PostgreSQL tools (`initdb`, `pg_ctl`, `psql`) and Python 3 available:
 
-## Authentication and ownership
+```bash
+bash Web_App/supabase/tests/run-exercises.sh
+```
 
-`providers.id` is the corresponding `auth.users.id`. The signup trigger creates
-the provider row and accepts `professional_title` metadata, with legacy `role`
-metadata as a temporary fallback. `contact_email` is editable professional
-contact information and is separate from the Supabase Auth login email.
+The runner creates/stops a disposable cluster in `/tmp`, using a private Unix
+socket with TCP disabled. It does not load Supabase credentials. It checks file
+ordering and runs the real 010, 011, October 6 rename/documentation, and SCRUM-43
+migrations in order on a minimal fixture for earlier dependencies. This fixture
+is not a complete Supabase baseline and does not test Auth JWT verification,
+PostgREST, hosted extensions, or the browser end-to-end.
 
-Patients are shared identities. Private notes, legacy statuses, assignments,
-and discharge state belong to `provider_patient_profiles`, one row per unique
-provider-patient pair. Additional provider relationships must be created by a
-trusted backend or administrator; browser clients cannot claim arbitrary
-patients.
+Tests cover original routines/memberships/assignments/follow-ups and RLS
+preservation; archived/equal-name backfill; legacy creation, unchanged lists and
+name-only edits; full row equality after rejected first/middle removals, reorders,
+equal-name removal, additions, clearing and stale catalog-name submissions; reuse,
+ordering, immutable ownership, mirror synchronization, snapshots, and follow-ups.
 
-Routine and follow-up writes use authenticated security-definer RPCs. Browser
-table access remains read-only where required, and RLS traces rows back to the
-signed-in provider.
+`exercise_concurrency.py` uses four independent local psql sessions and waits on
+`pg_blocking_pids` before releasing competing transactions. Timeouts fail the test;
+elapsed time is never evidence of successful synchronization. Tests cover catalog
+edit versus assignment, stale legacy save versus an ID edit, a transaction error
+after catalog/mirror writes, archive/discharge versus assignment, and independent
+progress by another provider. Only standard Python and psql are required. These
+are PostgreSQL READ COMMITTED tests, not hosted REST/JWT or load tests. Artifacts
+are retained in the printed temporary directory.
 
-## Storage
+From `Web_App`, `npm run lint` runs TypeScript checks and `npm run build` runs
+TypeScript plus Vite production bundling. No database migration runs in either.
 
-Provider avatars use the public `profile-images` bucket at
-`{auth-user-id}/avatar`. Uploads use `upsert: true`, so the matching
-`storage.objects` policies need `INSERT`, `UPDATE`, and `SELECT` permissions in
-addition to any delete policy. Never expose a `service_role` key in Vite browser
-configuration.
+## Existing ownership and storage
+
+`providers.id` is its Supabase Auth user ID. `professional_title` is display
+information, not an authorization role. Signup metadata retains the upstream
+legacy `role` fallback; contact email remains separate from login email.
+
+Patients are shared identities; private notes, statuses, assignments, and
+discharge state belong to unique provider-patient relationship profiles.
+Additional relationships require trusted administrative/backend tooling.
+
+Provider avatars use `profile-images` at `{auth-user-id}/avatar`, with the
+existing storage policies. Browser configuration must never contain a service-role
+key. No credentials or storage changes are part of SCRUM-43.

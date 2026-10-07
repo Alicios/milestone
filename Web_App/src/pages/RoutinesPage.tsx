@@ -118,7 +118,7 @@ function ExerciseEditor({ exerciseIds, catalog, disabled, onChange, onCreate }: 
   </Stack>
 }
 
-function SavedRoutinesPage() {
+function SavedRoutinesPage({ active }: { active: boolean }) {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
   const border = theme.palette.divider
@@ -136,12 +136,22 @@ function SavedRoutinesPage() {
   const [catalogError, setCatalogError] = useState('')
 
   useEffect(() => {
-    let active = true
-    void loadExercises().then((exercises) => { if (active) setCatalog(exercises) })
-      .catch((loadError: Error) => { if (active) setCatalogError(loadError.message || 'Exercise library could not be loaded.') })
-      .finally(() => { if (active) setCatalogLoading(false) })
-    return () => { active = false }
-  }, [])
+    if (!active) return
+    let current = true
+    setCatalogLoading(true)
+    setCatalogError('')
+    void loadExercises().then((exercises) => {
+      if (!current) return
+      const selected = mode === 'edit' ? routines.find((routine) => routine.id === editingId) : null
+      if (selected?.exercises.some((member) => !exercises.some((exercise) => exercise.id === member.exerciseId))) {
+        throw new Error('A routine exercise is unavailable in your library. Reload the page before editing.')
+      }
+      setCatalog(exercises)
+    }).catch((loadError: Error) => {
+      if (current) setCatalogError(loadError.message || 'Exercise library could not be loaded.')
+    }).finally(() => { if (current) setCatalogLoading(false) })
+    return () => { current = false }
+  }, [active, mode, editingId, routines])
 
   async function createExercise(name: string, instructions: string) {
     setSaving(true)
@@ -366,6 +376,6 @@ export function RoutinesPage() {
       </Stack>
     </Stack>
     <Box sx={{ display: showDemo ? 'block' : 'none' }}><RoutineDemo /></Box>
-    <Box sx={{ display: showDemo ? 'none' : 'block' }}><SavedRoutinesPage /></Box>
+    <Box sx={{ display: showDemo ? 'none' : 'block' }}><SavedRoutinesPage active={!showDemo} /></Box>
   </Box>
 }

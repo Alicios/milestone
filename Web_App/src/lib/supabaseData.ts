@@ -201,7 +201,7 @@ export async function saveExercise(exerciseId: string | null, name: string, inst
 }
 
 type RoutineRow = { id: string; name: string; archived_at: string | null }
-type RoutineExerciseRow = { id: string; routine_id: string; exercise_id: string; position: number; exercise: { name: string; instructions: string } }
+type RoutineExerciseRow = { id: string; routine_id: string; exercise_id: string; position: number; exercise: { name: string; instructions: string } | null }
 type RoutineAssignmentRow = {
   id: string
   patient_profile_id: string
@@ -277,6 +277,9 @@ export async function loadRoutines(includeArchived = false): Promise<Routine[]> 
 
   const byRoutine = new Map<string, RoutineExercise[]>()
   for (const exercise of (exercises ?? []) as unknown as RoutineExerciseRow[]) {
+    if (!exercise.exercise) {
+      throw new Error('Routine data is inconsistent: a referenced exercise definition is missing or inaccessible. Reload or contact your administrator.')
+    }
     const current = byRoutine.get(exercise.routine_id) ?? []
     current.push({ id: exercise.id, exerciseId: exercise.exercise_id, name: exercise.exercise.name, instructions: exercise.exercise.instructions, position: exercise.position })
     byRoutine.set(exercise.routine_id, current)
@@ -290,7 +293,7 @@ export async function loadRoutines(includeArchived = false): Promise<Routine[]> 
 }
 
 export async function saveRoutine(routineId: string | null, name: string, exerciseIds: string[]) {
-  const { data, error } = await supabase.rpc('save_routine', {
+  const { data, error } = await supabase.rpc('save_routine_with_exercises', {
     p_routine_id: routineId,
     p_routine_name: name.trim(),
     p_exercise_ids: exerciseIds,

@@ -5,9 +5,17 @@ files in `migrations/` are incremental migrations for the existing hosted
 Milestone project; `schema.sql` is only the historical bootstrap that created
 the original `profiles` and `access_requests` tables.
 
-## Applying migrations
+## SCRUM-43 local expansion
 
-Apply migrations in filename order. The messaging addition is:
+The shared-catalog prescription migration is implemented locally and has **not**
+been applied to hosted Supabase. See [SCRUM43_INTEGRATION.md](SCRUM43_INTEGRATION.md)
+for the contract, read-only preflight, bounds, compatibility window, tests, and
+reviewed deployment procedure. The hosted database differs from migration history;
+do not replay this directory or seed the hosted catalog.
+
+## Historical migration context
+
+These files document incremental changes against reviewed baselines. The messaging addition is:
 
 1. `20261007000500_messages.sql` — tables, grants, RLS, and Realtime publication
 2. `20261007000600_seed_demo_messages.sql` — twelve idempotent text imports

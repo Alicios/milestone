@@ -1,7 +1,10 @@
 # Milestone Supabase Schema
 
-This is the canonical reference for the application-owned `public` schema after
-all migrations through `20261007000700_document_messages.sql`. Supabase
+This documents the application-owned `public` schema, including the locally
+implemented `20261008000100_shared_exercise_prescriptions.sql` expansion. The
+SCRUM-43 expansion has **not** been applied to hosted Supabase. Historical
+migration files alone do not recreate the hosted baseline; see
+[SCRUM43_INTEGRATION.md](SCRUM43_INTEGRATION.md). Supabase
 manages authentication in `auth`; this application never stores password
 hashes in `public` tables.
 
@@ -24,12 +27,29 @@ auth.users
 - Each provider-patient pair has one private relationship profile.
 - Routine templates belong to a provider.
 - Assignments belong to a provider-specific patient profile and preserve
-  immutable routine and exercise-name snapshots.
+  immutable routine-name, exercise-description, and prescription snapshots.
 - Each routine assignment can have at most one follow-up.
 - Text messages currently belong to one provider-patient relationship. Future
   provider, administrator, and IT conversations need a broader participant model.
 
 ## Data dictionary
+
+### `exercises`
+
+Existing shared catalog; SCRUM-43 preserves all 248 records and UUIDs.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| `id` | `uuid` | Permanent catalog identity. |
+| `name` | `text` | Current exercise label; names are not identity or unique constraints. |
+| `desc` | `text`, nullable | Reusable instructions, mapped to the application's description field. |
+| `created_at` | `timestamptz` | Catalog creation time. |
+
+Authenticated providers can read the catalog. Anonymous access and ordinary client
+writes are denied. IDs cannot change and catalog rows cannot be deleted or
+truncated through ordinary SQL. Trusted catalog text maintenance does not change
+historical snapshots. JSON references use validation triggers and RPCs, not a
+conventional foreign key.
 
 ### `messages`
 
@@ -158,8 +178,9 @@ administrative authorization remain separate concerns.
 
 ### `routine_assignment_exercises`
 
-Immutable ordered exercise-name snapshots copied when a routine is assigned.
-Later template edits do not alter these rows.
+Immutable ordered exercise and prescription snapshots copied when a routine is
+assigned. Later template/catalog edits do not alter these rows. New columns are
+nullable for history created before SCRUM-43; never backfill it from current data.
 
 | Column | Type | Description |
 | --- | --- | --- |
@@ -167,6 +188,11 @@ Later template edits do not alter these rows.
 | `routine_assignment_id` | `uuid` | Assignment whose historical exercise list contains this snapshot. |
 | `exercise_name_snapshot` | `text` | Exercise name captured at assignment time. |
 | `position` | `integer` | Zero-based display order within the assignment snapshot. |
+| `exercise_id_snapshot` | `uuid`, nullable | Source identity only; no catalog FK or mandatory join. |
+| `description_snapshot` | `text`, nullable | Instructions captured at assignment time. |
+| `sets_snapshot` | `integer`, nullable | 1–100 prescribed sets. |
+| `reps_snapshot` | `integer`, nullable | 1–1,000 repetitions per set. |
+| `timer_seconds_snapshot` | `integer`, nullable | 1–86,400 seconds per set. |
 
 ### `routine_assignments`
 
@@ -198,8 +224,11 @@ Current routine editing stores ordered exercise values in `routines.exercise_lis
 
 ### `routines`
 
-Reusable provider-owned routine templates. The live routine editor stores the
-ordered exercise names in `exercise_list`.
+Reusable provider-owned routine templates. `exercise_list` is the authoritative
+ordered storage. Version 0 preserves legacy data and is not assignable; version 1
+contains validated catalog UUIDs, server-resolved names, sets, reps, and seconds.
+Empty version-1 drafts may be saved but not assigned. Routine `created_at` remains
+a nullable date; SCRUM-43 does not introduce `archived_at` or `updated_at`.
 
 | Column | Type | Description |
 | --- | --- | --- |
@@ -208,7 +237,11 @@ ordered exercise names in `exercise_list`.
 | `name` | `text` | Current template display name. |
 | `created_at` | `date`, nullable | Optional calendar date associated with the template. |
 | `description` | `text`, nullable | Optional free-text routine description. |
-| `exercise_list` | `jsonb[]`, nullable | Ordered exercise values used by the routine editor and copied into assignment snapshots. |
+| `exercise_list` | `jsonb[]`, nullable | Legacy raw entries or version-1 catalog prescriptions. |
+| `exercise_format_version` | `smallint` | 0 for legacy; 1 for validated catalog prescriptions. |
+| `exercise_revision` | `bigint` | Database-maintained optimistic edit token. |
+| `legacy_exercise_list` | `jsonb[]`, nullable | Original legacy content retained on first explicit replacement. |
+| `legacy_preserved_at` | `timestamptz`, nullable | Records preservation even when original content was SQL NULL. |
 
 ## Constraints and indexes
 
@@ -261,7 +294,8 @@ RLS is enabled on every public table. The effective browser boundaries are:
 | `patients` | Authenticated providers select patients linked through their own relationship profiles. |
 | `provider_patient_profiles` | Authenticated providers select and update their own relationships. |
 | `patient_statuses` | Authenticated providers manage statuses belonging to their own relationships. |
-| `routines` | Authenticated providers select their own templates; writes use RPCs. |
+| `exercises` | Authenticated providers read shared catalog; client writes and anonymous access denied. |
+| `routines` | Authenticated providers select their own templates; writes use validated RPCs. |
 | `routine_exercises` | Authenticated providers select exercises from their own templates; writes use RPCs. |
 | `routine_assignments` | Authenticated providers select assignments for their own relationships; writes use RPCs. |
 | `routine_assignment_exercises` | Authenticated providers select snapshots for their own assignments; writes occur through assignment RPCs. |
@@ -315,8 +349,7 @@ where c.table_schema = 'public'
 ```
 
 This description audit reports any missing column descriptions. The new
-messaging tables have complete descriptions; ten older columns in `exercises`,
-`medical_practices`, and `routines` still need comments:
+messaging tables have complete descriptions; older columns may still need comments; inspect the actual target rather than assuming a fixed count:
 
 ```sql
 with public_tables as (

@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Fade, FormControlLabel, Radio, RadioGroup, Typography, useTheme } from '@mui/material'
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Fade, FormControlLabel, Radio, RadioGroup, Typography, useTheme } from '@mui/material'
 import type { Routine } from '../types'
+import { errorMessage, prescriptionSummary } from '../lib/exercisePrescriptions'
 import { formatCalendarDate } from '../lib/week'
 
 interface AssignRoutineDialogProps {
@@ -34,17 +35,18 @@ export function AssignRoutineDialog({ patientName, weekday, scheduledDate, routi
       {error && <Alert severity="error" sx={{ mb: 1.5 }}>{error}</Alert>}
       {!routines.length && <Alert severity="info">Create a routine before assigning one to a patient.</Alert>}
       <RadioGroup aria-label="Existing provider routines" name="routine" value={selectedRoutineId} onChange={(_, value) => setSelectedRoutineId(value)} sx={{ gap: 1 }}>
-        {routines.map((routine, index) => <FormControlLabel key={routine.id} value={routine.id} control={<Radio autoFocus={index === 0} sx={{ color: 'text.secondary', '&.Mui-checked': { color: 'primary.main' } }} />} label={routine.name} sx={{ m: 0, px: 1, py: .5, border: `2px solid ${border}`, borderRadius: '18px', bgcolor: selectedRoutineId === routine.id ? selectedSurface : surface, '& .MuiFormControlLabel-label': { minWidth: 0, fontFamily: 'Georgia, serif', fontStyle: 'italic', overflowWrap: 'anywhere' } }} />)}
+        {routines.map((routine, index) => <FormControlLabel key={routine.id} disabled={Boolean(routine.assignmentIssue)} value={routine.id} control={<Radio autoFocus={index === 0} sx={{ color: 'text.secondary', '&.Mui-checked': { color: 'primary.main' } }} />} label={<>{routine.name}{routine.assignmentIssue && <Typography variant="caption" display="block">{routine.assignmentIssue}</Typography>}</>} sx={{ m: 0, px: 1, py: .5, border: `2px solid ${border}`, borderRadius: '18px', bgcolor: selectedRoutineId === routine.id ? selectedSurface : surface, '& .MuiFormControlLabel-label': { minWidth: 0, fontFamily: 'Georgia, serif', fontStyle: 'italic', overflowWrap: 'anywhere' } }} />)}
       </RadioGroup>
+      {selectedRoutine && <Box component="ul" sx={{ pl: 2 }}>{selectedRoutine.exercises.map((exercise) => <li key={exercise.id}><Typography variant="body2">{exercise.name}</Typography><Typography variant="caption">{prescriptionSummary(exercise)}</Typography></li>)}</Box>}
     </DialogContent>
     <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
       <Button disabled={saving} onClick={onCancel} sx={{ ...buttonSx, bgcolor: surface, '&:hover': { bgcolor: theme.palette.action.hover } }}>Cancel</Button>
-      <Button disabled={!selectedRoutine || saving} onClick={() => {
-        if (!selectedRoutine) return
+      <Button disabled={!selectedRoutine || Boolean(selectedRoutine.assignmentIssue) || saving} onClick={() => {
+        if (!selectedRoutine || selectedRoutine.assignmentIssue) return
         setSaving(true)
         setError('')
         void onAssign(selectedRoutine).catch((assignmentError: Error) => {
-          setError(assignmentError.message || 'The routine could not be assigned.')
+          setError(errorMessage(assignmentError, 'The routine could not be assigned.'))
           setSaving(false)
         })
       }} sx={{ ...buttonSx, bgcolor: '#91c8c0', color: '#102b34', '&:hover': { bgcolor: '#82bdb5' }, '&.Mui-disabled': { bgcolor: theme.palette.action.disabledBackground, color: theme.palette.action.disabled } }}>{saving ? 'Assigning…' : 'Assign'}</Button>

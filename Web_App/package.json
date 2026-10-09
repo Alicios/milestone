@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "tsc -b --pretty false",
     "preview": "vite preview",
+    "test:exercises": "node --test tests/exercisePrescriptions.test.mjs",
     "requests:list": "node scripts/list-access-requests.mjs",
     "requests:approve": "node scripts/approve-access-request.mjs",
     "requests:list": "node scripts/list-access-requests.mjs",

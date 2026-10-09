@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
-import type { EditableUserFields, FollowUpAppointment, MedicalPractice, Routine, RoutineAssignment, RoutineAssignmentStatus, RoutineExercise, User } from '../types'
+import { decodeRoutine, type PrescriptionInput } from './exercisePrescriptions'
+import type { AssignmentExerciseSnapshot, EditableUserFields, FollowUpAppointment, MedicalPractice, Routine, RoutineAssignment, RoutineAssignmentStatus, User } from '../types'
 import type { Patient } from '../data/mockPatients'
 
 export const PROFILE_IMAGE_BUCKET = 'profile-images'
@@ -181,8 +182,7 @@ export async function dischargePatient(patientId: string) {
   if (error) throw error
 }
 
-type RoutineRow = { id: string; name: string; exercise_list: unknown[] | null }
-type RoutineExerciseRow = { id: string; routine_id: string; name: string; position: number }
+type RoutineRow = { id: string; name: string; exercise_list: unknown[] | null; exercise_format_version?: number; exercise_revision?: number }
 type RoutineAssignmentRow = {
   id: string
   patient_profile_id: string
@@ -191,16 +191,25 @@ type RoutineAssignmentRow = {
   status: RoutineAssignmentStatus
   routine_name_snapshot: string
 }
-type AssignmentExerciseRow = { id: string; routine_assignment_id: string; exercise_name_snapshot: string; position: number }
+type SnapshotFields = { exercise_id_snapshot?: string | null; description_snapshot?: string | null; sets_snapshot?: number | null; reps_snapshot?: number | null; timer_seconds_snapshot?: number | null }
+type AssignmentExerciseRow = SnapshotFields & { id: string; routine_assignment_id: string; exercise_name_snapshot: string; position: number }
 type LegacyAssignmentExerciseRow = { id: string; routine_assignment_id: string; name: string; position: number }
 type RoutineFollowUpRow = { id: string; routine_assignment_id: string; scheduled_at: string; status: FollowUpAppointment['status'] }
 
-function toExercise(row: RoutineExerciseRow | AssignmentExerciseRow): RoutineExercise {
-  const name = 'exercise_name_snapshot' in row ? row.exercise_name_snapshot : row.name
-  return { id: row.id, name, position: row.position }
+function toSnapshot(row: AssignmentExerciseRow): AssignmentExerciseSnapshot {
+  return { id: row.id, name: row.exercise_name_snapshot, position: row.position,
+    exerciseId: row.exercise_id_snapshot ?? null, description: row.description_snapshot ?? null,
+    sets: row.sets_snapshot ?? null, reps: row.reps_snapshot ?? null, timerSeconds: row.timer_seconds_snapshot ?? null }
 }
 
 async function loadAssignmentExerciseSnapshots(assignmentIds: string[]) {
+  const snapshotColumns = ['exercise_id_snapshot', 'description_snapshot', 'sets_snapshot', 'reps_snapshot', 'timer_seconds_snapshot']
+  const expanded = await supabase.from('routine_assignment_exercises')
+    .select(`id, routine_assignment_id, exercise_name_snapshot, position, ${snapshotColumns.join(', ')}`)
+    .in('routine_assignment_id', assignmentIds).order('position')
+  if (!expanded.error) return (expanded.data ?? []) as unknown as AssignmentExerciseRow[]
+  if (!isMissingSchemaObject(expanded.error, [...snapshotColumns, 'exercise_name_snapshot'])) throw expanded.error
+  // Pre-deployment history remains readable; never infer missing values from the catalog.
   const currentResult = await supabase
     .from('routine_assignment_exercises')
     .select('id, routine_assignment_id, exercise_name_snapshot, position')
@@ -239,40 +248,22 @@ async function loadRoutineFollowUps(assignmentIds: string[]) {
   return (legacyResult.data ?? []) as RoutineFollowUpRow[]
 }
 
-function routineExerciseName(entry: unknown) {
-  if (typeof entry === 'string') return entry.trim() || null
-  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null
-  const record = entry as Record<string, unknown>
-  for (const key of ['name', 'exerciseName', 'title']) {
-    const value = record[key]
-    if (typeof value === 'string' && value.trim()) return value.trim()
-  }
-  return null
-}
-
 export async function loadRoutines(): Promise<Routine[]> {
-  const { data: routines, error: routineError } = await supabase
-    .from('routines')
-    .select('id, name, exercise_list')
-    .order('name')
-  if (routineError) throw routineError
-
-  const rows = (routines ?? []) as RoutineRow[]
-  return rows.map((routine) => ({
-    id: routine.id,
-    name: routine.name,
-    exercises: (routine.exercise_list ?? []).flatMap((entry, position) => {
-      const name = routineExerciseName(entry)
-      return name ? [{ id: `${routine.id}-${position}`, name, position }] : []
-    }),
-  }))
+  const current = await supabase.from('routines')
+    .select('id, name, exercise_list, exercise_format_version, exercise_revision').order('name')
+  if (!current.error) return ((current.data ?? []) as RoutineRow[]).map(decodeRoutine)
+  if (!isMissingSchemaObject(current.error, ['exercise_format_version', 'exercise_revision'])) throw current.error
+  const legacy = await supabase.from('routines').select('id, name, exercise_list').order('name')
+  if (legacy.error) throw legacy.error
+  return ((legacy.data ?? []) as RoutineRow[]).map(decodeRoutine)
 }
 
-export async function saveRoutine(routineId: string | null, name: string, exercises: string[]) {
-  const { data, error } = await supabase.rpc('save_routine', {
+export async function saveRoutine(routineId: string | null, name: string, exercises: PrescriptionInput[], expectedRevision: number | null) {
+  const { data, error } = await supabase.rpc('save_routine_with_prescriptions', {
     p_routine_id: routineId,
     p_routine_name: name.trim(),
-    p_exercise_names: exercises.map((exercise) => exercise.trim()).filter(Boolean),
+    p_exercises: exercises,
+    p_expected_revision: expectedRevision,
   })
   if (error) throw error
   return data as string
@@ -298,10 +289,10 @@ export async function loadRoutineAssignments(profileIds: string[], startDate: st
     loadRoutineFollowUps(assignmentIds),
   ])
 
-  const exercisesByAssignment = new Map<string, RoutineExercise[]>()
+  const exercisesByAssignment = new Map<string, AssignmentExerciseSnapshot[]>()
   for (const exercise of exercises) {
     const current = exercisesByAssignment.get(exercise.routine_assignment_id) ?? []
-    current.push(toExercise(exercise))
+    current.push(toSnapshot(exercise))
     exercisesByAssignment.set(exercise.routine_assignment_id, current)
   }
   const followUpByAssignment = new Map<string, FollowUpAppointment>()

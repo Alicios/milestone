@@ -1,4 +1,7 @@
 {
   "name": "Milestone",
-  "displayName": "Milestone"
+  "displayName": "Milestone",
+  "web": {
+    "bundler": "metro"
+  }
 }

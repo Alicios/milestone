@@ -1,22 +1,112 @@
 # Supabase database
 
-The canonical current model is documented in [SCHEMA.md](SCHEMA.md). The SQL
+The model and evidence limits are documented in [SCHEMA.md](SCHEMA.md). The SQL
 files in `migrations/` are incremental migrations for the existing hosted
 Milestone project; `schema.sql` is only the historical bootstrap that created
 the original `profiles` and `access_requests` tables.
 
-## Applying migrations
+## SCRUM-43 exercise-model baseline
 
-Apply migrations in filename order. The messaging addition is:
+Sprint 2 documents the existing shared exercise catalog; Sprint 3 will integrate
+it with the frontend. Hosted Supabase already contains 248 exercises with a
+verified UUID primary key. `routines.exercise_list` is verified as `jsonb[]`.
+Routine JSON objects can reuse an existing catalog UUID via `exercise_id`;
+multiple routine rows can resolve to one exercise without duplicating it.
+JSON references have no conventional foreign key, automatic validation, or
+protection against dangling IDs. Existing name-based UI/RPC behavior is unchanged.
+
+- [baselines/exercises.sql](baselines/exercises.sql): **LOCAL/REFERENCE ONLY**
+  catalog DDL, not a migration or full hosted schema dump. The reported columns
+  are `id`, `name`, `desc`, and `created_at`; only the UUID PK is confirmed here.
+  Other types, defaults, non-PK nullability, constraints, triggers, and effective
+  catalog access policies require authoritative schema evidence; see SCHEMA.md.
+- [tests/scrum43_reuse.sql](tests/scrum43_reuse.sql): two table-backed routine
+  inserts referencing one existing catalog UUID, followed by assertions that
+  both resolve and the catalog is unchanged, then `ROLLBACK`.
+- [exercises_seed.csv](exercises_seed.csv): byte-for-byte reference copy from
+  `a1e083fed28d093972233cf3700a866434cdf706` on
+  `feature/scrum-43-shared-catalog-integration`. SHA-256:
+  `7e87fd5887b8283695b2314b10ae1c073049123e45a3aa0463e479b63f8bca35`.
+  It has 248 records and no UUIDs. **Never reseed the shared catalog**: the CSV
+  cannot preserve hosted identity mappings and another import can duplicate data.
+
+The previous read-only simulation proved UUID resolution, not persisted reuse.
+The rollback test has not yet been executed for this baseline. The October 8
+prescription migration is not deployed and is not included here. This work adds
+no assignments, prescriptions, SCRUM-50 functionality, or frontend integration.
+
+## Local verification only
+
+Use a disposable local PostgreSQL database with an administrative role. Never
+point the test at the shared hosted project, including through a local tunnel.
+No hosted connection string or Supabase key is needed. The test rejects remote
+TCP server addresses, but this is not proof that a local endpoint is disposable.
+
+For a representative rehearsal, use a separately prepared, reviewed local schema
+copy with `public.exercises`, `public.providers`, and the six-column
+`public.routines` shape described in SCHEMA.md. It needs at least one existing
+exercise and provider, and privileges to read the catalog and insert routines.
+Do not load the reference DDL over an existing table or replay migrations to
+construct that copy. Unknown constraints/triggers can legitimately fail the test;
+inspect them rather than disabling them or modifying the hosted database.
+
+For a minimal model-only check, create an empty disposable local database and
+run the following in `psql` from `Web_App/supabase`. These provider/routine tables
+are **local test scaffolding**, not claims about hosted DDL, Auth, or policies:
+
+```sql
+\i baselines/exercises.sql
+create table public.providers (id uuid primary key);
+create table public.routines (
+  id uuid primary key,
+  provider_id uuid references public.providers(id),
+  name text,
+  created_at date,
+  description text,
+  exercise_list jsonb[]
+);
+insert into public.providers (id)
+values ('00000000-0000-0000-0000-000000000001');
+insert into public.exercises (id, name, "desc")
+values ('00000000-0000-0000-0000-000000000043',
+        'Local example', 'Synthetic fixture; not a hosted catalog row');
+```
+
+The synthetic exercise is prepared before the test; the test only selects an
+existing exercise and never seeds the catalog. Do not import the CSV for this
+check. With the disposable database already prepared, run from the repository
+root, substituting the actual local port/user/database as needed:
+
+```sh
+psql -X --host=127.0.0.1 --port=54322 --username=postgres \
+  --dbname=scrum43_local --set=ON_ERROR_STOP=1 \
+  --file=Web_App/supabase/tests/scrum43_reuse.sql
+```
+
+Success prints `PASS: two stored routines resolve one existing UUID; catalog
+unchanged`, followed by `ROLLBACK`. Failures exit nonzero; connection closure
+rolls back the open transaction. Two distinct routine rows are inserted and
+queried inside the transaction; neither is committed. This proves storage and
+resolution only for the local schema tested, not commit durability, hosted RLS,
+API permissions, frontend behavior, or an exact match to the hosted schema.
+Keep these verification gaps explicit even after a minimal fixture passes.
+
+## Historical migrations — do not replay
+
+The migration directory is historical context, not a complete hosted baseline.
+Main has no creation migration for the existing catalog or `exercise_list`.
+Hosted routines also diverge from earlier migrations (for example, absent
+`archived_at`/`updated_at`), and recorded hosted migration timestamps differ from
+repository filenames. Replaying files can fail, alter existing data, or replace
+functions with historical definitions. `schema.sql` is not a full reset script.
+No migrations are deployed as part of SCRUM-43. Any future deployment needs a
+separately reviewed actual schema and migration-history reconciliation.
+
+The historical messaging addition is:
 
 1. `20261007000500_messages.sql` — tables, grants, RLS, and Realtime publication
 2. `20261007000600_seed_demo_messages.sql` — twelve idempotent text imports
 3. `20261007000700_document_messages.sql` — column descriptions
-
-For the existing hosted project, use Supabase Dashboard → SQL Editor while
-signed in as the database owner. Each migration is transactional. Stop on the
-first error and inspect the hosted state before retrying; a browser publishable
-key cannot apply schema migrations.
 
 Do not run `supabase db push` against the existing project until its hosted
 migration history has been baselined with an explicitly configured Supabase CLI
@@ -37,9 +127,8 @@ only for confirmed missing-table or missing-column errors.
 
 ## Verification
 
-After applying the current migrations, verify that the public schema contains
-fourteen base tables, including `messages` and `message_thread_state`. Run the
-description audit in [SCHEMA.md](SCHEMA.md).
+The historical table counts are not a current baseline acceptance test. Inspect
+an isolated local copy using the description audit in [SCHEMA.md](SCHEMA.md).
 
 Also verify with at least two provider accounts that:
 

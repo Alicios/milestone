@@ -1,7 +1,9 @@
 # Milestone Supabase Schema
 
-This is the canonical reference for the application-owned `public` schema after
-all migrations through `20261007000700_document_messages.sql`. Supabase
+This reference combines historical application schema documentation through
+`20261007000700_document_messages.sql` with the SCRUM-43 hosted evidence below.
+It is not a complete hosted schema dump or a reproducible migration baseline.
+Historical migrations must not be replayed; see [README.md](README.md). Supabase
 manages authentication in `auth`; this application never stores password
 hashes in `public` tables.
 
@@ -30,6 +32,64 @@ auth.users
   provider, administrator, and IT conversations need a broader participant model.
 
 ## Data dictionary
+
+### `exercises` — SCRUM-43 shared catalog
+
+The existing hosted catalog contains **248 exercises**. `public.exercises.id`
+is a **verified UUID primary key**. These facts and the verified
+`public.routines.exercise_list` type (`jsonb[]`) are supplied project evidence;
+no hosted SQL was executed for this baseline.
+
+| Column | Evidence and meaning |
+| --- | --- |
+| `id` | Verified `uuid` primary key; identifies one reusable catalog exercise. |
+| `name` | Reported catalog column; display label, not an identity key. |
+| `desc` | Reported catalog column; reusable exercise instructions. |
+| `created_at` | Reported catalog column; creation timestamp. |
+
+The four-column shape is recorded in the integration branch at `a1e083fed` in
+`Web_App/supabase/SCRUM43_INTEGRATION.md`. Its local fixture and proposed October 8
+migration do not establish hosted defaults, constraints, or access guarantees.
+[baselines/exercises.sql](baselines/exercises.sql) is **LOCAL/REFERENCE ONLY**,
+outside `migrations/`. It represents the catalog using `text` for `name`/`desc`
+and `timestamptz` for `created_at` as explicitly local choices. Exact hosted types
+for those three columns, non-PK nullability, defaults, additional indexes/checks,
+triggers, and effective grants/RLS policies remain to be confirmed from an
+authoritative schema export. No name uniqueness, automatic UUID generation,
+automatic timestamps, or catalog write protection is claimed by this baseline.
+
+A routine can store a catalog identity in an element of its PostgreSQL `jsonb[]`:
+
+```sql
+array[jsonb_build_object('exercise_id', '<existing catalog UUID>'::uuid)]::jsonb[]
+```
+
+Two routines can store the same `exercise_id` and resolve it by unnesting their
+lists and joining `(entry ->> 'exercise_id')::uuid` to `exercises.id`. This reuses
+one exercise row without copying or inserting a catalog exercise. A prior
+read-only simulation demonstrated resolution; persisted reuse has **not yet
+been verified**. [tests/scrum43_reuse.sql](tests/scrum43_reuse.sql) adds the pending
+local test: insert two actual routine rows, read them back, assert both resolve
+one existing catalog UUID and the entire catalog is unchanged, then roll back.
+Here “persisted” means table-backed inserts within a transaction, not committed
+records or a durability test. Local setup is documented in [README.md](README.md).
+
+`jsonb[]` is a PostgreSQL array of JSON values, not a single `jsonb` JSON array.
+JSON object keys do not provide foreign keys: missing/invalid UUIDs, dangling
+references, and duplicate entries are possible without separate validation.
+Casting malformed UUID text can fail; deleting a catalog row can leave an
+unresolved reference. Labels may change independently of the identity. This
+baseline adds no validation triggers, delete protection, normalization, or API
+contract. Existing routine entries may contain names or other legacy values;
+this example does not migrate them or change the name-based frontend/RPC flow.
+Frontend/backend integration belongs to Sprint 3.
+
+`exercises_seed.csv` is an unchanged reference copy from the integration commit.
+It has 248 name/description records and **no UUIDs**. Do not reseed the shared
+hosted catalog: importing it again could duplicate exercises or replace their
+identity mappings. It cannot restore existing UUIDs. The October 8 prescription
+migration is not deployed and is excluded from this deliverable; assignment,
+prescription, and SCRUM-50 changes are outside this baseline.
 
 ### `messages`
 
@@ -199,7 +259,9 @@ Current routine editing stores ordered exercise values in `routines.exercise_lis
 ### `routines`
 
 Reusable provider-owned routine templates. The live routine editor stores the
-ordered exercise names in `exercise_list`.
+ordered exercise names in `exercise_list`. Its hosted `jsonb[]` type can also
+represent catalog UUID objects as described above; this baseline does not change
+the editor or claim deployed UUID validation.
 
 | Column | Type | Description |
 | --- | --- | --- |
@@ -252,7 +314,9 @@ Important non-primary indexes are:
 
 ## Row Level Security
 
-RLS is enabled on every public table. The effective browser boundaries are:
+The historical application model documents the browser boundaries below.
+Effective hosted catalog privileges and policies remain unverified for this
+baseline; no catalog access policy is introduced here.
 
 | Table | Browser access |
 | --- | --- |
@@ -294,13 +358,14 @@ concepts, but they are not a literal relational schema:
 
 The following planning concepts are intentionally deferred until an implemented
 workflow needs them: provider license numbers, patient invitations and login
-accounts, sets/repetitions/duration, a reusable exercise library, exercise
-help/media, patient-authenticated messaging, and notifications.
+accounts, sets/repetitions/duration, frontend integration of the existing shared
+exercise catalog, exercise help/media, patient-authenticated messaging, and notifications.
 
 ## Verification query
 
-After applying all migrations through `20261007000700_document_messages.sql`,
-this query must return `14` tables and `86` columns:
+The historical documentation recorded `14` tables and `86` columns. These are
+not current acceptance criteria and must not motivate replaying migrations. On
+an isolated local schema copy, this read-only query reports the actual counts:
 
 ```sql
 select
@@ -315,8 +380,8 @@ where c.table_schema = 'public'
 ```
 
 This description audit reports any missing column descriptions. The new
-messaging tables have complete descriptions; ten older columns in `exercises`,
-`medical_practices`, and `routines` still need comments:
+messaging tables have documented descriptions; older columns may lack comments.
+Inspect the local copy rather than assuming a fixed number:
 
 ```sql
 with public_tables as (

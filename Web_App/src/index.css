@@ -128,8 +128,29 @@ html {
   transition: transform 180ms ease-out, box-shadow 180ms ease-out;
 }
 
-.about-easter-egg-image:hover {
+.about-easter-egg-flip-card {
+  transform-style: preserve-3d;
+  transition: transform 900ms ease-out;
+}
+
+.about-easter-egg-image-shell:hover {
   box-shadow: 0 28px 58px rgba(11, 61, 80, .3) !important;
+}
+
+.about-easter-egg-front,
+.about-easter-egg-back {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  backface-visibility: hidden;
+}
+
+.about-easter-egg-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
 }
 
 .about-easter-egg-glare {

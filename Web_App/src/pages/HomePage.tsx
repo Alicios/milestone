@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
 import { PublicHeader } from '../components/PublicHeader'
 import { Brand } from '../components/Brand'
+import { useRedirectIfAuthenticated } from '../auth/useRedirectIfAuthenticated'
 import { publicAsset } from '../lib/assets'
 
 type Feature = { eyebrow: string; title: string; body: string; image: string; alt: string; icon: SvgIconComponent }
@@ -33,6 +34,8 @@ const resources = [
 ]
 
 export function HomePage() {
+  useRedirectIfAuthenticated()
+
   return <Box className="home-page" minHeight="100vh" bgcolor="background.default" sx={{ backgroundImage: `linear-gradient(rgba(232, 221, 186, .88), rgba(232, 221, 186, .94)), url('${publicAsset('home/clinic-background.png')}')` }}>
     <PublicHeader />
     <Box component="main">

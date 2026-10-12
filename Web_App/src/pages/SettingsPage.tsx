@@ -5,10 +5,12 @@ import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNone
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
+import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined'
 import { Alert, Box, Button, Card, Divider, FormControl, FormControlLabel, FormLabel, Radio, RadioGroup, Stack, Switch, Typography } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { MfaSettings } from '../components/MfaSettings'
 import { type AlertPreferences, type NotificationPreferences, useProviderPreferences } from '../context/ProviderPreferencesContext'
 
 type NotificationCategory = Exclude<keyof NotificationPreferences, 'inApp' | 'email'>
@@ -76,6 +78,10 @@ export function SettingsPage() {
             <Button type="button" onClick={logout} variant="contained" color="secondary" startIcon={<LogoutOutlinedIcon />} sx={{ flexShrink: 0 }}>Sign Out</Button>
           </Stack>
         </Stack>
+      </SettingsSection>
+
+      <SettingsSection id="settings-security" icon={<ShieldOutlinedIcon />} title="Two-factor authentication" description="Add an authenticator app code as a second login step.">
+        <MfaSettings />
       </SettingsSection>
 
       <SettingsSection id="settings-notifications" icon={<NotificationsNoneOutlinedIcon />} title="Notifications" description="Choose which updates you want to receive.">

@@ -6,6 +6,7 @@ import { Alert, Box, Button, CircularProgress, Container, Grid, IconButton, Inpu
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { Brand } from '../components/Brand'
 import { useAuth } from '../auth/AuthContext'
+import { useRedirectIfAuthenticated } from '../auth/useRedirectIfAuthenticated'
 import { loadMedicalPractices } from '../lib/supabaseData'
 import type { MedicalPractice } from '../types'
 import { publicAsset } from '../lib/assets'
@@ -35,6 +36,7 @@ function getRandomIndex(length: number, excludedIndex?: number) {
 }
 
 export function RegisterPage() {
+  useRedirectIfAuthenticated()
   const { register } = useAuth()
   const navigate = useNavigate()
   const [name, setName] = useState('Lebron James')

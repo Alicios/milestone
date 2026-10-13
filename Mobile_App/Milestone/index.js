@@ -1,11 +1,14 @@
-/**
- * @format
- */
+import {registerRootComponent} from 'expo';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
 
-import { AppRegistry } from 'react-native';
-import { registerRootComponent } from 'expo';
 import App from './App';
-import { name as appName } from './app.json';
 
-registerRootComponent(App);
-AppRegistry.registerComponent(appName, () => App);
+function Root() {
+  return (
+    <SafeAreaProvider>
+      <App />
+    </SafeAreaProvider>
+  );
+}
+
+registerRootComponent(Root);

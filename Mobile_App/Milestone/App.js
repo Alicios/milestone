@@ -7,7 +7,10 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+} from 'react-native-safe-area-context';
 
 const palette = {
   cream: '#F4EACF',
@@ -97,6 +100,14 @@ function formatTimer(centiseconds) {
 }
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
+  );
+}
+
+function AppContent() {
   const { width } = useWindowDimensions();
   const contentWidth = Math.min(width - 44, 390);
   const [routineStarted, setRoutineStarted] = useState(false);

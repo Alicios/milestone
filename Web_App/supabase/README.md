@@ -5,6 +5,9 @@ files in `migrations/` are incremental migrations for the existing hosted
 Milestone project; `schema.sql` is only the historical bootstrap that created
 the original `profiles` and `access_requests` tables.
 
+SCRUM-50's limited patient-creation changes, local tests and remaining SCRUM-43
+dependencies are documented in [SCRUM50_VALIDATION.md](SCRUM50_VALIDATION.md).
+
 ## SCRUM-43 exercise-model baseline
 
 Sprint 2 documents the existing shared exercise catalog; Sprint 3 will integrate

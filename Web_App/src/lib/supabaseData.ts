@@ -165,10 +165,12 @@ export async function loadPatients(providerId: string): Promise<Patient[]> {
   })
 }
 
-export async function createPatient(name: string, phone: string) {
-  const { data, error } = await supabase.rpc('create_patient', { patient_name: name.trim(), patient_phone: phone.trim() })
+export async function createPatient(name: string, phone?: string | null) {
+  if (typeof name !== 'string' || !name.trim()) throw new Error('Patient name is required.')
+  const patientName = name.trim()
+  const { data, error } = await supabase.rpc('create_patient', { patient_name: patientName, patient_phone: phone?.trim() || null })
   if (error?.code === 'PGRST202' || error?.code === '42883') {
-    const legacyResult = await supabase.rpc('create_patient', { patient_name: name.trim() })
+    const legacyResult = await supabase.rpc('create_patient', { patient_name: patientName })
     if (legacyResult.error) throw legacyResult.error
     return legacyResult.data as string
   }

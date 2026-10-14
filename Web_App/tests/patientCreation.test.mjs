@@ -27,6 +27,7 @@ function loadTs(path, mocks = {}) {
 }
 
 const errors = loadTs('../src/lib/errors.ts')
+const exercisePrescriptions = loadTs('../src/lib/exercisePrescriptions.ts')
 
 function dataHarness(responses = []) {
   const calls = []
@@ -37,7 +38,9 @@ function dataHarness(responses = []) {
     assert.ok(next, 'Unexpected RPC call')
     return next
   } }
-  const data = loadTs('../src/lib/supabaseData.ts', { './supabase': { supabase } })
+  const data = loadTs('../src/lib/supabaseData.ts', {
+    './supabase': { supabase }, './exercisePrescriptions': exercisePrescriptions,
+  })
   return { ...data, calls }
 }
 

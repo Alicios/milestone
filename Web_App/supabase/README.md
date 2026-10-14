@@ -8,15 +8,35 @@ the original `profiles` and `access_requests` tables.
 SCRUM-50's limited patient-creation changes, local tests and remaining SCRUM-43
 dependencies are documented in [SCRUM50_VALIDATION.md](SCRUM50_VALIDATION.md).
 
+## SCRUM-43 local expansion
+
+The shared-catalog prescription migration and frontend are integrated locally
+with SCRUM-50 patient validation. The migration has **not** been applied to
+hosted Supabase. See [SCRUM43_INTEGRATION.md](SCRUM43_INTEGRATION.md) for the
+contract, read-only preflight, bounds, compatibility window, tests, and deployment
+procedure requiring separate review. Routine saving requires the new hosted RPC;
+legacy reads alone do not make this frontend ready for hosted release.
+
+From `Web_App`, run `npm run lint`, `npm run test:patients`,
+`npm run test:exercises`, and `npm run build -- --outDir /tmp/milestone-integration-build`.
+Keep build output outside tracked `dist` files. With PostgreSQL tools installed,
+run `bash supabase/tests/run-scrum43.sh`; it creates a disposable Unix-socket
+cluster, applies the expansion only there, and tests validation, snapshots,
+permissions, preflight rollback, and concurrency. Its synthetic fixture is not
+proof of the hosted schema. The separate baseline reuse test below exercises
+storage without the expansion.
+
 ## SCRUM-43 exercise-model baseline
 
-Sprint 2 documents the existing shared exercise catalog; Sprint 3 will integrate
-it with the frontend. Hosted Supabase already contains 248 exercises with a
+The Sprint 2 baseline documents the existing shared exercise catalog. The local
+expansion above adds frontend integration and prescription validation. Hosted
+Supabase already contains 248 exercises with a
 verified UUID primary key. `routines.exercise_list` is verified as `jsonb[]`.
 Routine JSON objects can reuse an existing catalog UUID via `exercise_id`;
 multiple routine rows can resolve to one exercise without duplicating it.
 JSON references have no conventional foreign key, automatic validation, or
-protection against dangling IDs. Existing name-based UI/RPC behavior is unchanged.
+protection against dangling IDs. The local expansion supplies that validation;
+hosted behavior is unchanged.
 
 - [baselines/exercises.sql](baselines/exercises.sql): **LOCAL/REFERENCE ONLY**
   catalog DDL, not a migration or full hosted schema dump. The reported columns
@@ -33,10 +53,9 @@ protection against dangling IDs. Existing name-based UI/RPC behavior is unchange
   It has 248 records and no UUIDs. **Never reseed the shared catalog**: the CSV
   cannot preserve hosted identity mappings and another import can duplicate data.
 
-The previous read-only simulation proved UUID resolution, not persisted reuse.
-The rollback test has not yet been executed for this baseline. The October 8
-prescription migration is not deployed and is not included here. This work adds
-no assignments, prescriptions, SCRUM-50 functionality, or frontend integration.
+The previous read-only simulation proved UUID resolution, not table-backed
+storage. The rollback test below verifies storage in a disposable local schema.
+The October 8 prescription migration is included locally but remains undeployed.
 
 ## Local verification only
 
@@ -97,7 +116,7 @@ Keep these verification gaps explicit even after a minimal fixture passes.
 ## Historical migrations — do not replay
 
 The migration directory is historical context, not a complete hosted baseline.
-Main has no creation migration for the existing catalog or `exercise_list`.
+The repository has no creation migration for the existing catalog or `exercise_list`.
 Hosted routines also diverge from earlier migrations (for example, absent
 `archived_at`/`updated_at`), and recorded hosted migration timestamps differ from
 repository filenames. Replaying files can fail, alter existing data, or replace

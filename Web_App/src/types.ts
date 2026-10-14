@@ -44,16 +44,43 @@ export interface ActivityItem {
   type: 'appointment' | 'message' | 'record'
 }
 
-export interface RoutineExercise {
+export interface Exercise {
+  id: string
+  name: string
+  description: string | null
+  createdAt: string
+}
+
+export interface Prescription {
+  sets: number | null
+  reps: number | null
+  timerSeconds: number | null
+}
+
+export interface RoutineExercise extends Prescription {
   id: string
   name: string
   position: number
+  exerciseId: string | null
+  resolved: boolean
+  original: unknown
 }
 
 export interface Routine {
   id: string
   name: string
   exercises: RoutineExercise[]
+  exerciseFormatVersion: number
+  exerciseRevision: number | null
+  assignmentIssue: string | null
+}
+
+export interface AssignmentExerciseSnapshot extends Prescription {
+  id: string
+  name: string
+  position: number
+  exerciseId: string | null
+  description: string | null
 }
 
 export type RoutineAssignmentStatus = 'scheduled' | 'completed' | 'missed' | 'modified' | 'cancelled'
@@ -73,6 +100,6 @@ export interface RoutineAssignment {
   scheduledDate: string
   status: RoutineAssignmentStatus
   routineName: string
-  exercises: RoutineExercise[]
+  exercises: AssignmentExerciseSnapshot[]
   followUp?: FollowUpAppointment
 }

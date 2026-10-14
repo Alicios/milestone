@@ -24,18 +24,18 @@ canonicalization rules.
 
 ## Git integration versus hosted deployment
 
-Main contains SCRUM-43's catalog baseline, not its advanced prescription work.
-The full implementation remains on `feature/scrum-43-shared-catalog-integration`
-at `a1e083fed`. This SCRUM-50 change does not import or alter that implementation.
-Hosted Supabase does not currently expose `save_routine_with_prescriptions`.
+The integration branch combines SCRUM-50 on main at `32a2ad244` with SCRUM-43's
+full implementation from `feature/scrum-43-shared-catalog-integration` at
+`a1e083fed`. Patient validation remains unchanged. SCRUM-43 now supplies the local
+catalog-reference/prescription validation and empty/unresolved assignment checks;
+see [SCRUM43_INTEGRATION.md](SCRUM43_INTEGRATION.md).
 
-Catalog-reference/prescription validation and rejection of empty or unresolved
-routine assignments remain dependent on SCRUM-43 integration and its separately
-reviewed database deployment. SCRUM-50 does not close those gaps or prove that
-rejected assignments leave no partial writes. Existing routine behavior is
-unchanged. Hosted migration history differs from repository history: merging
-Git code is not evidence of deployment, and historical migrations must not be
-replayed as an assumed hosted baseline.
+Hosted Supabase does not currently expose `save_routine_with_prescriptions`.
+The integrated routine editor requires that RPC to save. Local code integration
+and disposable database tests do not establish hosted availability or atomicity.
+Hosted migration history differs from repository history: merging Git code is
+not evidence of deployment, and historical migrations must not be replayed as
+an assumed hosted baseline. Deployment requires separate review and approval.
 
 ## Local verification and acceptance limits
 
@@ -51,5 +51,5 @@ both fallback codes, no fallback for validation/authorization errors, preserved
 error objects, form feedback and retry behavior. Database authentication,
 overload binding and transaction atomicity are not demonstrated by these mocks.
 Advanced exercise/assignment tests belong to the full SCRUM-43 implementation.
-Hosted acceptance remains pending until that work is integrated and its database
+Hosted acceptance remains pending until the integrated database
 migration is safely deployed through a separately approved process.

@@ -1,3 +1,4 @@
+import { prescriptionSummary } from '../lib/exercisePrescriptions'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link as RouterLink, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import AddIcon from '@mui/icons-material/Add'
@@ -97,9 +98,11 @@ function PatientOverview({ patient }: { patient: Patient }) {
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between">
                       <Box minWidth={0}>
                         <Typography fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>{assignment.routineName}</Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: .5 }}>
-                          {assignment.exercises.length ? assignment.exercises.map((exercise) => exercise.name).join(' · ') : 'No exercises listed'}
-                        </Typography>
+                        {assignment.exercises.length ? <Box component="ul" sx={{ pl: 2, my: .5 }}>{assignment.exercises.map((exercise) => <li key={exercise.id}>
+                          <Typography variant="body2">{exercise.name}</Typography>
+                          <Typography variant="caption" display="block">{prescriptionSummary(exercise)}</Typography>
+                          {exercise.description && <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>{exercise.description}</Typography>}
+                        </li>)}</Box> : <Typography variant="body2" color="text.secondary">No exercises listed</Typography>}
                         {assignment.followUp?.status === 'scheduled' ? <Typography variant="body2" sx={{ mt: 1 }}><strong>Follow-up:</strong> {new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(assignment.followUp.scheduledAt))}</Typography> : assignment.followUp?.status === 'completed' ? <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>Follow-up completed</Typography> : <Typography variant="body2" color="warning.main" sx={{ mt: 1 }}>Follow-up needs scheduling</Typography>}
                       </Box>
                       <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={.75} sx={{ flexShrink: 0 }}>

@@ -1,3 +1,4 @@
+import type { PrescriptionInput } from '../lib/exercisePrescriptions'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert, AppBar, Avatar, Box, Button, Container, Divider, IconButton, Menu, MenuItem, Stack, Toolbar, Typography } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
@@ -32,7 +33,7 @@ export interface DashboardOutletContext {
   scheduleFollowUp: (assignmentId: string, scheduledAt: string) => Promise<void>
   cancelFollowUp: (assignmentId: string) => Promise<void>
   completeFollowUp: (assignmentId: string) => Promise<void>
-  saveRoutine: (routineId: string | null, name: string, exercises: string[]) => Promise<void>
+  saveRoutine: (routineId: string | null, name: string, exercises: PrescriptionInput[], expectedRevision: number | null) => Promise<void>
   dischargePatient: (patientId: string) => Promise<void>
 }
 
@@ -108,8 +109,8 @@ export function DashboardLayout() {
     await refreshAssignments(patients)
   }
 
-  const saveRoutine = async (routineId: string | null, name: string, exercises: string[]) => {
-    await saveRoutineInDatabase(routineId, name, exercises)
+  const saveRoutine = async (routineId: string | null, name: string, exercises: PrescriptionInput[], expectedRevision: number | null) => {
+    await saveRoutineInDatabase(routineId, name, exercises, expectedRevision)
     setRoutines(await loadRoutines())
   }
 

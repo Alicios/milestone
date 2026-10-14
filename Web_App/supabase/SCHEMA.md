@@ -1,10 +1,12 @@
 # Milestone Supabase Schema
 
-This reference combines historical application schema documentation through
-`20261007000700_document_messages.sql` with the SCRUM-43 hosted evidence below.
-It is not a complete hosted schema dump or a reproducible migration baseline.
-Historical migrations must not be replayed; see [README.md](README.md). Supabase
-manages authentication in `auth`; this application never stores password
+This reference combines historical application schema documentation and supplied
+hosted evidence with the locally implemented
+`20261008000100_shared_exercise_prescriptions.sql` expansion. The expansion has
+**not** been applied to hosted Supabase. This is not a complete hosted schema dump
+or a reproducible migration baseline. Historical migrations must not be replayed;
+see [README.md](README.md) and [SCRUM43_INTEGRATION.md](SCRUM43_INTEGRATION.md).
+Supabase manages authentication in `auth`; this application never stores password
 hashes in `public` tables.
 
 ## Relationship overview
@@ -26,7 +28,7 @@ auth.users
 - Each provider-patient pair has one private relationship profile.
 - Routine templates belong to a provider.
 - Assignments belong to a provider-specific patient profile and preserve
-  immutable routine and exercise-name snapshots.
+  immutable routine-name, exercise-description, and prescription snapshots.
 - Each routine assignment can have at most one follow-up.
 - Text messages currently belong to one provider-patient relationship. Future
   provider, administrator, and IT conversations need a broader participant model.
@@ -67,9 +69,9 @@ array[jsonb_build_object('exercise_id', '<existing catalog UUID>'::uuid)]::jsonb
 Two routines can store the same `exercise_id` and resolve it by unnesting their
 lists and joining `(entry ->> 'exercise_id')::uuid` to `exercises.id`. This reuses
 one exercise row without copying or inserting a catalog exercise. A prior
-read-only simulation demonstrated resolution; persisted reuse has **not yet
-been verified**. [tests/scrum43_reuse.sql](tests/scrum43_reuse.sql) adds the pending
-local test: insert two actual routine rows, read them back, assert both resolve
+read-only simulation demonstrated resolution.
+[tests/scrum43_reuse.sql](tests/scrum43_reuse.sql) provides the separate local test:
+insert two actual routine rows, read them back, assert both resolve
 one existing catalog UUID and the entire catalog is unchanged, then roll back.
 Here “persisted” means table-backed inserts within a transaction, not committed
 records or a durability test. Local setup is documented in [README.md](README.md).
@@ -81,15 +83,33 @@ Casting malformed UUID text can fail; deleting a catalog row can leave an
 unresolved reference. Labels may change independently of the identity. This
 baseline adds no validation triggers, delete protection, normalization, or API
 contract. Existing routine entries may contain names or other legacy values;
-this example does not migrate them or change the name-based frontend/RPC flow.
-Frontend/backend integration belongs to Sprint 3.
+this baseline example does not migrate them. The local expansion below adds
+frontend/backend integration and validation without changing legacy entries.
 
 `exercises_seed.csv` is an unchanged reference copy from the integration commit.
 It has 248 name/description records and **no UUIDs**. Do not reseed the shared
 hosted catalog: importing it again could duplicate exercises or replace their
 identity mappings. It cannot restore existing UUIDs. The October 8 prescription
-migration is not deployed and is excluded from this deliverable; assignment,
-prescription, and SCRUM-50 changes are outside this baseline.
+migration is included locally but remains undeployed. Its assignment and
+prescription guarantees below do not describe the current hosted database.
+
+#### Local expansion contract (not deployed)
+
+The local fixture uses the following types; verify the actual hosted DDL before
+deployment. The expansion is designed to preserve all 248 catalog records and UUIDs.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| `id` | `uuid` | Permanent catalog identity. |
+| `name` | `text` | Current exercise label; names are not identity or unique constraints. |
+| `desc` | `text`, nullable | Reusable instructions, mapped to the application's description field. |
+| `created_at` | `timestamptz` | Catalog creation time. |
+
+After the expansion, authenticated providers can read the catalog. Anonymous
+access and ordinary client writes are denied. IDs cannot change and catalog rows cannot be deleted or
+truncated through ordinary SQL. Trusted catalog text maintenance does not change
+historical snapshots. JSON references use validation triggers and RPCs, not a
+conventional foreign key.
 
 ### `messages`
 
@@ -218,8 +238,9 @@ administrative authorization remain separate concerns.
 
 ### `routine_assignment_exercises`
 
-Immutable ordered exercise-name snapshots copied when a routine is assigned.
-Later template edits do not alter these rows.
+Immutable ordered exercise and prescription snapshots copied when a routine is
+assigned. Later template/catalog edits do not alter these rows. New columns are
+nullable for history created before SCRUM-43; never backfill it from current data.
 
 | Column | Type | Description |
 | --- | --- | --- |
@@ -227,6 +248,11 @@ Later template edits do not alter these rows.
 | `routine_assignment_id` | `uuid` | Assignment whose historical exercise list contains this snapshot. |
 | `exercise_name_snapshot` | `text` | Exercise name captured at assignment time. |
 | `position` | `integer` | Zero-based display order within the assignment snapshot. |
+| `exercise_id_snapshot` | `uuid`, nullable | Source identity only; no catalog FK or mandatory join. |
+| `description_snapshot` | `text`, nullable | Instructions captured at assignment time. |
+| `sets_snapshot` | `integer`, nullable | 1–100 prescribed sets. |
+| `reps_snapshot` | `integer`, nullable | 1–1,000 repetitions per set. |
+| `timer_seconds_snapshot` | `integer`, nullable | 1–86,400 seconds per set. |
 
 ### `routine_assignments`
 
@@ -258,10 +284,16 @@ Current routine editing stores ordered exercise values in `routines.exercise_lis
 
 ### `routines`
 
-Reusable provider-owned routine templates. The live routine editor stores the
-ordered exercise names in `exercise_list`. Its hosted `jsonb[]` type can also
-represent catalog UUID objects as described above; this baseline does not change
-the editor or claim deployed UUID validation.
+With the local expansion (not yet deployed):
+
+Reusable provider-owned routine templates. `exercise_list` is the authoritative
+ordered storage. Version 0 preserves legacy data and is not assignable; version 1
+contains validated catalog UUIDs, server-resolved names, sets, reps, and seconds.
+Empty version-1 drafts may be saved but not assigned. Routine `created_at` remains
+a nullable date; SCRUM-43 does not introduce `archived_at` or `updated_at`.
+
+Hosted routines still use the legacy name-based UI/RPC contract; the existing
+`jsonb[]` storage can also contain catalog UUID objects and other legacy values.
 
 | Column | Type | Description |
 | --- | --- | --- |
@@ -270,7 +302,11 @@ the editor or claim deployed UUID validation.
 | `name` | `text` | Current template display name. |
 | `created_at` | `date`, nullable | Optional calendar date associated with the template. |
 | `description` | `text`, nullable | Optional free-text routine description. |
-| `exercise_list` | `jsonb[]`, nullable | Ordered exercise values used by the routine editor and copied into assignment snapshots. |
+| `exercise_list` | `jsonb[]`, nullable | Legacy raw entries or version-1 catalog prescriptions. |
+| `exercise_format_version` | `smallint` | 0 for legacy; 1 for validated catalog prescriptions. |
+| `exercise_revision` | `bigint` | Database-maintained optimistic edit token. |
+| `legacy_exercise_list` | `jsonb[]`, nullable | Original legacy content retained on first explicit replacement. |
+| `legacy_preserved_at` | `timestamptz`, nullable | Records preservation even when original content was SQL NULL. |
 
 ## Constraints and indexes
 
@@ -314,9 +350,10 @@ Important non-primary indexes are:
 
 ## Row Level Security
 
-The historical application model documents the browser boundaries below.
-Effective hosted catalog privileges and policies remain unverified for this
-baseline; no catalog access policy is introduced here.
+The table combines historical browser boundaries with the local SCRUM-43
+expansion's catalog policy and validated routine writes. Those new guarantees
+are not deployed. Effective hosted privileges and policies still require a
+fresh authoritative audit before deployment.
 
 | Table | Browser access |
 | --- | --- |
@@ -325,7 +362,8 @@ baseline; no catalog access policy is introduced here.
 | `patients` | Authenticated providers select patients linked through their own relationship profiles. |
 | `provider_patient_profiles` | Authenticated providers select and update their own relationships. |
 | `patient_statuses` | Authenticated providers manage statuses belonging to their own relationships. |
-| `routines` | Authenticated providers select their own templates; writes use RPCs. |
+| `exercises` | Authenticated providers read shared catalog; client writes and anonymous access denied. |
+| `routines` | Authenticated providers select their own templates; writes use validated RPCs. |
 | `routine_exercises` | Authenticated providers select exercises from their own templates; writes use RPCs. |
 | `routine_assignments` | Authenticated providers select assignments for their own relationships; writes use RPCs. |
 | `routine_assignment_exercises` | Authenticated providers select snapshots for their own assignments; writes occur through assignment RPCs. |

@@ -3,5 +3,11 @@
   "displayName": "Milestone",
   "web": {
     "bundler": "metro"
+  },
+  "android": {
+    "package": "com.anonymous.milestone"
+  },
+  "ios": {
+    "bundleIdentifier": "com.anonymous.milestone"
   }
 }

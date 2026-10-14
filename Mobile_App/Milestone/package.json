@@ -3,8 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
-    "ios": "react-native run-ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "lint": "eslint .",
     "start": "expo start",
     "web": "expo start --web",
@@ -13,7 +13,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~57.0.16",
     "@react-native/new-app-screen": "^0.84.1",
-    "expo": "^57.0.28",
+    "expo": "~57.0.17",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",

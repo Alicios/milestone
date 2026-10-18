@@ -84,6 +84,35 @@ You've successfully run and modified your React Native App. :partying_face:
 
 # Troubleshooting
 
+## Device unlock
+
+On first launch, set a 6-digit PIN and a password of at least 8 characters. Both
+must be confirmed. Later launches accept either saved credential. This unlocks
+the local sample app; it does not sign in to an online Milestone account.
+
+On a supported phone, enable face or fingerprint unlock during setup, or select
+the enable switch while unlocking with your PIN/password. Your phone verifies
+the biometric before it is enabled. Canceling the prompt leaves the app locked.
+Biometrics must already be enrolled in the phone's settings.
+
+Use the lock icon on Home to lock the app. It also locks when backgrounded;
+exercise timers pause and the current routine remains available after unlocking.
+Five incorrect attempts trigger a cooldown that persists across app restarts.
+
+Native credential verifiers use separate random salts and PBKDF2-SHA256 and are
+saved with Expo SecureStore. The browser preview saves the verifiers in local
+browser storage and supports PIN/password only. Browser storage can be changed
+by the browser user, so this preview is not an account-security boundary.
+
+Face ID on iPhone requires a development/native build and is unavailable in Expo
+Go. Rebuild installed native apps after adding the new modules; on macOS run
+`bundle exec pod install` from `ios` before using an existing Xcode project.
+The iOS permission description and Android biometric/backup configuration are
+included. Physical face/fingerprint scanning still needs verification on a device.
+
+If you forget one credential, use the other configured unlock method. No
+unauthenticated credential reset or default PIN is provided.
+
 If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
 
 # Learn More

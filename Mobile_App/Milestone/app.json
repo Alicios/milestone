@@ -8,9 +8,19 @@
     "package": "com.anonymous.milestone"
   },
   "ios": {
-    "bundleIdentifier": "com.anonymous.milestone"
+    "bundleIdentifier": "com.anonymous.milestone",
+    "infoPlist": {
+      "NSFaceIDUsageDescription": "Allow Milestone to use Face ID to unlock your app."
+    }
   },
   "plugins": [
-    "expo-font"
+    "expo-font",
+    "expo-secure-store",
+    [
+      "expo-local-authentication",
+      {
+        "faceIDPermission": "Allow Milestone to use Face ID to unlock your app."
+      }
+    ]
   ]
 }

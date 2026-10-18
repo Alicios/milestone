@@ -22,6 +22,8 @@ import { Montserrat_700Bold } from '@expo-google-fonts/montserrat/700Bold';
 import { Montserrat_800ExtraBold } from '@expo-google-fonts/montserrat/800ExtraBold';
 import Text from './components/AppText';
 import Brand from './components/Brand';
+import UnlockGate from './components/UnlockGate';
+import LockKeyhole from 'lucide-react-native/icons/lock-keyhole';
 import ClipboardClock from 'lucide-react-native/icons/clipboard-clock';
 import House from 'lucide-react-native/icons/house';
 import MessageSquare from 'lucide-react-native/icons/message-square';
@@ -145,12 +147,14 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <AppContent />
+      <UnlockGate>
+        {({ unlocked, onLock }) => <AppContent isUnlocked={unlocked} onLock={onLock} />}
+      </UnlockGate>
     </SafeAreaProvider>
   );
 }
 
-function AppContent() {
+function AppContent({ isUnlocked, onLock }) {
   const { width } = useWindowDimensions();
   const [routineStarted, setRoutineStarted] = useState(false);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
@@ -175,7 +179,7 @@ function AppContent() {
     getStartingTime(activeExercise)
   );
   useEffect(() => {
-    if (!isRunning) return;
+    if (!isRunning || !isUnlocked) return;
 
     const timer = setInterval(() => {
       setTimerCentiseconds((currentTime) => {
@@ -194,7 +198,11 @@ function AppContent() {
     }, 10);
 
     return () => clearInterval(timer);
-  }, [isRunning, activeExercise.type]);
+  }, [isRunning, activeExercise.type, isUnlocked]);
+
+  useEffect(() => {
+    if (!isUnlocked) setIsRunning(false);
+  }, [isUnlocked]);
 
   function showRoutineScreen(nextScreen) {
     setRoutineScreen(nextScreen);
@@ -525,6 +533,7 @@ function AppContent() {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" backgroundColor={palette.cream} />
         <HomeDashboard
+          onLock={onLock}
           completedExerciseCount={completedExerciseCount}
           routineStarted={routineStarted}
           routineComplete={routineComplete}
@@ -771,6 +780,7 @@ function AppContent() {
 }
 
 function HomeDashboard({
+  onLock,
   completedExerciseCount,
   routineStarted,
   routineComplete,
@@ -799,8 +809,13 @@ function HomeDashboard({
     >
       <View style={styles.topRow}>
         <Brand />
-        <View style={styles.avatar} accessibilityLabel="Frank's profile">
-          <Text style={styles.avatarText}>F</Text>
+        <View style={styles.profileActions}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Lock Milestone" onPress={onLock} style={styles.lockButton}>
+            <LockKeyhole size={21} color={palette.tealDark} accessible={false} />
+          </Pressable>
+          <View style={styles.avatar} accessibilityLabel="Frank's profile">
+            <Text style={styles.avatarText}>F</Text>
+          </View>
         </View>
       </View>
 
@@ -1100,6 +1115,18 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     flexWrap: 'wrap',
     gap: 12,
+  },
+  profileActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 'auto',
+  },
+  lockButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   eyebrow: {
     color: palette.tealDark,

@@ -130,6 +130,19 @@ If you're having issues getting the above steps to work, see the [Troubleshootin
 
 # Learn More
 
+## Hidden LeTeam selector
+
+While unlocked, hold the bottom **Home** button for three seconds to reveal the
+easter egg. Select either LeBron image, or tap the large image to flip between
+them. Use **Play sound** / **Pause sound** for the same clip as the web app.
+On phones, the large image tilts with the accelerometer. Its opening position is
+the neutral angle; rotating the screen recalibrates it. Motion is smoothed and
+limited to 12 degrees. Both images support tilt. Reduce Motion disables the
+effect, and closing the selector or backgrounding stops sensor updates. The
+browser preview and devices without an accelerometer keep the image still.
+Closing the selector or locking the app stops playback. A normal Home tap keeps
+its usual navigation behavior.
+
 To learn more about React Native, take a look at the following resources:
 
 - [React Native Website](https://reactnative.dev) - learn more about React Native.

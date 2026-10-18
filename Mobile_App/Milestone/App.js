@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ActivityIndicator,
@@ -23,6 +23,7 @@ import { Montserrat_800ExtraBold } from '@expo-google-fonts/montserrat/800ExtraB
 import Text from './components/AppText';
 import Brand from './components/Brand';
 import UnlockGate from './components/UnlockGate';
+import EasterEggSelector from './components/EasterEggSelector';
 import LockKeyhole from 'lucide-react-native/icons/lock-keyhole';
 import ClipboardClock from 'lucide-react-native/icons/clipboard-clock';
 import House from 'lucide-react-native/icons/house';
@@ -322,6 +323,8 @@ function AppContent({ isUnlocked, onLock }) {
         onMessages={openMessages}
         onStartRoutine={startRoutineFromDock}
         routineActionLabel={routineActionLabel}
+        enabled={isUnlocked}
+        onRevealEasterEgg={() => setIsRunning(false)}
       />
     );
   }
@@ -926,7 +929,16 @@ function BottomDock({
   onMessages,
   onStartRoutine,
   routineActionLabel,
+  enabled,
+  onRevealEasterEgg,
 }) {
+  const [showEasterEgg, setShowEasterEgg] = useState(false);
+  const homeWasHeld = useRef(false);
+
+  useEffect(() => {
+    if (!enabled) setShowEasterEgg(false);
+  }, [enabled]);
+
   const RoutineActionIcon = routineActionLabel === 'Start again' ? RotateCcw : Play;
   const items = [
     { id: 'home', label: 'Home', icon: House, onPress: onHome },
@@ -935,63 +947,80 @@ function BottomDock({
   ];
 
   return (
-    <View style={styles.dock}>
-      <View style={styles.dockContent}>
-        {items.map((item) => {
-          const isActive = activeTab === item.id;
-          const Icon = item.icon;
+    <>
+      <View style={styles.dock}>
+        <View style={styles.dockContent}>
+          {items.map((item) => {
+            const isActive = activeTab === item.id;
+            const Icon = item.icon;
 
-          return (
-            <Pressable
-              key={item.id}
-              accessibilityRole="button"
-              accessibilityLabel={item.label}
-              aria-selected={isActive}
-              accessibilityState={{ selected: isActive }}
-              onPress={item.onPress}
-              style={styles.dockItem}
-            >
-              <Icon
-                accessible={false}
-                size={22}
-                color={isActive ? palette.tealDark : palette.ink}
-                strokeWidth={isActive ? 2.5 : 2}
-              />
-              <Text
-                style={[
-                  styles.dockLabel,
-                  isActive && styles.dockActiveText,
-                ]}
+            return (
+              <Pressable
+                key={item.id}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                aria-selected={isActive}
+                accessibilityState={{ selected: isActive }}
+                onPressIn={item.id === 'home' ? () => { homeWasHeld.current = false; } : undefined}
+                delayLongPress={item.id === 'home' ? 3000 : undefined}
+                onLongPress={item.id === 'home' ? () => {
+                  if (!enabled) return;
+                  homeWasHeld.current = true;
+                  onRevealEasterEgg();
+                  setShowEasterEgg(true);
+                } : undefined}
+                onPress={() => {
+                  if (item.id === 'home' && homeWasHeld.current) {
+                    homeWasHeld.current = false;
+                    return;
+                  }
+                  item.onPress();
+                }}
+                style={styles.dockItem}
               >
-                {item.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+                <Icon
+                  accessible={false}
+                  size={22}
+                  color={isActive ? palette.tealDark : palette.ink}
+                  strokeWidth={isActive ? 2.5 : 2}
+                />
+                <Text
+                  style={[
+                    styles.dockLabel,
+                    isActive && styles.dockActiveText,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
+            );
+          })}
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={
-            routineActionLabel === 'Start again'
-              ? 'Start routine again'
-              : `${routineActionLabel} routine`
-          }
-          onPress={onStartRoutine}
-          style={({ pressed }) => [
-            styles.dockStartItem,
-            pressed && styles.primaryButtonPressed,
-          ]}
-        >
-          <RoutineActionIcon
-            accessible={false}
-            size={22}
-            color={palette.white}
-            strokeWidth={2}
-          />
-          <Text style={styles.dockStartLabel}>{routineActionLabel}</Text>
-        </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              routineActionLabel === 'Start again'
+                ? 'Start routine again'
+                : `${routineActionLabel} routine`
+            }
+            onPress={onStartRoutine}
+            style={({ pressed }) => [
+              styles.dockStartItem,
+              pressed && styles.primaryButtonPressed,
+            ]}
+          >
+            <RoutineActionIcon
+              accessible={false}
+              size={22}
+              color={palette.white}
+              strokeWidth={2}
+            />
+            <Text style={styles.dockStartLabel}>{routineActionLabel}</Text>
+          </Pressable>
+        </View>
       </View>
-    </View>
+      {showEasterEgg && enabled && <EasterEggSelector onClose={() => setShowEasterEgg(false)} />}
+    </>
   );
 }
 

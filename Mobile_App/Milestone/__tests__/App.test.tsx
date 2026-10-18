@@ -7,6 +7,24 @@ import {Text} from 'react-native';
 import ReactTestRenderer from 'react-test-renderer';
 import type {ReactTestInstance} from 'react-test-renderer';
 import App from '../App';
+import { useAudioPlayerStatus } from 'expo-audio';
+import { Accelerometer } from 'expo-sensors';
+
+const mockAudioPlayer = { play: jest.fn(), pause: jest.fn(), seekTo: jest.fn(async () => {}) };
+jest.mock('expo-audio', () => ({
+  useAudioPlayer: jest.fn(() => mockAudioPlayer),
+  useAudioPlayerStatus: jest.fn(() => ({ isLoaded: true, playing: false, didJustFinish: false, currentTime: 0, duration: 3 })),
+  setAudioModeAsync: jest.fn(async () => {}),
+}));
+
+jest.mock('expo-sensors', () => ({
+  Accelerometer: {
+    isAvailableAsync: jest.fn(async () => false),
+    getPermissionsAsync: jest.fn(async () => ({ granted: true, canAskAgain: true })),
+    setUpdateInterval: jest.fn(),
+    addListener: jest.fn(),
+  },
+}));
 
 jest.mock('react-native-safe-area-context', () =>
   require('react-native-safe-area-context/jest/mock').default,
@@ -71,10 +89,75 @@ async function finishExercise(sets: number) {
 }
 
 beforeEach(async () => {
+  jest.clearAllMocks();
+  (Accelerometer.isAvailableAsync as jest.Mock).mockResolvedValue(false);
+  (useAudioPlayerStatus as jest.Mock).mockReturnValue({ isLoaded: true, playing: false, didJustFinish: false, currentTime: 0, duration: 3 });
   jest.useFakeTimers();
   await ReactTestRenderer.act(() => {
     renderer = ReactTestRenderer.create(<App />);
   });
+});
+
+test('reveals the hidden selector only through the three-second Home hold', async () => {
+  await press('Messages');
+  expect(hasText('LeTeam')).toBe(false);
+  const home = button('Home');
+  expect(home.props.delayLongPress).toBe(3000);
+  await ReactTestRenderer.act(() => home.props.onPressIn());
+  await ReactTestRenderer.act(() => home.props.onLongPress());
+  expect(hasText('LeTeam')).toBe(true);
+  await ReactTestRenderer.act(() => home.props.onPress());
+  expect(hasText("You're all caught up")).toBe(true);
+  expect(button('Select The King').props.accessibilityState.selected).toBe(true);
+  await press('Select Number 76');
+  expect(button('Select Number 76').props.accessibilityState.selected).toBe(true);
+  await press('Flip the LeBron image');
+  expect(button('Select The King').props.accessibilityState.selected).toBe(true);
+  await press('Play the easter egg sound');
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(1);
+  (useAudioPlayerStatus as jest.Mock).mockReturnValue({ isLoaded: true, playing: true, duration: 3, currentTime: 1 });
+  await ReactTestRenderer.act(() => renderer.update(<App />));
+  await press('Pause the easter egg sound');
+  expect(mockAudioPlayer.pause).toHaveBeenCalledTimes(1);
+  (useAudioPlayerStatus as jest.Mock).mockReturnValue({ isLoaded: true, playing: false, didJustFinish: true, duration: 3, currentTime: 3 });
+  await ReactTestRenderer.act(() => renderer.update(<App />));
+  await press('Play the easter egg sound');
+  expect(mockAudioPlayer.seekTo).toHaveBeenCalledWith(0);
+  await press('Close hidden selector');
+  expect(mockAudioPlayer.pause).toHaveBeenCalled();
+  expect(hasText('LeTeam')).toBe(false);
+  await ReactTestRenderer.act(() => button('Home').props.onPressIn());
+  await press('Home');
+  expect(hasText('Welcome back, Frank.')).toBe(true);
+});
+
+test('opening the selector pauses the exercise without losing the current timer', async () => {
+  await press('Start routine');
+  await advanceTime(1200);
+  const saved = timerText();
+  await ReactTestRenderer.act(() => button('Home').props.onLongPress());
+  await advanceTime(2000);
+  expect(timerText()).toBe(saved);
+  await press('Close hidden selector');
+  expect(button('Resume exercise')).toBeDefined();
+  await press('Resume exercise');
+  await advanceTime(100);
+  expect(timerText()).not.toBe(saved);
+});
+
+test('both image choices retain the same active accelerometer subscription', async () => {
+  const remove = jest.fn();
+  (Accelerometer.isAvailableAsync as jest.Mock).mockResolvedValue(true);
+  (Accelerometer.addListener as jest.Mock).mockReturnValue({remove});
+  await ReactTestRenderer.act(async () => button('Home').props.onLongPress());
+  expect(Accelerometer.addListener).toHaveBeenCalledTimes(1);
+  expect(renderer.root.findByProps({testID: 'easter-egg-image-tilt'})).toBeDefined();
+  await press('Select Number 76');
+  await press('Flip the LeBron image');
+  expect(Accelerometer.addListener).toHaveBeenCalledTimes(1);
+  expect(remove).not.toHaveBeenCalled();
+  await press('Close hidden selector');
+  expect(remove).toHaveBeenCalledTimes(1);
 });
 
 afterEach(async () => {

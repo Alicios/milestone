@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Pressable,
   Platform,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -121,13 +122,20 @@ function AppContent() {
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const activeExercise = exercises[currentExerciseIndex];
 
-  const [screen, setScreen] = useState('routine');
+  const [screen, setScreen] = useState('home');
+  const [routineScreen, setRoutineScreen] = useState('routine');
   const [isRunning, setIsRunning] = useState(false);
   const [currentSet, setCurrentSet] = useState(1);
   const [reviewRating, setReviewRating] = useState(null);
 
-  const [completedExerciseCount, setCompletedExerciseCount] =
-  useState(0);
+  const [completedExerciseIndices, setCompletedExerciseIndices] = useState([]);
+  const completedExerciseCount = completedExerciseIndices.length;
+  const routineComplete = routineScreen === 'finalReview';
+  const routineActionLabel = routineComplete
+    ? 'Start again'
+    : routineStarted
+      ? 'Resume'
+      : 'Start';
 
   const [timerCentiseconds, setTimerCentiseconds] = useState(
     getStartingTime(activeExercise)
@@ -154,11 +162,17 @@ function AppContent() {
     return () => clearInterval(timer);
   }, [isRunning, activeExercise.type]);
 
+  function showRoutineScreen(nextScreen) {
+    setRoutineScreen(nextScreen);
+    setScreen(nextScreen);
+  }
+
   function startExercise() {
+    setRoutineStarted(true);
     setTimerCentiseconds(getStartingTime(activeExercise));
     setCurrentSet(1);
     setIsRunning(true);
-    setScreen('exercise');
+    showRoutineScreen('exercise');
   }
 
   function goToNextSet() {
@@ -173,12 +187,14 @@ function AppContent() {
   function finishExercise() {
     setIsRunning(false);
 
-    setCompletedExerciseCount((count) =>
-      Math.min(count + 1, exercises.length)
+    setCompletedExerciseIndices((indices) =>
+      indices.includes(currentExerciseIndex)
+        ? indices
+        : [...indices, currentExerciseIndex]
     );
 
     setReviewRating(null);
-    setScreen('review');
+    showRoutineScreen('review');
   }
 
   function goToNextExercise() {
@@ -187,7 +203,7 @@ function AppContent() {
 
     if (isLastExercise) {
       setReviewRating(null);
-      setScreen('finalReview');
+      showRoutineScreen('finalReview');
       return;
     }
 
@@ -199,7 +215,7 @@ function AppContent() {
     setReviewRating(null);
     setTimerCentiseconds(getStartingTime(exercises[nextIndex]));
     setRoutineStarted(true);
-    setScreen('routine');
+    showRoutineScreen('routine');
   }
 
   function resumeExercise() {
@@ -208,13 +224,7 @@ function AppContent() {
 
   function goHome() {
     setScreen('home');
-    setRoutineStarted(false);
     setIsRunning(false);
-    setCurrentSet(1);
-    setCurrentExerciseIndex(0);
-    setReviewRating(null);
-    setTimerCentiseconds(getStartingTime(exercises[0]));
-    setCompletedExerciseCount(0);
   }
 
   function openRoutines() {
@@ -228,14 +238,37 @@ function AppContent() {
   }
 
   function startRoutineFromDock() {
+    if (routineStarted && !routineComplete) {
+      resumeRoutine();
+      return;
+    }
+
     setRoutineStarted(true);
     setCurrentExerciseIndex(0);
     setCurrentSet(1);
-    setCompletedExerciseCount(0);
+    setCompletedExerciseIndices([]);
     setReviewRating(null);
     setTimerCentiseconds(getStartingTime(exercises[0]));
     setIsRunning(true);
-    setScreen('exercise');
+    showRoutineScreen('exercise');
+  }
+
+  function resumeRoutine() {
+    if (routineScreen === 'routine') {
+      startExercise();
+      return;
+    }
+
+    setIsRunning(
+      routineScreen === 'exercise' &&
+        (activeExercise.type !== 'countdown' || timerCentiseconds > 0)
+    );
+    setScreen(routineScreen);
+  }
+
+  function viewSummary() {
+    setIsRunning(false);
+    setScreen('finalReview');
   }
 
   function renderDock(activeTab = null) {
@@ -246,6 +279,7 @@ function AppContent() {
         onRoutines={openRoutines}
         onMessages={openMessages}
         onStartRoutine={startRoutineFromDock}
+        routineActionLabel={routineActionLabel}
       />
     );
   }
@@ -264,7 +298,14 @@ function AppContent() {
             </View>
 
             <View style={styles.exercisePageContent}>
-              <Text style={styles.timerText}>
+              <Text
+                testID="exercise-timer"
+                numberOfLines={1}
+                style={[
+                  styles.timerText,
+                  width < 360 && styles.compactTimerText,
+                ]}
+              >
                 {formatTimer(timerCentiseconds)}
               </Text>
 
@@ -283,6 +324,8 @@ function AppContent() {
               <View style={styles.exerciseControls}>
                 {isRunning ? (
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Pause exercise"
                     style={styles.stopButton}
                     onPress={() => setIsRunning(false)}
                   >
@@ -291,6 +334,12 @@ function AppContent() {
                 ) : (
                   <View style={styles.controlRow}>
                     <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        currentSet >= activeExercise.sets
+                          ? 'Finish exercise'
+                          : 'Next set'
+                      }
                       style={styles.controlButton}
                       onPress={
                         currentSet >= activeExercise.sets
@@ -304,6 +353,8 @@ function AppContent() {
                     </Pressable>
 
                     <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Resume exercise"
                       style={styles.controlButton}
                       onPress={resumeExercise}
                     >
@@ -340,7 +391,10 @@ function AppContent() {
   if (screen === 'finalReview') {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.finalSummaryScreen}>
+        <ScrollView
+          style={styles.screenScroll}
+          contentContainerStyle={styles.finalSummaryScreen}
+        >
           <Text style={styles.reviewTitle}>ROUTINE COMPLETE!</Text>
 
           <Text style={styles.reviewSubtitle}>
@@ -377,6 +431,10 @@ function AppContent() {
 
           <View style={styles.feelingRow}>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Routine felt good"
+              aria-selected={reviewRating === 'up'}
+              accessibilityState={{ selected: reviewRating === 'up' }}
               style={[
                 styles.feelingButton,
                 reviewRating === 'up' &&
@@ -388,6 +446,10 @@ function AppContent() {
             </Pressable>
 
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Routine felt difficult"
+              aria-selected={reviewRating === 'down'}
+              accessibilityState={{ selected: reviewRating === 'down' }}
               style={[
                 styles.feelingButton,
                 reviewRating === 'down' &&
@@ -400,12 +462,14 @@ function AppContent() {
           </View>
 
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Return home"
             style={styles.reviewNextButton}
             onPress={goHome}
           >
             <Text style={styles.reviewNextButtonText}>HOME</Text>
           </Pressable>
-        </View>
+        </ScrollView>
         {renderDock()}
       </SafeAreaView>
     );
@@ -414,21 +478,15 @@ function AppContent() {
   if (screen === 'home') {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.homeScreen}>
-          <View style={styles.homeMessage}>
-            <Text style={styles.homeMessageLarge}>
-              NICE JOB TODAY,
-            </Text>
-
-            <Text style={styles.homeMessageLarge}>
-              FRANK!
-            </Text>
-
-            <Text style={styles.homeMessageSmall}>
-              check back tomorrow
-            </Text>
-          </View>
-        </View>
+        <StatusBar barStyle="dark-content" backgroundColor={palette.cream} />
+        <HomeDashboard
+          completedExerciseCount={completedExerciseCount}
+          routineStarted={routineStarted}
+          routineComplete={routineComplete}
+          onViewRoutine={openRoutines}
+          onViewSummary={viewSummary}
+          onMessages={openMessages}
+        />
         {renderDock('home')}
       </SafeAreaView>
     );
@@ -437,7 +495,10 @@ function AppContent() {
   if (screen === 'review') {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.reviewScreen}>
+        <ScrollView
+          style={styles.screenScroll}
+          contentContainerStyle={styles.reviewScreen}
+        >
           <Text style={styles.reviewTitle}>NICE WORK!</Text>
 
           <Text style={styles.reviewSubtitle}>
@@ -475,6 +536,10 @@ function AppContent() {
 
           <View style={styles.feelingRow}>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Exercise felt good"
+              aria-selected={reviewRating === 'up'}
+              accessibilityState={{ selected: reviewRating === 'up' }}
               style={[
                 styles.feelingButton,
                 reviewRating === 'up' &&
@@ -486,6 +551,10 @@ function AppContent() {
             </Pressable>
 
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Exercise felt difficult"
+              aria-selected={reviewRating === 'down'}
+              accessibilityState={{ selected: reviewRating === 'down' }}
               style={[
                 styles.feelingButton,
                 reviewRating === 'down' &&
@@ -498,12 +567,14 @@ function AppContent() {
           </View>
 
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Next exercise"
             style={styles.reviewNextButton}
             onPress={goToNextExercise}
           >
             <Text style={styles.reviewNextButtonText}>NEXT</Text>
           </Pressable>
-        </View>
+        </ScrollView>
         {renderDock()}
       </SafeAreaView>
     );
@@ -513,7 +584,10 @@ function AppContent() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={palette.cream} />
 
-      <View style={[styles.container, { maxWidth: contentWidth }]}>
+      <ScrollView
+        style={styles.screenScroll}
+        contentContainerStyle={[styles.container, { maxWidth: contentWidth }]}
+      >
         <View style={styles.topRow}>
           <View>
             <Text style={styles.brand}>MILESTONE</Text>
@@ -616,12 +690,18 @@ function AppContent() {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Start today's routine"
+          accessibilityLabel={
+            routineComplete
+              ? 'View routine summary'
+              : routineStarted
+                ? 'Continue routine'
+                : "Start today's routine"
+          }
           onPress={() => {
             if (!routineStarted) {
               setRoutineStarted(true);
             } else {
-              startExercise();
+              resumeRoutine();
             }
           }}
           style={({ pressed }) => [
@@ -630,16 +710,154 @@ function AppContent() {
           ]}
         >
           <Text style={styles.primaryButtonText}>
-            {routineStarted ? 'START' : 'START ROUTINE'}
+            {routineComplete
+              ? 'VIEW SUMMARY'
+              : routineStarted
+                ? 'CONTINUE ROUTINE'
+                : 'START ROUTINE'}
           </Text>
 
           
         </Pressable>
 
         <Text style={styles.footerText}>Move well. Feel better.</Text>
-      </View>
+      </ScrollView>
       {renderDock('routines')}
     </SafeAreaView>
+  );
+}
+
+function HomeDashboard({
+  completedExerciseCount,
+  routineStarted,
+  routineComplete,
+  onViewRoutine,
+  onViewSummary,
+  onMessages,
+}) {
+  const progressPercent = Math.round(
+    (completedExerciseCount / exercises.length) * 100
+  );
+  const progressStatus = routineComplete
+    ? 'Complete'
+    : routineStarted
+      ? 'In progress'
+      : 'Not started';
+  const today = new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  return (
+    <ScrollView
+      style={styles.screenScroll}
+      contentContainerStyle={styles.dashboardContent}
+    >
+      <View style={styles.topRow}>
+        <Text style={styles.brand}>MILESTONE</Text>
+        <View style={styles.avatar} accessibilityLabel="Frank's profile">
+          <Text style={styles.avatarText}>F</Text>
+        </View>
+      </View>
+
+      <View style={styles.dashboardGreeting}>
+        <Text style={styles.dashboardDate}>{today}</Text>
+        <Text accessibilityRole="header" style={styles.dashboardTitle}>
+          Welcome back, Frank.
+        </Text>
+        <Text style={styles.dashboardSubtitle}>Here's your day at a glance.</Text>
+      </View>
+
+      <View style={[styles.dashboardCard, styles.dashboardRoutineCard]}>
+        <Text style={styles.dashboardEyebrow}>YOUR DAILY PLAN</Text>
+        <Text accessibilityRole="header" style={styles.dashboardCardTitle}>
+          Today's routine
+        </Text>
+        <Text style={styles.dashboardBody}>
+          A little movement, one step at a time.
+        </Text>
+        <View style={styles.dashboardRoutineStats}>
+          <View>
+            <Text style={styles.dashboardStatValue}>{exercises.length}</Text>
+            <Text style={styles.dashboardStatLabel}>exercises</Text>
+          </View>
+          <View>
+            <Text style={styles.dashboardStatValue}>{routineMinutes} min</Text>
+            <Text style={styles.dashboardStatLabel}>estimated time</Text>
+          </View>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onViewRoutine}
+          style={({ pressed }) => [
+            styles.dashboardPrimaryButton,
+            pressed && styles.primaryButtonPressed,
+          ]}
+        >
+          <Text style={styles.dashboardPrimaryButtonText}>View routine</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.dashboardCard}>
+        <View style={styles.dashboardCardHeading}>
+          <Text accessibilityRole="header" style={styles.dashboardCardTitle}>
+            Today's progress
+          </Text>
+          <View style={styles.dashboardStatus}>
+            <Text style={styles.dashboardStatusText}>{progressStatus}</Text>
+          </View>
+        </View>
+        <Text style={styles.dashboardProgressCount}>
+          {completedExerciseCount} of {exercises.length} exercises complete
+        </Text>
+        <View
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel="Today's exercise progress"
+          aria-valuemin={0}
+          aria-valuemax={exercises.length}
+          aria-valuenow={completedExerciseCount}
+          aria-valuetext={`${progressPercent}% complete`}
+          style={styles.dashboardProgressTrack}
+        >
+          <View
+            style={[
+              styles.dashboardProgressFill,
+              { width: `${progressPercent}%` },
+            ]}
+          />
+        </View>
+        <Text style={styles.dashboardBody}>{progressPercent}% complete</Text>
+        {routineComplete && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onViewSummary}
+            style={styles.dashboardTextButton}
+          >
+            <Text style={styles.dashboardTextButtonLabel}>View summary</Text>
+          </Pressable>
+        )}
+      </View>
+
+      <View style={styles.dashboardCard}>
+        <Text accessibilityRole="header" style={styles.dashboardCardTitle}>
+          Messages
+        </Text>
+        <Text style={styles.dashboardMessageTitle}>No new messages</Text>
+        <Text style={styles.dashboardBody}>
+          Messages from your care team will appear here.
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onMessages}
+          style={styles.dashboardTextButton}
+        >
+          <Text style={styles.dashboardTextButtonLabel}>View messages</Text>
+        </Pressable>
+      </View>
+      <Text style={styles.dashboardFooter}>Move well. Feel better.</Text>
+    </ScrollView>
   );
 }
 
@@ -649,6 +867,7 @@ function BottomDock({
   onRoutines,
   onMessages,
   onStartRoutine,
+  routineActionLabel,
 }) {
   const items = [
     { id: 'home', label: 'Home', icon: '⌂', onPress: onHome },
@@ -665,6 +884,8 @@ function BottomDock({
           <Pressable
             key={item.id}
             accessibilityRole="button"
+            accessibilityLabel={item.label}
+            aria-selected={isActive}
             accessibilityState={{ selected: isActive }}
             onPress={item.onPress}
             style={styles.dockItem}
@@ -692,7 +913,11 @@ function BottomDock({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Start routine"
+        accessibilityLabel={
+          routineActionLabel === 'Start again'
+            ? 'Start routine again'
+            : `${routineActionLabel} routine`
+        }
         onPress={onStartRoutine}
         style={({ pressed }) => [
           styles.dockStartItem,
@@ -702,7 +927,7 @@ function BottomDock({
         <Text accessible={false} style={styles.dockStartIcon}>
           ▶
         </Text>
-        <Text style={styles.dockStartLabel}>Start</Text>
+        <Text style={styles.dockStartLabel}>{routineActionLabel}</Text>
       </Pressable>
     </View>
   );
@@ -714,12 +939,15 @@ const styles = StyleSheet.create({
     backgroundColor: palette.cream,
   },
   container: {
-    flex: 1,
+    flexGrow: 1,
     width: '100%',
     alignSelf: 'center',
     paddingHorizontal: 22,
     paddingTop: 18,
     paddingBottom: 20,
+  },
+  screenScroll: {
+    flex: 1,
   },
   messagesScreen: {
     flex: 1,
@@ -1138,6 +1366,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     textAlign: 'center',
   },
+  compactTimerText: {
+    fontSize: 40,
+  },
   exerciseInfoPill: {
     alignSelf: 'center',
     backgroundColor: palette.orange,
@@ -1197,7 +1428,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   reviewScreen: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 22,
     paddingTop: 30,
     paddingBottom: 20,
@@ -1298,7 +1529,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   finalSummaryScreen: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 22,
     paddingTop: 30,
     paddingBottom: 20,
@@ -1318,35 +1549,171 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 13,
   },
-  homeScreen: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 22,
-  },
-  homeMessage: {
-    alignItems: 'center',
-    backgroundColor: palette.orange,
-    borderColor: palette.ink,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    paddingHorizontal: 20,
-    paddingVertical: 28,
+  dashboardContent: {
+    alignSelf: 'center',
     width: '100%',
+    maxWidth: 480,
+    paddingHorizontal: 22,
+    paddingTop: 18,
+    paddingBottom: 24,
   },
-  homeMessageLarge: {
-    color: palette.white,
+  dashboardGreeting: {
+    marginBottom: 24,
+  },
+  dashboardDate: {
+    color: palette.tealDark,
     fontFamily: modernFontFamily,
-    fontSize: 32,
-    fontWeight: '900',
-    lineHeight: 37,
-    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
   },
-  homeMessageSmall: {
+  dashboardTitle: {
     color: palette.ink,
     fontFamily: modernFontFamily,
-    fontSize: 20,
-    fontStyle: 'italic',
-    marginTop: 18,
+    fontSize: 30,
+    fontWeight: '800',
+    lineHeight: 36,
+  },
+  dashboardSubtitle: {
+    color: palette.ink,
+    fontFamily: modernFontFamily,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 8,
+  },
+  dashboardCard: {
+    backgroundColor: palette.white,
+    borderColor: 'rgba(25, 51, 51, 0.18)',
+    borderRadius: 22,
+    borderWidth: 1,
+    marginBottom: 16,
+    padding: 20,
+  },
+  dashboardRoutineCard: {
+    backgroundColor: palette.teal,
+    borderColor: palette.tealDark,
+  },
+  dashboardEyebrow: {
+    color: palette.ink,
+    fontFamily: modernFontFamily,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    marginBottom: 10,
+  },
+  dashboardCardTitle: {
+    color: palette.ink,
+    fontFamily: modernFontFamily,
+    fontSize: 21,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  dashboardBody: {
+    color: palette.ink,
+    fontFamily: modernFontFamily,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 8,
+  },
+  dashboardRoutineStats: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 28,
+    marginVertical: 20,
+  },
+  dashboardStatValue: {
+    color: palette.ink,
+    fontFamily: modernFontFamily,
+    fontSize: 28,
+    fontWeight: '800',
+  },
+  dashboardStatLabel: {
+    color: palette.ink,
+    fontFamily: modernFontFamily,
+    fontSize: 13,
+    marginTop: 3,
+  },
+  dashboardPrimaryButton: {
+    alignItems: 'center',
+    backgroundColor: palette.ink,
+    borderRadius: 14,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  dashboardPrimaryButtonText: {
+    color: palette.white,
+    fontFamily: modernFontFamily,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  dashboardCardHeading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'space-between',
+  },
+  dashboardStatus: {
+    backgroundColor: palette.cream,
+    borderColor: palette.orange,
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  dashboardStatusText: {
+    color: palette.ink,
+    fontFamily: modernFontFamily,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  dashboardProgressCount: {
+    color: palette.ink,
+    fontFamily: modernFontFamily,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 14,
+  },
+  dashboardProgressTrack: {
+    backgroundColor: palette.cream,
+    borderRadius: 6,
+    height: 10,
+    marginTop: 16,
+    overflow: 'hidden',
+  },
+  dashboardProgressFill: {
+    backgroundColor: palette.tealDark,
+    borderRadius: 6,
+    height: '100%',
+  },
+  dashboardMessageTitle: {
+    color: palette.ink,
+    fontFamily: modernFontFamily,
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  dashboardTextButton: {
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: 4,
+    marginTop: 8,
+  },
+  dashboardTextButtonLabel: {
+    color: palette.tealDark,
+    fontFamily: modernFontFamily,
+    fontSize: 14,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  dashboardFooter: {
+    color: palette.tealDark,
+    fontFamily: modernFontFamily,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 4,
   },
 });

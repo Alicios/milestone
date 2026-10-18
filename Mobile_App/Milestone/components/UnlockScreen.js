@@ -30,12 +30,12 @@ function SecretField({ label, value, onChangeText, pin = false, show, disabled, 
         accessibilityLabel={label}
         value={value}
         onChangeText={onChangeText}
-        placeholder={pin ? '6-digit PIN' : 'Your password'}
+        placeholder={pin ? '4-digit PIN' : 'Your password'}
         placeholderTextColor="#637D7B"
         secureTextEntry={!show}
         keyboardType={pin ? 'number-pad' : 'default'}
         inputMode={pin ? 'numeric' : 'text'}
-        maxLength={pin ? 6 : 128}
+        maxLength={pin ? 4 : 128}
         autoCapitalize="none"
         autoCorrect={false}
         autoComplete="off"
@@ -93,11 +93,11 @@ export default function UnlockScreen({ record, support, busy, error, onSubmit, o
     if (setup) {
       if (password.length < 8 || !password.trim()) return setValidation('Choose a password with at least 8 characters.');
       if (password !== passwordConfirm) return setValidation('Your passwords do not match.');
-      if (!/^\d{6}$/.test(pin)) return setValidation('Choose a 6-digit PIN using numbers only.');
+      if (!/^\d{4}$/.test(pin)) return setValidation('Choose a 4-digit PIN using numbers only.');
       if (pin !== pinConfirm) return setValidation('Your PINs do not match.');
       onSubmit('setup', { pin, password, enableBiometrics });
     } else {
-      if (method === 'pin' && !/^\d{6}$/.test(secret)) return setValidation('Enter your 6-digit PIN.');
+      if (method === 'pin' && !/^\d{4}$/.test(secret)) return setValidation('Enter your 4-digit PIN.');
       if (!secret) return setValidation('Enter your password.');
       onSubmit(method, { secret, enableBiometrics });
       setSecret('');
@@ -139,7 +139,7 @@ export default function UnlockScreen({ record, support, busy, error, onSubmit, o
 
             {setup ? (
               <>
-                <Text style={styles.hint}>Use at least 8 characters for your password and 6 numbers for your PIN. Keep both somewhere safe.</Text>
+                <Text style={styles.hint}>Use at least 8 characters for your password and 4 numbers for your PIN. Keep both somewhere safe.</Text>
                 <SecretField label="Create password" value={password} onChangeText={setPassword} show={show} disabled={busy} />
                 <SecretField label="Confirm password" value={passwordConfirm} onChangeText={setPasswordConfirm} show={show} disabled={busy} />
                 <SecretField label="Create PIN" value={pin} onChangeText={setPin} pin show={show} disabled={busy} />

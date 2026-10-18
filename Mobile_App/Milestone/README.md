@@ -86,12 +86,25 @@ You've successfully run and modified your React Native App. :partying_face:
 
 ## Device unlock
 
-On first launch, set a 6-digit PIN and a password of at least 8 characters. Both
-must be confirmed. Later launches accept either saved credential. This unlocks
-the local sample app; it does not sign in to an online Milestone account.
+Team members can open the shared sample profile with either default credential:
 
-On a supported phone, enable face or fingerprint unlock during setup, or select
-the enable switch while unlocking with your PIN/password. Your phone verifies
+| Unlock method | Default value |
+| --- | --- |
+| Password | `password` |
+| PIN | `0000` |
+
+Start the app with `npm start` (or `npm run web` for the browser preview). On the
+unlock screen, enter `0000`, or select **Password** and enter `password`. No
+first-run credential setup is needed. This unlocks the local sample profile;
+it does not sign in to an online Milestone account.
+
+This update applies the shared defaults once to existing device/browser unlock
+settings, replacing any previously configured PIN/password. Later launches
+preserve the saved settings, biometric preference, and failed-attempt cooldown.
+PIN entry now uses four digits.
+
+On a supported phone, select the enable switch while unlocking with your
+PIN/password. Your phone verifies
 the biometric before it is enabled. Canceling the prompt leaves the app locked.
 Biometrics must already be enrolled in the phone's settings.
 
@@ -110,8 +123,8 @@ Go. Rebuild installed native apps after adding the new modules; on macOS run
 The iOS permission description and Android biometric/backup configuration are
 included. Physical face/fingerprint scanning still needs verification on a device.
 
-If you forget one credential, use the other configured unlock method. No
-unauthenticated credential reset or default PIN is provided.
+The shared credentials above are for team access to the local sample profile.
+No unauthenticated credential reset is provided.
 
 If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
 

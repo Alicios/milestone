@@ -3,6 +3,7 @@ import { ActivityIndicator, AppState, Platform, Pressable, StyleSheet, View } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   getBiometricSupport,
+  initializeDefaultUnlock,
   readUnlockRecord,
   setUpUnlock,
   unlockWithBiometrics,
@@ -29,7 +30,7 @@ export default function UnlockGate({ children }) {
     setChecking(true);
     setLoadError('');
     try {
-      const [saved, biometrics] = await Promise.all([readUnlockRecord(), getBiometricSupport()]);
+      const [saved, biometrics] = await Promise.all([initializeDefaultUnlock(), getBiometricSupport()]);
       if (!mounted.current) return;
       setRecord(saved);
       setSupport(biometrics);

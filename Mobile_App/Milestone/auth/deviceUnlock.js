@@ -6,6 +6,27 @@ import { readUnlockRecord, writeUnlockRecord } from './unlockStorage';
 
 export { readUnlockRecord } from './unlockStorage';
 
+// Shared credentials for the local sample profile requested by the team.
+export const DEFAULT_PROFILE_CREDENTIALS = { pin: '0000', password: 'password' };
+
+export async function initializeDefaultUnlock() {
+  const existing = await readUnlockRecord();
+  if (existing?.defaultCredentialsVersion === 1) return existing;
+
+  // Apply the shared defaults once, including to previously configured demos.
+  const record = {
+    version: 1,
+    defaultCredentialsVersion: 1,
+    pin: await createVerifier(DEFAULT_PROFILE_CREDENTIALS.pin),
+    password: await createVerifier(DEFAULT_PROFILE_CREDENTIALS.password),
+    biometricsEnabled: existing?.biometricsEnabled ?? false,
+    failures: 0,
+    lockedUntil: 0,
+  };
+  await writeUnlockRecord(record);
+  return record;
+}
+
 export async function getBiometricSupport() {
   if (Platform.OS === 'web') {
     return { available: false, label: 'Face or fingerprint', reason: 'Use the phone app for face or fingerprint unlock.' };
@@ -59,13 +80,14 @@ export async function authenticateBiometric() {
 
 export async function setUpUnlock({ pin, password, enableBiometrics = false }) {
   if (await readUnlockRecord()) throw new Error('Unlock is already set up on this device.');
-  if (!/^\d{6}$/.test(pin)) throw new Error('Choose a 6-digit PIN.');
+  if (!/^\d{4}$/.test(pin)) throw new Error('Choose a 4-digit PIN.');
   if (password.length < 8 || password.length > 128 || !password.trim()) {
     throw new Error('Choose a password between 8 and 128 characters.');
   }
   if (enableBiometrics) await authenticateBiometric();
   const record = {
     version: 1,
+    defaultCredentialsVersion: 1,
     pin: await createVerifier(pin),
     password: await createVerifier(password),
     biometricsEnabled: enableBiometrics,

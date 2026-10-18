@@ -8,7 +8,7 @@ jest.setTimeout(30000);
 
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('../auth/deviceUnlock', () => ({
-  getBiometricSupport: jest.fn(), readUnlockRecord: jest.fn(), setUpUnlock: jest.fn(),
+  getBiometricSupport: jest.fn(), initializeDefaultUnlock: jest.fn(), readUnlockRecord: jest.fn(), setUpUnlock: jest.fn(),
   unlockWithBiometrics: jest.fn(), unlockWithSecret: jest.fn(),
 }));
 
@@ -45,6 +45,7 @@ function textIncludes(value) {
 beforeEach(() => {
   jest.clearAllMocks();
   unlock.readUnlockRecord.mockResolvedValue(record);
+  unlock.initializeDefaultUnlock.mockImplementation(() => unlock.readUnlockRecord());
   unlock.getBiometricSupport.mockResolvedValue({ available: true, label: 'Fingerprint', reason: '' });
   unlock.unlockWithSecret.mockResolvedValue(record);
   unlock.unlockWithBiometrics.mockResolvedValue(record);
@@ -69,13 +70,13 @@ test('starts locked, unlocks only after a correct PIN, and hides the app on expl
   await mount();
   expect(textIncludes('Protected app')).toBe(false);
   unlock.unlockWithSecret.mockRejectedValueOnce(new Error('That PIN doesn’t match. Please try again.'));
-  await input('Your PIN', '000000');
+  await input('Your PIN', '0000');
   await press('Unlock Milestone');
   expect(textIncludes('doesn’t match')).toBe(true);
   expect(textIncludes('Protected app')).toBe(false);
-  await input('Your PIN', '582694');
+  await input('Your PIN', '5826');
   await press('Unlock Milestone');
-  expect(unlock.unlockWithSecret).toHaveBeenLastCalledWith('pin', '582694', false);
+  expect(unlock.unlockWithSecret).toHaveBeenLastCalledWith('pin', '5826', false);
   expect(textIncludes('Protected app')).toBe(true);
   await press('Lock Milestone');
   expect(renderer.root.findByProps({ importantForAccessibility: 'no-hide-descendants' }).props.style).toEqual({ display: 'none' });
@@ -84,7 +85,7 @@ test('starts locked, unlocks only after a correct PIN, and hides the app on expl
 
 test('supports password login and clears the field when changing methods', async () => {
   await mount();
-  await input('Your PIN', '582694');
+  await input('Your PIN', '5826');
   await press('Use password');
   expect(renderer.root.findAllByType(TextInput).find(node => node.props.accessibilityLabel === 'Your password').props.value).toBe('');
   await input('Your password', 'test-password');
@@ -118,7 +119,7 @@ test('an authentication finishing after backgrounding cannot reopen the app', as
   let finishUnlock;
   unlock.unlockWithSecret.mockImplementation(() => new Promise(resolve => { finishUnlock = resolve; }));
   await mount();
-  await input('Your PIN', '582694');
+  await input('Your PIN', '5826');
   await press('Unlock Milestone');
   await ReactTestRenderer.act(async () => changeAppState('background'));
   await ReactTestRenderer.act(async () => finishUnlock(record));
@@ -132,14 +133,14 @@ test('first-run setup validates confirmation before creating credentials', async
   expect(textIncludes('Set up your unlock')).toBe(true);
   await input('Create password', 'test-password');
   await input('Confirm password', 'different-password');
-  await input('Create PIN', '582694');
-  await input('Confirm PIN', '582694');
+  await input('Create PIN', '5826');
+  await input('Confirm PIN', '5826');
   await press('Save PIN and password');
   expect(textIncludes('passwords do not match')).toBe(true);
   expect(unlock.setUpUnlock).not.toHaveBeenCalled();
   await input('Confirm password', 'test-password');
   await press('Save PIN and password');
-  expect(unlock.setUpUnlock).toHaveBeenCalledWith({ pin: '582694', password: 'test-password', enableBiometrics: false });
+  expect(unlock.setUpUnlock).toHaveBeenCalledWith({ pin: '5826', password: 'test-password', enableBiometrics: false });
   expect(textIncludes('Protected app')).toBe(true);
 });
 

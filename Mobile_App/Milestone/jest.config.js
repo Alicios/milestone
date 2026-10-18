@@ -7,6 +7,6 @@ module.exports = {
     '^.+\\.(ttf|mp3)$': require.resolve('@react-native/jest-preset/jest/assetFileTransformer.js'),
   },
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|react-native-safe-area-context|react-native-svg|@expo-google-fonts/montserrat|@noble/hashes)/)',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|react-native-safe-area-context|react-native-svg|@expo-google-fonts/montserrat)/)',
   ],
 };

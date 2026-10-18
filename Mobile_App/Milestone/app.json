@@ -10,19 +10,11 @@
   "ios": {
     "bundleIdentifier": "com.anonymous.milestone",
     "infoPlist": {
-      "NSFaceIDUsageDescription": "Allow Milestone to use Face ID to unlock your app.",
       "NSMotionUsageDescription": "Allow Milestone to use phone movement to tilt the hidden image."
     }
   },
   "plugins": [
     "expo-font",
-    "expo-secure-store",
-    [
-      "expo-local-authentication",
-      {
-        "faceIDPermission": "Allow Milestone to use Face ID to unlock your app."
-      }
-    ],
     [
       "expo-audio",
       {

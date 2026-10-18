@@ -1,15 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Pressable,
-  ActivityIndicator,
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text as NativeText,
   View,
   useWindowDimensions,
 } from 'react-native';
 import {
+  initialWindowMetrics,
   SafeAreaProvider,
   SafeAreaView,
 } from 'react-native-safe-area-context';
@@ -20,7 +19,7 @@ import { Montserrat_500Medium } from '@expo-google-fonts/montserrat/500Medium';
 import { Montserrat_600SemiBold } from '@expo-google-fonts/montserrat/600SemiBold';
 import { Montserrat_700Bold } from '@expo-google-fonts/montserrat/700Bold';
 import { Montserrat_800ExtraBold } from '@expo-google-fonts/montserrat/800ExtraBold';
-import Text from './components/AppText';
+import Text, { AppFontsContext } from './components/AppText';
 import Brand from './components/Brand';
 import UnlockGate from './components/UnlockGate';
 import EasterEggSelector from './components/EasterEggSelector';
@@ -119,38 +118,28 @@ function formatTimer(centiseconds) {
 }
 
 export default function App() {
-  const [fontsLoaded, fontError] = useFonts({
+  // Load the custom typeface in the background. A native font load must not
+  // keep the unlock screen (and its PIN input) hidden behind a spinner.
+  const [fontsLoaded] = useFonts({
     Montserrat_400Regular,
     Montserrat_500Medium,
     Montserrat_600SemiBold,
     Montserrat_700Bold,
     Montserrat_800ExtraBold,
   });
-
-  if (!fontsLoaded) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.loadingScreen}>
-          {fontError ? (
-            <NativeText accessibilityRole="alert">
-              Unable to load the app fonts. Please restart Milestone.
-            </NativeText>
-          ) : (
-            <ActivityIndicator
-              color={palette.tealDark}
-              accessibilityLabel="Loading Milestone"
-            />
-          )}
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
+  const { width, height } = useWindowDimensions();
+  const initialMetrics = initialWindowMetrics ?? {
+    frame: { x: 0, y: 0, width, height },
+    insets: { top: 0, right: 0, bottom: 0, left: 0 },
+  };
 
   return (
-    <SafeAreaProvider>
-      <UnlockGate>
-        {({ unlocked, onLock }) => <AppContent isUnlocked={unlocked} onLock={onLock} />}
-      </UnlockGate>
+    <SafeAreaProvider initialMetrics={initialMetrics}>
+      <AppFontsContext.Provider value={fontsLoaded}>
+        <UnlockGate>
+          {({ unlocked, onLock }) => <AppContent isUnlocked={unlocked} onLock={onLock} />}
+        </UnlockGate>
+      </AppFontsContext.Provider>
     </SafeAreaProvider>
   );
 }
@@ -1034,13 +1023,6 @@ const pageLayout = {
 };
 
 const styles = StyleSheet.create({
-  loadingScreen: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.cream,
-    padding: 24,
-  },
   safeArea: {
     flex: 1,
     backgroundColor: palette.cream,

@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 import { StyleSheet, Text } from 'react-native';
+
+export const AppFontsContext = createContext(false);
 
 const fontFamilies = {
   400: 'Montserrat_400Regular',
@@ -11,6 +13,7 @@ const fontFamilies = {
 
 // Resolve each weight to its bundled face on both iOS and Android.
 export default function AppText({ style, ...props }) {
+  const fontsLoaded = useContext(AppFontsContext);
   const { fontWeight = '400' } = StyleSheet.flatten(style) || {};
   const weight = fontWeight === 'bold' ? 700 : Number(fontWeight) || 400;
   const fontFamily = fontFamilies[Math.min(800, Math.max(400, weight))];
@@ -18,7 +21,12 @@ export default function AppText({ style, ...props }) {
   return (
     <Text
       {...props}
-      style={[style, { fontFamily, fontWeight: 'normal', fontStyle: 'normal' }]}
+      style={[
+        style,
+        fontsLoaded
+          ? { fontFamily, fontWeight: 'normal', fontStyle: 'normal' }
+          : { fontFamily: undefined },
+      ]}
     />
   );
 }

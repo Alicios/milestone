@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
   Pressable,
-  Platform,
+  ActivityIndicator,
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
+  Text as NativeText,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -13,6 +13,20 @@ import {
   SafeAreaProvider,
   SafeAreaView,
 } from 'react-native-safe-area-context';
+
+import { useFonts } from 'expo-font';
+import { Montserrat_400Regular } from '@expo-google-fonts/montserrat/400Regular';
+import { Montserrat_500Medium } from '@expo-google-fonts/montserrat/500Medium';
+import { Montserrat_600SemiBold } from '@expo-google-fonts/montserrat/600SemiBold';
+import { Montserrat_700Bold } from '@expo-google-fonts/montserrat/700Bold';
+import { Montserrat_800ExtraBold } from '@expo-google-fonts/montserrat/800ExtraBold';
+import Text from './components/AppText';
+import Brand from './components/Brand';
+import ClipboardClock from 'lucide-react-native/icons/clipboard-clock';
+import House from 'lucide-react-native/icons/house';
+import MessageSquare from 'lucide-react-native/icons/message-square';
+import Play from 'lucide-react-native/icons/play';
+import RotateCcw from 'lucide-react-native/icons/rotate-ccw';
 
 const palette = {
   cream: '#F4EACF',
@@ -24,12 +38,6 @@ const palette = {
   ink: '#193333',
   white: '#FFFDF7',
 };
-
-const modernFontFamily = Platform.select({
-  android: 'sans-serif',
-  ios: 'System',
-  default: 'system-ui',
-});
 
 const exercises = [
   {
@@ -108,6 +116,33 @@ function formatTimer(centiseconds) {
 }
 
 export default function App() {
+  const [fontsLoaded, fontError] = useFonts({
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
+    Montserrat_800ExtraBold,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.loadingScreen}>
+          {fontError ? (
+            <NativeText accessibilityRole="alert">
+              Unable to load the app fonts. Please restart Milestone.
+            </NativeText>
+          ) : (
+            <ActivityIndicator
+              color={palette.tealDark}
+              accessibilityLabel="Loading Milestone"
+            />
+          )}
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <AppContent />
@@ -117,7 +152,6 @@ export default function App() {
 
 function AppContent() {
   const { width } = useWindowDimensions();
-  const contentWidth = Math.min(width - 44, 390);
   const [routineStarted, setRoutineStarted] = useState(false);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const activeExercise = exercises[currentExerciseIndex];
@@ -287,7 +321,10 @@ function AppContent() {
   if (screen === 'exercise') {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.exerciseScreen}>
+        <ScrollView
+          style={styles.screenScroll}
+          contentContainerStyle={styles.exerciseScreen}
+        >
           <Text style={styles.encouragementText}>you got this!</Text>
 
           <View style={styles.exercisePageCard}>
@@ -301,9 +338,11 @@ function AppContent() {
               <Text
                 testID="exercise-timer"
                 numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.65}
                 style={[
                   styles.timerText,
-                  width < 360 && styles.compactTimerText,
+                  { fontSize: Math.min(64, width * 0.125) },
                 ]}
               >
                 {formatTimer(timerCentiseconds)}
@@ -365,7 +404,7 @@ function AppContent() {
               </View>
             </View>
           </View>
-        </View>
+        </ScrollView>
         {renderDock()}
       </SafeAreaView>
     );
@@ -374,7 +413,13 @@ function AppContent() {
   if (screen === 'messages') {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.messagesScreen}>
+        <ScrollView
+          style={styles.screenScroll}
+          contentContainerStyle={styles.messagesScreen}
+        >
+          <View style={styles.topRow}>
+            <Brand />
+          </View>
           <Text style={styles.messagesTitle}>Messages</Text>
           <View style={styles.messagesEmptyState}>
             <Text style={styles.messagesEmptyTitle}>You're all caught up</Text>
@@ -382,7 +427,7 @@ function AppContent() {
               Messages from your care team will appear here.
             </Text>
           </View>
-        </View>
+        </ScrollView>
         {renderDock('messages')}
       </SafeAreaView>
     );
@@ -586,12 +631,10 @@ function AppContent() {
 
       <ScrollView
         style={styles.screenScroll}
-        contentContainerStyle={[styles.container, { maxWidth: contentWidth }]}
+        contentContainerStyle={styles.container}
       >
         <View style={styles.topRow}>
-          <View>
-            <Text style={styles.brand}>MILESTONE</Text>
-          </View>
+          <Brand />
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>F</Text>
           </View>
@@ -609,7 +652,7 @@ function AppContent() {
         )}
 
         <View style={styles.sectionHeader}>
-          <View>
+          <View style={styles.sectionCopy}>
             <Text style={styles.sectionTitle}>Today's routine</Text>
             <Text style={styles.sectionSubtitle}>
               {exercises.length} exercises · about {routineMinutes} minutes
@@ -755,7 +798,7 @@ function HomeDashboard({
       contentContainerStyle={styles.dashboardContent}
     >
       <View style={styles.topRow}>
-        <Text style={styles.brand}>MILESTONE</Text>
+        <Brand />
         <View style={styles.avatar} accessibilityLabel="Frank's profile">
           <Text style={styles.avatarText}>F</Text>
         </View>
@@ -869,94 +912,106 @@ function BottomDock({
   onStartRoutine,
   routineActionLabel,
 }) {
+  const RoutineActionIcon = routineActionLabel === 'Start again' ? RotateCcw : Play;
   const items = [
-    { id: 'home', label: 'Home', icon: '⌂', onPress: onHome },
-    { id: 'routines', label: 'Routines', icon: '▤', onPress: onRoutines },
-    { id: 'messages', label: 'Messages', icon: '✉', onPress: onMessages },
+    { id: 'home', label: 'Home', icon: House, onPress: onHome },
+    { id: 'routines', label: 'Routines', icon: ClipboardClock, onPress: onRoutines },
+    { id: 'messages', label: 'Messages', icon: MessageSquare, onPress: onMessages },
   ];
 
   return (
     <View style={styles.dock}>
-      {items.map((item) => {
-        const isActive = activeTab === item.id;
+      <View style={styles.dockContent}>
+        {items.map((item) => {
+          const isActive = activeTab === item.id;
+          const Icon = item.icon;
 
-        return (
-          <Pressable
-            key={item.id}
-            accessibilityRole="button"
-            accessibilityLabel={item.label}
-            aria-selected={isActive}
-            accessibilityState={{ selected: isActive }}
-            onPress={item.onPress}
-            style={styles.dockItem}
-          >
-            <Text
-              accessible={false}
-              style={[
-                styles.dockIcon,
-                isActive && styles.dockActiveText,
-              ]}
+          return (
+            <Pressable
+              key={item.id}
+              accessibilityRole="button"
+              accessibilityLabel={item.label}
+              aria-selected={isActive}
+              accessibilityState={{ selected: isActive }}
+              onPress={item.onPress}
+              style={styles.dockItem}
             >
-              {item.icon}
-            </Text>
-            <Text
-              style={[
-                styles.dockLabel,
-                isActive && styles.dockActiveText,
-              ]}
-            >
-              {item.label}
-            </Text>
-          </Pressable>
-        );
-      })}
+              <Icon
+                accessible={false}
+                size={22}
+                color={isActive ? palette.tealDark : palette.ink}
+                strokeWidth={isActive ? 2.5 : 2}
+              />
+              <Text
+                style={[
+                  styles.dockLabel,
+                  isActive && styles.dockActiveText,
+                ]}
+              >
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={
-          routineActionLabel === 'Start again'
-            ? 'Start routine again'
-            : `${routineActionLabel} routine`
-        }
-        onPress={onStartRoutine}
-        style={({ pressed }) => [
-          styles.dockStartItem,
-          pressed && styles.primaryButtonPressed,
-        ]}
-      >
-        <Text accessible={false} style={styles.dockStartIcon}>
-          ▶
-        </Text>
-        <Text style={styles.dockStartLabel}>{routineActionLabel}</Text>
-      </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            routineActionLabel === 'Start again'
+              ? 'Start routine again'
+              : `${routineActionLabel} routine`
+          }
+          onPress={onStartRoutine}
+          style={({ pressed }) => [
+            styles.dockStartItem,
+            pressed && styles.primaryButtonPressed,
+          ]}
+        >
+          <RoutineActionIcon
+            accessible={false}
+            size={22}
+            color={palette.white}
+            strokeWidth={2}
+          />
+          <Text style={styles.dockStartLabel}>{routineActionLabel}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
+// Percentage widths provide consistent gutters; cap reading width on tablets.
+const pageLayout = {
+  width: '92%',
+  maxWidth: 720,
+  alignSelf: 'center',
+  flexGrow: 1,
+  paddingVertical: 20,
+};
+
 const styles = StyleSheet.create({
+  loadingScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.cream,
+    padding: 24,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: palette.cream,
   },
   container: {
-    flexGrow: 1,
-    width: '100%',
-    alignSelf: 'center',
-    paddingHorizontal: 22,
-    paddingTop: 18,
-    paddingBottom: 20,
+    ...pageLayout,
   },
   screenScroll: {
     flex: 1,
   },
   messagesScreen: {
-    flex: 1,
-    paddingHorizontal: 22,
-    paddingTop: 32,
+    ...pageLayout,
   },
   messagesTitle: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 30,
     fontWeight: '800',
     marginBottom: 24,
@@ -967,19 +1022,17 @@ const styles = StyleSheet.create({
     borderColor: palette.tealDark,
     borderRadius: 20,
     borderWidth: 1.5,
-    paddingHorizontal: 22,
+    paddingHorizontal: '6%',
     paddingVertical: 28,
   },
   messagesEmptyTitle: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',
   },
   messagesEmptyText: {
     color: palette.tealDark,
-    fontFamily: modernFontFamily,
     fontSize: 14,
     lineHeight: 21,
     marginTop: 8,
@@ -990,31 +1043,30 @@ const styles = StyleSheet.create({
     backgroundColor: palette.white,
     borderTopColor: 'rgba(25, 51, 51, 0.16)',
     borderTopWidth: 1,
+  },
+  dockContent: {
+    width: '96%',
+    maxWidth: 720,
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    minHeight: 74,
-    paddingHorizontal: 6,
+    alignItems: 'stretch',
     paddingVertical: 7,
+    gap: '1%',
   },
   dockItem: {
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
     minHeight: 54,
-  },
-  dockIcon: {
-    color: palette.ink,
-    fontFamily: modernFontFamily,
-    fontSize: 21,
-    fontWeight: '600',
-    lineHeight: 25,
+    minWidth: 0,
+    paddingVertical: 6,
   },
   dockLabel: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 10,
     fontWeight: '600',
     marginTop: 1,
+    textAlign: 'center',
+    flexShrink: 1,
   },
   dockActiveText: {
     color: palette.tealDark,
@@ -1030,40 +1082,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginHorizontal: 3,
     minHeight: 54,
-  },
-  dockStartIcon: {
-    color: palette.white,
-    fontFamily: modernFontFamily,
-    fontSize: 17,
-    fontWeight: '800',
-    lineHeight: 21,
+    minWidth: 0,
+    paddingVertical: 6,
   },
   dockStartLabel: {
     color: palette.white,
-    fontFamily: modernFontFamily,
     fontSize: 10,
     fontWeight: '800',
     marginTop: 1,
+    textAlign: 'center',
+    flexShrink: 1,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 18,
+    flexWrap: 'wrap',
+    gap: 12,
   },
   eyebrow: {
     color: palette.tealDark,
-    fontFamily: modernFontFamily,
     fontSize: 11,
     letterSpacing: 2.4,
     marginBottom: 2,
-  },
-  brand: {
-    color: palette.ink,
-    fontFamily: modernFontFamily,
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: 1,
   },
   avatar: {
     alignItems: 'center',
@@ -1077,7 +1119,6 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: palette.white,
-    fontFamily: modernFontFamily,
     fontSize: 21,
     fontWeight: '800',
   },
@@ -1087,7 +1128,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1.8,
     elevation: 2,
-    paddingHorizontal: 18,
+    paddingHorizontal: '6%',
     paddingVertical: 17,
     shadowColor: palette.ink,
     shadowOffset: { width: 0, height: 2 },
@@ -1096,7 +1137,6 @@ const styles = StyleSheet.create({
   },
   welcomeTitle: {
     color: palette.white,
-    fontFamily: modernFontFamily,
     fontSize: 31,
     fontWeight: '900',
     lineHeight: 34,
@@ -1110,9 +1150,7 @@ const styles = StyleSheet.create({
   },
   welcomeSubtext: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 18,
-    fontStyle: 'italic',
     marginTop: 9,
   },
   sectionHeader: {
@@ -1121,16 +1159,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 11,
     marginTop: 30,
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  sectionCopy: {
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 0,
   },
   sectionTitle: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 23,
     fontWeight: '800',
   },
   sectionSubtitle: {
     color: palette.tealDark,
-    fontFamily: modernFontFamily,
     fontSize: 12,
     marginTop: 2,
   },
@@ -1144,7 +1187,6 @@ const styles = StyleSheet.create({
   },
   progressText: {
     color: palette.tealDark,
-    fontFamily: modernFontFamily,
     fontSize: 12,
   },
   exerciseList: {
@@ -1159,7 +1201,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.4,
     flexDirection: 'row',
     minHeight: 63,
-    paddingHorizontal: 14,
+    paddingHorizontal: '4%',
+    paddingVertical: 12,
+    gap: '3%',
   },
   firstExercise: {
     minHeight: 71,
@@ -1173,32 +1217,28 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     height: 30,
     justifyContent: 'center',
-    marginRight: 12,
     width: 30,
+    flexShrink: 0,
   },
   exerciseNumberText: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 13,
   },
   exerciseCopy: {
     flex: 1,
+    minWidth: 0,
   },
   listTitle: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 22,
-    fontStyle: 'italic',
   },
   listSubtitle: {
     color: palette.tealDark,
-    fontFamily: modernFontFamily,
     fontSize: 11,
     marginTop: 1,
   },
   chevron: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 28,
     fontWeight: '300',
     lineHeight: 30,
@@ -1219,6 +1259,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 3,
+    paddingHorizontal: '4%',
+    paddingVertical: 14,
   },
   primaryButtonPressed: {
     opacity: 0.78,
@@ -1226,10 +1268,11 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: palette.white,
-    fontFamily: modernFontFamily,
     fontSize: 20,
     fontWeight: '900',
     letterSpacing: 0.6,
+    textAlign: 'center',
+    flexShrink: 1,
   },
   primaryButtonIcon: {
     color: palette.white,
@@ -1238,12 +1281,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: palette.tealDark,
-    fontFamily: modernFontFamily,
     fontSize: 14,
-    fontStyle: 'italic',
     marginTop: 'auto',
     opacity: 0.85,
     textAlign: 'center',
+    paddingTop: 18,
   },
   expandedExercise: {
     backgroundColor: palette.teal,
@@ -1259,17 +1301,16 @@ const styles = StyleSheet.create({
   },
   expandedHeaderText: {
     color: palette.white,
-    fontFamily: modernFontFamily,
     fontSize: 27,
-    fontStyle: 'italic',
   },
   overviewPanel: {
     alignItems: 'center',
     backgroundColor: palette.teal,
     flexDirection: 'row',
-    minHeight: 220,
-    paddingHorizontal: 22,
+    paddingHorizontal: '5%',
     paddingVertical: 24,
+    flexWrap: 'wrap',
+    gap: 16,
   },
   infoIcon: {
     alignItems: 'center',
@@ -1279,19 +1320,17 @@ const styles = StyleSheet.create({
     borderWidth: 1.4,
     height: 52,
     justifyContent: 'center',
-    marginRight: 16,
     width: 52,
   },
   infoIconText: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 20,
-    fontStyle: 'italic',
   },
   overviewText: {
     color: palette.ink,
-    flex: 1,
-    fontFamily: modernFontFamily,
+    flexGrow: 1,
+    flexBasis: '65%',
+    minWidth: 0,
     fontSize: 17,
     lineHeight: 24,
   },
@@ -1305,24 +1344,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     minHeight: 56,
+    flexWrap: 'wrap',
+    gap: 12,
+    padding: 12,
   },
   statsText: {
     color: palette.white,
-    fontFamily: modernFontFamily,
     fontSize: 24,
-    fontStyle: 'italic',
   },
   exerciseScreen: {
-    flex: 1,
-    paddingHorizontal: 22,
-    paddingTop: 8,
-    paddingBottom: 20,
+    ...pageLayout,
   },
   encouragementText: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 25,
-    fontStyle: 'italic',
     marginBottom: 14,
     textAlign: 'center',
   },
@@ -1331,7 +1366,8 @@ const styles = StyleSheet.create({
     borderColor: palette.ink,
     borderRadius: 22,
     borderWidth: 1.8,
-    flex: 1,
+    flexGrow: 1,
+    minHeight: 420,
     overflow: 'hidden',
   },
   exercisePageHeader: {
@@ -1341,33 +1377,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.5,
     minHeight: 58,
     justifyContent: 'center',
+    paddingHorizontal: '4%',
+    paddingVertical: 12,
   },
   exercisePageTitle: {
     color: palette.white,
-    fontFamily: modernFontFamily,
     fontSize: 28,
-    fontStyle: 'italic',
+    textAlign: 'center',
   },
   exercisePageContent: {
     backgroundColor: palette.teal,
     borderColor: palette.ink,
     borderRadius: 20,
     borderWidth: 1.5,
-    flex: 1,
-    margin: 12,
-    paddingHorizontal: 18,
+    flexGrow: 1,
+    margin: '3%',
+    paddingHorizontal: '5%',
     paddingTop: 30,
     paddingBottom: 12,
   },
   timerText: {
     color: palette.white,
-    fontFamily: modernFontFamily,
     fontSize: 54,
     fontWeight: '900',
     textAlign: 'center',
-  },
-  compactTimerText: {
-    fontSize: 40,
+    fontVariant: ['tabular-nums'],
   },
   exerciseInfoPill: {
     alignSelf: 'center',
@@ -1376,20 +1410,20 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderWidth: 1.5,
     marginTop: 16,
-    minWidth: 184,
-    paddingHorizontal: 18,
+    width: '76%',
+    maxWidth: 360,
+    paddingHorizontal: '3%',
     paddingVertical: 9,
   },
   exerciseInfoText: {
     color: palette.white,
-    fontFamily: modernFontFamily,
     fontSize: 23,
-    fontStyle: 'italic',
     textAlign: 'center',
   },
   exerciseControls: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'flex-end',
+    paddingTop: 24,
   },
   stopButton: {
     alignItems: 'center',
@@ -1402,13 +1436,14 @@ const styles = StyleSheet.create({
   },
   stopButtonText: {
     color: palette.white,
-    fontFamily: modernFontFamily,
     fontSize: 28,
     fontWeight: '900',
   },
   controlRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 10,
   },
   controlButton: {
     alignItems: 'center',
@@ -1416,35 +1451,32 @@ const styles = StyleSheet.create({
     borderColor: palette.ink,
     borderRadius: 18,
     borderWidth: 1.5,
-    flex: 1,
-    marginHorizontal: 5,
+    flexGrow: 1,
+    flexBasis: '45%',
     minHeight: 70,
     justifyContent: 'center',
+    paddingHorizontal: '3%',
+    paddingVertical: 12,
   },
   controlButtonText: {
     color: palette.white,
-    fontFamily: modernFontFamily,
     fontSize: 20,
     fontWeight: '900',
+    textAlign: 'center',
+    flexShrink: 1,
   },
   reviewScreen: {
-    flexGrow: 1,
-    paddingHorizontal: 22,
-    paddingTop: 30,
-    paddingBottom: 20,
+    ...pageLayout,
   },
   reviewTitle: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 34,
     fontWeight: '900',
     textAlign: 'center',
   },
   reviewSubtitle: {
     color: palette.tealDark,
-    fontFamily: modernFontFamily,
     fontSize: 19,
-    fontStyle: 'italic',
     marginTop: 6,
     textAlign: 'center',
   },
@@ -1454,11 +1486,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1.5,
     marginTop: 32,
-    padding: 20,
+    paddingHorizontal: '5%',
+    paddingVertical: 20,
   },
   reviewCardTitle: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 22,
     fontWeight: '900',
     marginBottom: 16,
@@ -1469,23 +1501,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 13,
+    flexWrap: 'wrap',
+    gap: '4%',
   },
   summaryLabel: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 15,
+    flexBasis: '44%',
+    flexGrow: 1,
+    flexShrink: 1,
   },
   summaryValue: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 17,
-    fontStyle: 'italic',
+    flexBasis: '48%',
+    flexGrow: 1,
+    flexShrink: 1,
+    textAlign: 'right',
   },
   feelingQuestion: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 24,
-    fontStyle: 'italic',
     marginTop: 38,
     textAlign: 'center',
   },
@@ -1493,6 +1529,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 18,
+    flexWrap: 'wrap',
+    gap: '6%',
+    marginBottom: 24,
   },
   feelingButton: {
     alignItems: 'center',
@@ -1502,7 +1541,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     height: 64,
     justifyContent: 'center',
-    marginHorizontal: 10,
     width: 64,
   },
   selectedFeelingButton: {
@@ -1521,18 +1559,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 'auto',
     minHeight: 66,
+    paddingHorizontal: '4%',
+    paddingVertical: 14,
   },
   reviewNextButtonText: {
     color: palette.white,
-    fontFamily: modernFontFamily,
     fontSize: 22,
     fontWeight: '900',
   },
   finalSummaryScreen: {
-    flexGrow: 1,
-    paddingHorizontal: 22,
-    paddingTop: 30,
-    paddingBottom: 20,
+    ...pageLayout,
   },
   finalSummaryCard: {
     backgroundColor: palette.teal,
@@ -1540,7 +1576,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1.5,
     marginTop: 28,
-    padding: 20,
+    paddingHorizontal: '5%',
+    paddingVertical: 20,
   },
   finalSummaryRow: {
     borderTopColor: 'rgba(25, 51, 51, 0.3)',
@@ -1548,35 +1585,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 13,
+    flexWrap: 'wrap',
+    gap: '4%',
   },
   dashboardContent: {
-    alignSelf: 'center',
-    width: '100%',
-    maxWidth: 480,
-    paddingHorizontal: 22,
-    paddingTop: 18,
-    paddingBottom: 24,
+    ...pageLayout,
   },
   dashboardGreeting: {
     marginBottom: 24,
   },
   dashboardDate: {
     color: palette.tealDark,
-    fontFamily: modernFontFamily,
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
   },
   dashboardTitle: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 30,
     fontWeight: '800',
     lineHeight: 36,
   },
   dashboardSubtitle: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 15,
     lineHeight: 22,
     marginTop: 8,
@@ -1587,7 +1618,8 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1,
     marginBottom: 16,
-    padding: 20,
+    paddingHorizontal: '5%',
+    paddingVertical: 20,
   },
   dashboardRoutineCard: {
     backgroundColor: palette.teal,
@@ -1595,7 +1627,6 @@ const styles = StyleSheet.create({
   },
   dashboardEyebrow: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.5,
@@ -1603,14 +1634,12 @@ const styles = StyleSheet.create({
   },
   dashboardCardTitle: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 21,
     fontWeight: '700',
     flexShrink: 1,
   },
   dashboardBody: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 14,
     lineHeight: 21,
     marginTop: 8,
@@ -1618,18 +1647,16 @@ const styles = StyleSheet.create({
   dashboardRoutineStats: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 28,
+    gap: '10%',
     marginVertical: 20,
   },
   dashboardStatValue: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 28,
     fontWeight: '800',
   },
   dashboardStatLabel: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 13,
     marginTop: 3,
   },
@@ -1644,7 +1671,6 @@ const styles = StyleSheet.create({
   },
   dashboardPrimaryButtonText: {
     color: palette.white,
-    fontFamily: modernFontFamily,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -1665,13 +1691,11 @@ const styles = StyleSheet.create({
   },
   dashboardStatusText: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 11,
     fontWeight: '700',
   },
   dashboardProgressCount: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 15,
     lineHeight: 22,
     marginTop: 14,
@@ -1690,7 +1714,6 @@ const styles = StyleSheet.create({
   },
   dashboardMessageTitle: {
     color: palette.ink,
-    fontFamily: modernFontFamily,
     fontSize: 16,
     fontWeight: '600',
     marginTop: 16,
@@ -1704,14 +1727,12 @@ const styles = StyleSheet.create({
   },
   dashboardTextButtonLabel: {
     color: palette.tealDark,
-    fontFamily: modernFontFamily,
     fontSize: 14,
     fontWeight: '700',
     textDecorationLine: 'underline',
   },
   dashboardFooter: {
     color: palette.tealDark,
-    fontFamily: modernFontFamily,
     fontSize: 13,
     textAlign: 'center',
     marginTop: 4,

@@ -9,5 +9,8 @@
   },
   "ios": {
     "bundleIdentifier": "com.anonymous.milestone"
-  }
+  },
+  "plugins": [
+    "expo-font"
+  ]
 }

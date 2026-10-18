@@ -12,6 +12,10 @@ jest.mock('react-native-safe-area-context', () =>
   require('react-native-safe-area-context/jest/mock').default,
 );
 
+jest.mock('expo-font', () => ({
+  useFonts: jest.fn(() => [true, null]),
+}));
+
 let renderer: ReactTestRenderer.ReactTestRenderer;
 
 function textOf(node: ReactTestInstance): string {

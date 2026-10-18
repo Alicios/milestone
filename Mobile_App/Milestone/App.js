@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Pressable,
+  Platform,
   StatusBar,
   StyleSheet,
   Text,
@@ -22,6 +23,12 @@ const palette = {
   ink: '#193333',
   white: '#FFFDF7',
 };
+
+const modernFontFamily = Platform.select({
+  android: 'sans-serif',
+  ios: 'System',
+  default: 'system-ui',
+});
 
 const exercises = [
   {
@@ -210,6 +217,39 @@ function AppContent() {
     setCompletedExerciseCount(0);
   }
 
+  function openRoutines() {
+    setIsRunning(false);
+    setScreen('routine');
+  }
+
+  function openMessages() {
+    setIsRunning(false);
+    setScreen('messages');
+  }
+
+  function startRoutineFromDock() {
+    setRoutineStarted(true);
+    setCurrentExerciseIndex(0);
+    setCurrentSet(1);
+    setCompletedExerciseCount(0);
+    setReviewRating(null);
+    setTimerCentiseconds(getStartingTime(exercises[0]));
+    setIsRunning(true);
+    setScreen('exercise');
+  }
+
+  function renderDock(activeTab = null) {
+    return (
+      <BottomDock
+        activeTab={activeTab}
+        onHome={goHome}
+        onRoutines={openRoutines}
+        onMessages={openMessages}
+        onStartRoutine={startRoutineFromDock}
+      />
+    );
+  }
+
   if (screen === 'exercise') {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -275,6 +315,24 @@ function AppContent() {
             </View>
           </View>
         </View>
+        {renderDock()}
+      </SafeAreaView>
+    );
+  }
+
+  if (screen === 'messages') {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.messagesScreen}>
+          <Text style={styles.messagesTitle}>Messages</Text>
+          <View style={styles.messagesEmptyState}>
+            <Text style={styles.messagesEmptyTitle}>You're all caught up</Text>
+            <Text style={styles.messagesEmptyText}>
+              Messages from your care team will appear here.
+            </Text>
+          </View>
+        </View>
+        {renderDock('messages')}
       </SafeAreaView>
     );
   }
@@ -348,6 +406,7 @@ function AppContent() {
             <Text style={styles.reviewNextButtonText}>HOME</Text>
           </Pressable>
         </View>
+        {renderDock()}
       </SafeAreaView>
     );
   }
@@ -370,6 +429,7 @@ function AppContent() {
             </Text>
           </View>
         </View>
+        {renderDock('home')}
       </SafeAreaView>
     );
   }
@@ -444,6 +504,7 @@ function AppContent() {
             <Text style={styles.reviewNextButtonText}>NEXT</Text>
           </Pressable>
         </View>
+        {renderDock()}
       </SafeAreaView>
     );
   }
@@ -577,7 +638,73 @@ function AppContent() {
 
         <Text style={styles.footerText}>Move well. Feel better.</Text>
       </View>
+      {renderDock('routines')}
     </SafeAreaView>
+  );
+}
+
+function BottomDock({
+  activeTab,
+  onHome,
+  onRoutines,
+  onMessages,
+  onStartRoutine,
+}) {
+  const items = [
+    { id: 'home', label: 'Home', icon: '⌂', onPress: onHome },
+    { id: 'routines', label: 'Routines', icon: '▤', onPress: onRoutines },
+    { id: 'messages', label: 'Messages', icon: '✉', onPress: onMessages },
+  ];
+
+  return (
+    <View style={styles.dock}>
+      {items.map((item) => {
+        const isActive = activeTab === item.id;
+
+        return (
+          <Pressable
+            key={item.id}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isActive }}
+            onPress={item.onPress}
+            style={styles.dockItem}
+          >
+            <Text
+              accessible={false}
+              style={[
+                styles.dockIcon,
+                isActive && styles.dockActiveText,
+              ]}
+            >
+              {item.icon}
+            </Text>
+            <Text
+              style={[
+                styles.dockLabel,
+                isActive && styles.dockActiveText,
+              ]}
+            >
+              {item.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Start routine"
+        onPress={onStartRoutine}
+        style={({ pressed }) => [
+          styles.dockStartItem,
+          pressed && styles.primaryButtonPressed,
+        ]}
+      >
+        <Text accessible={false} style={styles.dockStartIcon}>
+          ▶
+        </Text>
+        <Text style={styles.dockStartLabel}>Start</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -594,6 +721,102 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 20,
   },
+  messagesScreen: {
+    flex: 1,
+    paddingHorizontal: 22,
+    paddingTop: 32,
+  },
+  messagesTitle: {
+    color: palette.ink,
+    fontFamily: modernFontFamily,
+    fontSize: 30,
+    fontWeight: '800',
+    marginBottom: 24,
+  },
+  messagesEmptyState: {
+    alignItems: 'center',
+    backgroundColor: palette.white,
+    borderColor: palette.tealDark,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    paddingHorizontal: 22,
+    paddingVertical: 28,
+  },
+  messagesEmptyTitle: {
+    color: palette.ink,
+    fontFamily: modernFontFamily,
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  messagesEmptyText: {
+    color: palette.tealDark,
+    fontFamily: modernFontFamily,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  dock: {
+    alignItems: 'center',
+    backgroundColor: palette.white,
+    borderTopColor: 'rgba(25, 51, 51, 0.16)',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    minHeight: 74,
+    paddingHorizontal: 6,
+    paddingVertical: 7,
+  },
+  dockItem: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 54,
+  },
+  dockIcon: {
+    color: palette.ink,
+    fontFamily: modernFontFamily,
+    fontSize: 21,
+    fontWeight: '600',
+    lineHeight: 25,
+  },
+  dockLabel: {
+    color: palette.ink,
+    fontFamily: modernFontFamily,
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  dockActiveText: {
+    color: palette.tealDark,
+    fontWeight: '800',
+  },
+  dockStartItem: {
+    alignItems: 'center',
+    backgroundColor: palette.orange,
+    borderColor: palette.ink,
+    borderRadius: 15,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    marginHorizontal: 3,
+    minHeight: 54,
+  },
+  dockStartIcon: {
+    color: palette.white,
+    fontFamily: modernFontFamily,
+    fontSize: 17,
+    fontWeight: '800',
+    lineHeight: 21,
+  },
+  dockStartLabel: {
+    color: palette.white,
+    fontFamily: modernFontFamily,
+    fontSize: 10,
+    fontWeight: '800',
+    marginTop: 1,
+  },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -602,14 +825,14 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     color: palette.tealDark,
-    fontFamily: 'sans-serif-medium',
+    fontFamily: modernFontFamily,
     fontSize: 11,
     letterSpacing: 2.4,
     marginBottom: 2,
   },
   brand: {
     color: palette.ink,
-    fontFamily: 'sans-serif-condensed',
+    fontFamily: modernFontFamily,
     fontSize: 26,
     fontWeight: '800',
     letterSpacing: 1,
@@ -626,7 +849,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: palette.white,
-    fontFamily: 'sans-serif-condensed',
+    fontFamily: modernFontFamily,
     fontSize: 21,
     fontWeight: '800',
   },
@@ -645,7 +868,7 @@ const styles = StyleSheet.create({
   },
   welcomeTitle: {
     color: palette.white,
-    fontFamily: 'sans-serif-condensed',
+    fontFamily: modernFontFamily,
     fontSize: 31,
     fontWeight: '900',
     lineHeight: 34,
@@ -659,7 +882,7 @@ const styles = StyleSheet.create({
   },
   welcomeSubtext: {
     color: palette.ink,
-    fontFamily: 'serif',
+    fontFamily: modernFontFamily,
     fontSize: 18,
     fontStyle: 'italic',
     marginTop: 9,
@@ -673,13 +896,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: palette.ink,
-    fontFamily: 'sans-serif-condensed',
+    fontFamily: modernFontFamily,
     fontSize: 23,
     fontWeight: '800',
   },
   sectionSubtitle: {
     color: palette.tealDark,
-    fontFamily: 'sans-serif',
+    fontFamily: modernFontFamily,
     fontSize: 12,
     marginTop: 2,
   },
@@ -693,7 +916,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     color: palette.tealDark,
-    fontFamily: 'sans-serif-medium',
+    fontFamily: modernFontFamily,
     fontSize: 12,
   },
   exerciseList: {
@@ -727,7 +950,7 @@ const styles = StyleSheet.create({
   },
   exerciseNumberText: {
     color: palette.ink,
-    fontFamily: 'sans-serif-medium',
+    fontFamily: modernFontFamily,
     fontSize: 13,
   },
   exerciseCopy: {
@@ -735,19 +958,19 @@ const styles = StyleSheet.create({
   },
   listTitle: {
     color: palette.ink,
-    fontFamily: 'serif',
+    fontFamily: modernFontFamily,
     fontSize: 22,
     fontStyle: 'italic',
   },
   listSubtitle: {
     color: palette.tealDark,
-    fontFamily: 'sans-serif',
+    fontFamily: modernFontFamily,
     fontSize: 11,
     marginTop: 1,
   },
   chevron: {
     color: palette.ink,
-    fontFamily: 'sans-serif',
+    fontFamily: modernFontFamily,
     fontSize: 28,
     fontWeight: '300',
     lineHeight: 30,
@@ -775,7 +998,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: palette.white,
-    fontFamily: 'sans-serif-condensed',
+    fontFamily: modernFontFamily,
     fontSize: 20,
     fontWeight: '900',
     letterSpacing: 0.6,
@@ -787,7 +1010,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: palette.tealDark,
-    fontFamily: 'serif',
+    fontFamily: modernFontFamily,
     fontSize: 14,
     fontStyle: 'italic',
     marginTop: 'auto',
@@ -808,7 +1031,7 @@ const styles = StyleSheet.create({
   },
   expandedHeaderText: {
     color: palette.white,
-    fontFamily: 'serif',
+    fontFamily: modernFontFamily,
     fontSize: 27,
     fontStyle: 'italic',
   },
@@ -833,14 +1056,14 @@ const styles = StyleSheet.create({
   },
   infoIconText: {
     color: palette.ink,
-    fontFamily: 'serif',
+    fontFamily: modernFontFamily,
     fontSize: 20,
     fontStyle: 'italic',
   },
   overviewText: {
     color: palette.ink,
     flex: 1,
-    fontFamily: 'serif',
+    fontFamily: modernFontFamily,
     fontSize: 17,
     lineHeight: 24,
   },
@@ -857,7 +1080,7 @@ const styles = StyleSheet.create({
   },
   statsText: {
     color: palette.white,
-    fontFamily: 'serif',
+    fontFamily: modernFontFamily,
     fontSize: 24,
     fontStyle: 'italic',
   },
@@ -869,7 +1092,7 @@ const styles = StyleSheet.create({
   },
   encouragementText: {
     color: palette.ink,
-    fontFamily: 'serif',
+    fontFamily: modernFontFamily,
     fontSize: 25,
     fontStyle: 'italic',
     marginBottom: 14,
@@ -893,7 +1116,7 @@ const styles = StyleSheet.create({
   },
   exercisePageTitle: {
     color: palette.white,
-    fontFamily: 'serif',
+    fontFamily: modernFontFamily,
     fontSize: 28,
     fontStyle: 'italic',
   },
@@ -910,7 +1133,7 @@ const styles = StyleSheet.create({
   },
   timerText: {
     color: palette.white,
-    fontFamily: 'sans-serif-condensed',
+    fontFamily: modernFontFamily,
     fontSize: 54,
     fontWeight: '900',
     textAlign: 'center',
@@ -928,7 +1151,7 @@ const styles = StyleSheet.create({
   },
   exerciseInfoText: {
     color: palette.white,
-    fontFamily: 'serif',
+    fontFamily: modernFontFamily,
     fontSize: 23,
     fontStyle: 'italic',
     textAlign: 'center',
@@ -948,7 +1171,7 @@ const styles = StyleSheet.create({
   },
   stopButtonText: {
     color: palette.white,
-    fontFamily: 'sans-serif-condensed',
+    fontFamily: modernFontFamily,
     fontSize: 28,
     fontWeight: '900',
   },
@@ -969,7 +1192,7 @@ const styles = StyleSheet.create({
   },
   controlButtonText: {
     color: palette.white,
-    fontFamily: 'sans-serif-condensed',
+    fontFamily: modernFontFamily,
     fontSize: 20,
     fontWeight: '900',
   },
@@ -981,14 +1204,14 @@ const styles = StyleSheet.create({
   },
   reviewTitle: {
     color: palette.ink,
-    fontFamily: 'sans-serif-condensed',
+    fontFamily: modernFontFamily,
     fontSize: 34,
     fontWeight: '900',
     textAlign: 'center',
   },
   reviewSubtitle: {
     color: palette.tealDark,
-    fontFamily: 'serif',
+    fontFamily: modernFontFamily,
     fontSize: 19,
     fontStyle: 'italic',
     marginTop: 6,
@@ -1004,7 +1227,7 @@ const styles = StyleSheet.create({
   },
   reviewCardTitle: {
     color: palette.ink,
-    fontFamily: 'sans-serif-condensed',
+    fontFamily: modernFontFamily,
     fontSize: 22,
     fontWeight: '900',
     marginBottom: 16,
@@ -1018,18 +1241,18 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     color: palette.ink,
-    fontFamily: 'sans-serif',
+    fontFamily: modernFontFamily,
     fontSize: 15,
   },
   summaryValue: {
     color: palette.ink,
-    fontFamily: 'serif',
+    fontFamily: modernFontFamily,
     fontSize: 17,
     fontStyle: 'italic',
   },
   feelingQuestion: {
     color: palette.ink,
-    fontFamily: 'serif',
+    fontFamily: modernFontFamily,
     fontSize: 24,
     fontStyle: 'italic',
     marginTop: 38,
@@ -1070,7 +1293,7 @@ const styles = StyleSheet.create({
   },
   reviewNextButtonText: {
     color: palette.white,
-    fontFamily: 'sans-serif-condensed',
+    fontFamily: modernFontFamily,
     fontSize: 22,
     fontWeight: '900',
   },
@@ -1113,7 +1336,7 @@ const styles = StyleSheet.create({
   },
   homeMessageLarge: {
     color: palette.white,
-    fontFamily: 'sans-serif-condensed',
+    fontFamily: modernFontFamily,
     fontSize: 32,
     fontWeight: '900',
     lineHeight: 37,
@@ -1121,7 +1344,7 @@ const styles = StyleSheet.create({
   },
   homeMessageSmall: {
     color: palette.ink,
-    fontFamily: 'serif',
+    fontFamily: modernFontFamily,
     fontSize: 20,
     fontStyle: 'italic',
     marginTop: 18,

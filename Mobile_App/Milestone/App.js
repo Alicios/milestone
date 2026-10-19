@@ -16,6 +16,7 @@ import {
 } from 'react-native-safe-area-context';
 
 import { useFonts } from 'expo-font';
+import * as Haptics from 'expo-haptics';
 import { Montserrat_400Regular } from '@expo-google-fonts/montserrat/400Regular';
 import { Montserrat_500Medium } from '@expo-google-fonts/montserrat/500Medium';
 import { Montserrat_600SemiBold } from '@expo-google-fonts/montserrat/600SemiBold';
@@ -969,6 +970,7 @@ function BottomDock({
                   homeWasHeld.current = true;
                   onRevealEasterEgg();
                   setShowEasterEgg(true);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                 } : undefined}
                 onPress={() => {
                   if (item.id === 'home' && homeWasHeld.current) {

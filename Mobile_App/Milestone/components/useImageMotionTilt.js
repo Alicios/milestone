@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, AppState, Platform, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Animated, AppState, Easing, Platform, useWindowDimensions } from 'react-native';
 import { Accelerometer } from 'expo-sensors';
 
-const maxTilt = 12;
+const maxTilt = 45;
 const clamp = value => Math.max(-maxTilt, Math.min(maxTilt, value));
 const angleDifference = (current, initial) => ((current - initial + 540) % 360) - 180;
 
@@ -22,55 +22,87 @@ export default function useImageMotionTilt() {
   const [status, setStatus] = useState('checking');
   const [retry, setRetry] = useState(0);
   const enable = useCallback(() => setRetry(value => value + 1), []);
+  const [touchEnabled, setTouchEnabled] = useState(false);
+  const touchAllowed = useRef(false);
+  const touching = useRef(false);
+  const touchOrigin = useRef({ x: 0, y: 0 });
+  const sensorTarget = useRef({ x: 0, y: 0 });
+  const pendingTarget = useRef({ x: 0, y: 0 });
+  const frame = useRef(null);
+
+  const queueTilt = useCallback(value => {
+    pendingTarget.current = value;
+    if (frame.current !== null) return;
+    // Coalesce inputs to the display's refresh cadence (60/90/120 Hz, etc.).
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null;
+      Animated.timing(tilt, {
+        toValue: pendingTarget.current,
+        duration: 0,
+        easing: Easing.linear,
+        useNativeDriver: Platform.OS !== 'web',
+      }).start();
+    });
+  }, [tilt]);
+
+  const beginTouch = useCallback(() => {
+    if (!touchAllowed.current) return;
+    touching.current = true;
+    touchOrigin.current = { ...pendingTarget.current };
+  }, []);
+  const moveTouch = useCallback((dx, dy, imageWidth, imageHeight) => {
+    if (!touchAllowed.current || !touching.current || imageWidth <= 0 || imageHeight <= 0) return;
+    queueTilt({ x: clamp(touchOrigin.current.x - dy / (imageHeight / 2) * maxTilt), y: clamp(touchOrigin.current.y + dx / (imageWidth / 2) * maxTilt) });
+  }, [queueTilt]);
+  const endTouch = useCallback(() => {
+    if (!touching.current) return;
+    touching.current = false;
+    queueTilt(sensorTarget.current);
+  }, [queueTilt]);
 
   useEffect(() => {
-    // The native accelerometer reports gravity in g; the web shim uses angles.
-    if (Platform.OS === 'web') {
-      setStatus('unavailable');
-      return;
-    }
     let disposed = false;
     let subscription = null;
     let baseline = null;
-    let filtered = null;
     let direction = 1;
     let allowed = false;
     let reduced = false;
     let foreground = AppState.currentState !== 'background';
     let revision = 0;
 
+    function allowTouch(value) { touchAllowed.current = value; setTouchEnabled(value); }
+
     function stop() {
       subscription?.remove();
       subscription = null;
       baseline = null;
-      filtered = null;
+      touching.current = false;
+      sensorTarget.current = { x: 0, y: 0 };
+      pendingTarget.current = { x: 0, y: 0 };
+      if (frame.current !== null) cancelAnimationFrame(frame.current);
+      frame.current = null;
       tilt.stopAnimation();
       tilt.setValue({ x: 0, y: 0 });
     }
 
     function start() {
       if (disposed || !allowed || reduced || !foreground || subscription) return;
-      Accelerometer.setUpdateInterval(50);
+      // 8 ms requests 125 Hz, providing fresh samples for 60+ Hz displays.
+      Accelerometer.setUpdateInterval(8);
       subscription = Accelerometer.addListener(reading => {
         if (disposed || !foreground || reduced || ![reading.x, reading.y, reading.z].every(Number.isFinite)) return;
         if (Math.hypot(reading.x, reading.y, reading.z) < 0.1) return;
-        if (!filtered) {
-          filtered = { x: reading.x, y: reading.y, z: reading.z };
+        if (!baseline) {
           direction = (landscape ? reading.x : reading.y) < 0 ? -1 : 1;
-          baseline = angles(filtered, landscape, direction);
+          baseline = angles(reading, landscape, direction);
           return;
         }
-        // Filter short acceleration spikes so shaking doesn't jerk the image.
-        for (const axis of ['x', 'y', 'z']) filtered[axis] += (reading[axis] - filtered[axis]) * 0.2;
-        const current = angles(filtered, landscape, direction);
-        Animated.timing(tilt, {
-          toValue: {
-            x: clamp(-angleDifference(current.pitch, baseline.pitch) * 0.4),
-            y: clamp(angleDifference(current.roll, baseline.roll) * 0.4),
-          },
-          duration: 80,
-          useNativeDriver: true,
-        }).start();
+        const current = angles(reading, landscape, direction);
+        sensorTarget.current = {
+          x: clamp(-angleDifference(current.pitch, baseline.pitch) * 0.4),
+          y: clamp(angleDifference(current.roll, baseline.roll) * 0.4),
+        };
+        if (!touching.current) queueTilt(sensorTarget.current);
       });
       setStatus('active');
     }
@@ -80,7 +112,9 @@ export default function useImageMotionTilt() {
       try {
         reduced = await AccessibilityInfo.isReduceMotionEnabled();
         if (disposed || currentRevision !== revision) return;
+        allowTouch(!reduced && foreground);
         if (reduced) { stop(); setStatus('reduced'); return; }
+        if (Platform.OS === 'web') { setStatus('unavailable'); return; }
         if (!await Accelerometer.isAvailableAsync()) {
           if (!disposed && currentRevision === revision) setStatus('unavailable');
           return;
@@ -103,6 +137,7 @@ export default function useImageMotionTilt() {
 
     const motionPreference = AccessibilityInfo.addEventListener('reduceMotionChanged', value => {
       reduced = value;
+      allowTouch(!value && foreground);
       revision += 1;
       stop();
       if (value) setStatus('reduced');
@@ -110,18 +145,20 @@ export default function useImageMotionTilt() {
     });
     const appState = AppState.addEventListener('change', value => {
       foreground = value === 'active';
+      allowTouch(!reduced && foreground);
       if (foreground) start();
       else stop();
     });
     initialize();
     return () => {
       disposed = true;
+      touchAllowed.current = false;
       revision += 1;
       stop();
       motionPreference.remove();
       appState.remove();
     };
-  }, [landscape, retry, tilt]);
+  }, [landscape, retry, tilt, queueTilt]);
 
-  return { tilt, status, enable };
+  return { tilt, status, enable, touchEnabled, beginTouch, moveTouch, endTouch };
 }

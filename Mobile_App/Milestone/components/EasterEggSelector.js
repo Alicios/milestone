@@ -1,6 +1,6 @@
 import { useAppTheme, useThemedStyles } from './AppTheme';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Animated, Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { setAudioModeAsync } from 'expo-audio';
 import Play from 'lucide-react-native/icons/play';
 import Pause from 'lucide-react-native/icons/pause';
@@ -8,6 +8,7 @@ import X from 'lucide-react-native/icons/x';
 import Text from './AppText';
 import useEasterEggAudio from './useEasterEggAudio';
 import useImageMotionTilt from './useImageMotionTilt';
+import ImageSpotlight from './ImageSpotlight';
 
 const images = [
   { label: 'The King', description: 'LeBron James in a Los Angeles Lakers uniform.', source: require('../assets/easter-egg/lebron-king.jpg'), aspectRatio: 16 / 9 },
@@ -22,6 +23,22 @@ export default function EasterEggSelector({ onClose }) {
   const active = useRef(true);
   const { player, status } = useEasterEggAudio();
   const motion = useImageMotionTilt();
+  const motionRef = useRef(motion);
+  motionRef.current = motion;
+  const imageSize = useRef({ width: 1, height: 1 });
+  const dragged = useRef(false);
+  const drag = useRef(PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_, gesture) => motionRef.current.touchEnabled && (Math.abs(gesture.dx) > 4 || Math.abs(gesture.dy) > 4),
+    onPanResponderGrant: (_, gesture) => {
+      dragged.current = true;
+      motionRef.current.beginTouch();
+      motionRef.current.moveTouch(gesture.dx, gesture.dy, imageSize.current.width, imageSize.current.height);
+    },
+    onPanResponderMove: (_, gesture) => motionRef.current.moveTouch(gesture.dx, gesture.dy, imageSize.current.width, imageSize.current.height),
+    onPanResponderRelease: () => motionRef.current.endTouch(),
+    onPanResponderTerminate: () => motionRef.current.endTouch(),
+    onPanResponderTerminationRequest: () => false,
+  })).current;
   const current = images[selected];
   const SoundIcon = status.playing ? Pause : Play;
 
@@ -70,37 +87,21 @@ export default function EasterEggSelector({ onClose }) {
               </Pressable>
             </View>
 
-            <View style={styles.tiltSpace}>
+            <View testID="easter-egg-touch-tilt" {...drag.panHandlers} style={styles.tiltSpace} onLayout={({ nativeEvent: { layout } }) => { imageSize.current = { width: layout.width, height: layout.height }; }}>
               <Animated.View testID="easter-egg-image-tilt" style={{ transform: [
                 { perspective: 900 },
-                { rotateX: motion.tilt.x.interpolate({ inputRange: [-12, 12], outputRange: ['-12deg', '12deg'], extrapolate: 'clamp' }) },
-                { rotateY: motion.tilt.y.interpolate({ inputRange: [-12, 12], outputRange: ['-12deg', '12deg'], extrapolate: 'clamp' }) },
+                { rotateX: motion.tilt.x.interpolate({ inputRange: [-45, 45], outputRange: ['-45deg', '45deg'], extrapolate: 'clamp' }) },
+                { rotateY: motion.tilt.y.interpolate({ inputRange: [-45, 45], outputRange: ['-45deg', '45deg'], extrapolate: 'clamp' }) },
               ] }}>
-                <Pressable accessibilityRole="button" accessibilityLabel="Flip the LeBron image" onPress={() => setSelected(index => 1 - index)} style={styles.preview}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Flip the LeBron image" accessibilityHint="Tap to flip. Drag to tilt the photo." onPressIn={() => { dragged.current = false; }} onPress={() => { if (!dragged.current) setSelected(index => 1 - index); }} style={styles.preview}>
                   <Image accessibilityLabel={current.description} source={current.source} resizeMode="contain" style={[styles.image, { aspectRatio: current.aspectRatio }]} />
+                  <ImageSpotlight tilt={motion.tilt} motionStatus={motion.status} />
                 </Pressable>
               </Animated.View>
             </View>
-            <Text style={styles.hint}>{motion.status === 'active' ? 'Tilt your phone to move the image. ' : ''}Tap to flip, or pick your favorite.</Text>
+            <Text style={styles.hint}>{motion.status === 'active' ? 'Tilt your phone or drag the photo to tilt it. ' : motion.touchEnabled ? 'Drag the photo to tilt it. ' : ''}Tap the image to flip.</Text>
             {motion.status === 'denied' && <Pressable accessibilityRole="button" accessibilityLabel="Enable image motion tilt" onPress={motion.enable} style={styles.enableMotion}><Text style={styles.hint}>Enable motion tilt</Text></Pressable>}
             {motion.status === 'blocked' && <Text style={styles.hint}>Enable motion access for Milestone in your phone settings to use tilt.</Text>}
-
-            <View style={styles.choices}>
-              {images.map((item, index) => (
-                <Pressable
-                  key={item.label}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Select ${item.label}`}
-                  accessibilityState={{ selected: selected === index }}
-                  aria-selected={selected === index}
-                  onPress={() => setSelected(index)}
-                  style={[styles.choice, selected === index && styles.selectedChoice]}
-                >
-                  <Image source={item.source} accessible={false} resizeMode="cover" style={styles.thumbnail} />
-                  <Text style={styles.choiceLabel}>{item.label}</Text>
-                </Pressable>
-              ))}
-            </View>
 
             <Pressable
               accessibilityRole="button"
@@ -136,11 +137,6 @@ const baseStyles = StyleSheet.create({
   enableMotion: { minHeight: 44, justifyContent: 'center' },
   image: { width: '100%', height: 'auto' },
   hint: { fontSize: 12, lineHeight: 19, color: '#357F83', textAlign: 'center', marginVertical: 12 },
-  choices: { flexDirection: 'row', gap: '4%', marginBottom: 20 },
-  choice: { flex: 1, minWidth: 0, padding: 6, borderWidth: 2, borderColor: 'transparent', borderRadius: 14, backgroundColor: '#FFFDF7' },
-  selectedChoice: { borderColor: '#D9822B', backgroundColor: '#FBE4C3' },
-  thumbnail: { width: '100%', height: 'auto', aspectRatio: 16 / 9, borderRadius: 8 },
-  choiceLabel: { color: '#193333', fontSize: 13, fontWeight: '600', textAlign: 'center', paddingVertical: 9 },
   soundButton: { minHeight: 52, backgroundColor: '#125b75', borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 12 },
   soundLabel: { color: '#FFFDF7', fontSize: 15, fontWeight: '700', textAlign: 'center', flexShrink: 1 },
   loading: { opacity: 0.6 },

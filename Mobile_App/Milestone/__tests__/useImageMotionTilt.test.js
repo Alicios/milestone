@@ -18,6 +18,17 @@ let preferenceChanged;
 let appStateChanged;
 let removeSensor;
 let dimensions;
+let queuedFrames;
+let frameId;
+const originalPlatform = Native.Platform.OS;
+
+function flushFrame() {
+  const callbacks = [...queuedFrames.values()]; queuedFrames.clear();
+  callbacks.forEach(callback => callback(0));
+}
+async function applyReading(value) {
+  await ReactTestRenderer.act(async () => { reading(value); flushFrame(); });
+}
 
 function Probe() {
   result = useImageMotionTilt();
@@ -31,6 +42,9 @@ async function mount() {
 beforeEach(() => {
   jest.clearAllMocks();
   renderer = null;
+  queuedFrames = new Map(); frameId = 0;
+  jest.spyOn(global, 'requestAnimationFrame').mockImplementation(callback => { queuedFrames.set(++frameId, callback); return frameId; });
+  jest.spyOn(global, 'cancelAnimationFrame').mockImplementation(id => queuedFrames.delete(id));
   Native.Platform.OS = 'ios';
   Native.AppState.currentState = 'active';
   dimensions = jest.fn(() => ({ width: 390, height: 844, scale: 1, fontScale: 1 }));
@@ -59,42 +73,43 @@ beforeEach(() => {
 
 afterEach(async () => {
   if (renderer) await ReactTestRenderer.act(async () => renderer.unmount());
+  Native.Platform.OS = originalPlatform;
   jest.restoreAllMocks();
 });
 
 test('calibrates at opening and drives bounded tilt from accelerometer readings', async () => {
   await mount();
   expect(result.status).toBe('active');
-  expect(Accelerometer.setUpdateInterval).toHaveBeenCalledWith(50);
-  await ReactTestRenderer.act(async () => reading({ x: 0, y: 0, z: 1 }));
+  expect(Accelerometer.setUpdateInterval).toHaveBeenCalledWith(8);
+  await applyReading({ x: 0, y: 0, z: 1 });
   expect(result.tilt.__getValue()).toEqual({ x: 0, y: 0 });
-  await ReactTestRenderer.act(async () => {
-    for (let index = 0; index < 30; index += 1) reading({ x: 1, y: 1, z: 0.1 });
-  });
+  await applyReading({ x: 1, y: 1, z: -1 });
   const values = result.tilt.__getValue();
   expect(values.x).toBeLessThan(0);
   expect(values.y).toBeGreaterThan(0);
-  expect(Math.abs(values.x)).toBeLessThanOrEqual(12);
-  expect(Math.abs(values.y)).toBeLessThanOrEqual(12);
-  expect(Native.Animated.timing).toHaveBeenCalledWith(result.tilt, expect.objectContaining({ useNativeDriver: true }));
-  await ReactTestRenderer.act(async () => reading({ x: NaN, y: 0, z: 1 }));
+  expect(values.x).toBe(-45);
+  expect(values.y).toBeGreaterThan(12);
+  expect(Math.abs(values.x)).toBeLessThanOrEqual(45);
+  expect(Math.abs(values.y)).toBeLessThanOrEqual(45);
+  expect(Native.Animated.timing).toHaveBeenCalledWith(result.tilt, expect.objectContaining({ duration: 0, easing: Native.Easing.linear, useNativeDriver: true }));
+  await applyReading({ x: NaN, y: 0, z: 1 });
   expect(result.tilt.__getValue()).toEqual(values);
 });
 
 test('stops in background and recalibrates when foregrounded or rotated', async () => {
   await mount();
-  await ReactTestRenderer.act(async () => reading({ x: 0, y: 0, z: 1 }));
-  await ReactTestRenderer.act(async () => reading({ x: 0.7, y: 0.2, z: 0.8 }));
+  await applyReading({ x: 0, y: 0, z: 1 });
+  await applyReading({ x: 0.7, y: 0.2, z: 0.8 });
   await ReactTestRenderer.act(async () => appStateChanged('background'));
   expect(removeSensor).toHaveBeenCalledTimes(1);
   expect(result.tilt.__getValue()).toEqual({ x: 0, y: 0 });
   await ReactTestRenderer.act(async () => appStateChanged('active'));
-  await ReactTestRenderer.act(async () => reading({ x: 0.7, y: 0.2, z: 0.8 }));
+  await applyReading({ x: 0.7, y: 0.2, z: 0.8 });
   expect(result.tilt.__getValue()).toEqual({ x: 0, y: 0 });
   dimensions.mockReturnValue({ width: 844, height: 390, scale: 1, fontScale: 1 });
   await ReactTestRenderer.act(async () => renderer.update(<Probe />));
   expect(removeSensor).toHaveBeenCalledTimes(2);
-  await ReactTestRenderer.act(async () => reading({ x: -1, y: 0, z: 0 }));
+  await applyReading({ x: -1, y: 0, z: 0 });
   expect(result.tilt.__getValue()).toEqual({ x: 0, y: 0 });
 });
 
@@ -137,4 +152,48 @@ test('a permission response after closing cannot start a sensor subscription', a
   renderer = null;
   await ReactTestRenderer.act(async () => finish({ granted: true, canAskAgain: true }));
   expect(Accelerometer.addListener).not.toHaveBeenCalled();
+});
+
+test('coalesces fast sensor readings into one display frame without interpolation delay', async () => {
+  await mount(); await applyReading({ x: 0, y: 0, z: 1 });
+  await ReactTestRenderer.act(async () => {
+    reading({ x: 0.1, y: 0.1, z: 1 });
+    reading({ x: 0.3, y: 0.3, z: 1 });
+    reading({ x: 1, y: 1, z: -1 });
+  });
+  expect(queuedFrames.size).toBe(1);
+  expect(result.tilt.__getValue()).toEqual({ x: 0, y: 0 });
+  await ReactTestRenderer.act(async () => flushFrame());
+  expect(result.tilt.__getValue().x).toBe(-45);
+  expect(Native.Animated.timing).toHaveBeenCalledTimes(1);
+});
+
+test('touch takes control up to 45 degrees and releases back to the latest sensor tilt', async () => {
+  await mount(); await applyReading({ x: 0, y: 0, z: 1 });
+  expect(result.touchEnabled).toBe(true);
+  await ReactTestRenderer.act(async () => { result.beginTouch(); result.moveTouch(200, -100, 400, 200); flushFrame(); });
+  expect(result.tilt.__getValue()).toEqual({ x: 45, y: 45 });
+  await applyReading({ x: 0, y: 0.5, z: 1 });
+  expect(result.tilt.__getValue()).toEqual({ x: 45, y: 45 });
+  await ReactTestRenderer.act(async () => { result.endTouch(); flushFrame(); });
+  expect(result.tilt.__getValue().x).toBeLessThan(0);
+  expect(result.tilt.__getValue().y).toBe(0);
+  await ReactTestRenderer.act(async () => preferenceChanged(true));
+  expect(result.touchEnabled).toBe(false);
+  await ReactTestRenderer.act(async () => { result.beginTouch(); result.moveTouch(200, 100, 400, 200); flushFrame(); });
+  expect(result.tilt.__getValue()).toEqual({ x: 0, y: 0 });
+});
+
+test('touch works without accelerometer support and queued updates stop in the background', async () => {
+  Native.Platform.OS = 'web';
+  await mount();
+  expect(result.status).toBe('unavailable'); expect(result.touchEnabled).toBe(true);
+  expect(Accelerometer.addListener).not.toHaveBeenCalled();
+  await ReactTestRenderer.act(async () => { result.beginTouch(); result.moveTouch(-200, 100, 400, 200); flushFrame(); });
+  expect(result.tilt.__getValue()).toEqual({ x: -45, y: -45 });
+  await ReactTestRenderer.act(async () => result.moveTouch(200, -100, 400, 200));
+  expect(queuedFrames.size).toBe(1);
+  await ReactTestRenderer.act(async () => appStateChanged('background'));
+  expect(queuedFrames.size).toBe(0); expect(result.touchEnabled).toBe(false);
+  expect(result.tilt.__getValue()).toEqual({ x: 0, y: 0 });
 });

@@ -3,12 +3,18 @@
  */
 
 import React from 'react';
-import {Text} from 'react-native';
+import {Image, Text} from 'react-native';
 import ReactTestRenderer from 'react-test-renderer';
 import type {ReactTestInstance} from 'react-test-renderer';
 import App from '../App';
 import { useAudioPlayerStatus } from 'expo-audio';
 import { Accelerometer } from 'expo-sensors';
+import * as Haptics from 'expo-haptics';
+
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn(async () => {}),
+  ImpactFeedbackStyle: { Light: 'light' },
+}));
 
 const mockAudioPlayer = { play: jest.fn(), pause: jest.fn(), seekTo: jest.fn(async () => {}) };
 jest.mock('expo-audio', () => ({
@@ -105,18 +111,21 @@ beforeEach(async () => {
 test('reveals the hidden selector only through the three-second Home hold', async () => {
   await press('Messages');
   expect(hasText('LeTeam')).toBe(false);
+  expect(Haptics.impactAsync).not.toHaveBeenCalled();
   const home = button('Home');
   expect(home.props.delayLongPress).toBe(3000);
   await ReactTestRenderer.act(() => home.props.onPressIn());
-  await ReactTestRenderer.act(() => home.props.onLongPress());
+  await ReactTestRenderer.act(async () => home.props.onLongPress());
   expect(hasText('LeTeam')).toBe(true);
+  expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Light);
   await ReactTestRenderer.act(() => home.props.onPress());
   expect(hasText("You're all caught up")).toBe(true);
-  expect(button('Select The King').props.accessibilityState.selected).toBe(true);
-  await press('Select Number 76');
-  expect(button('Select Number 76').props.accessibilityState.selected).toBe(true);
+  expect(renderer.root.findAllByType(Image)).toHaveLength(1);
+  expect(renderer.root.findByProps({accessibilityLabel: 'LeBron James in a Los Angeles Lakers uniform.'})).toBeDefined();
   await press('Flip the LeBron image');
-  expect(button('Select The King').props.accessibilityState.selected).toBe(true);
+  expect(renderer.root.findByProps({accessibilityLabel: 'LeBron James, number 76.'})).toBeDefined();
+  await press('Flip the LeBron image');
+  expect(renderer.root.findByProps({accessibilityLabel: 'LeBron James in a Los Angeles Lakers uniform.'})).toBeDefined();
   await press('Play the easter egg sound');
   expect(mockAudioPlayer.play).toHaveBeenCalledTimes(1);
   (useAudioPlayerStatus as jest.Mock).mockReturnValue({ isLoaded: true, playing: true, duration: 3, currentTime: 1 });
@@ -129,6 +138,7 @@ test('reveals the hidden selector only through the three-second Home hold', asyn
   expect(mockAudioPlayer.seekTo).toHaveBeenCalledWith(0);
   await press('Close hidden selector');
   expect(mockAudioPlayer.pause).toHaveBeenCalled();
+  expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
   expect(hasText('LeTeam')).toBe(false);
   await ReactTestRenderer.act(() => button('Home').props.onPressIn());
   await press('Home');
@@ -136,10 +146,11 @@ test('reveals the hidden selector only through the three-second Home hold', asyn
 });
 
 test('opening the selector pauses the exercise without losing the current timer', async () => {
+  (Haptics.impactAsync as jest.Mock).mockRejectedValueOnce(new Error('Haptics unavailable'));
   await press('Start routine');
   await advanceTime(1200);
   const saved = timerText();
-  await ReactTestRenderer.act(() => button('Home').props.onLongPress());
+  await ReactTestRenderer.act(async () => button('Home').props.onLongPress());
   await advanceTime(2000);
   expect(timerText()).toBe(saved);
   await press('Close hidden selector');
@@ -156,7 +167,7 @@ test('both image choices retain the same active accelerometer subscription', asy
   await ReactTestRenderer.act(async () => button('Home').props.onLongPress());
   expect(Accelerometer.addListener).toHaveBeenCalledTimes(1);
   expect(renderer.root.findByProps({testID: 'easter-egg-image-tilt'})).toBeDefined();
-  await press('Select Number 76');
+  await press('Flip the LeBron image');
   await press('Flip the LeBron image');
   expect(Accelerometer.addListener).toHaveBeenCalledTimes(1);
   expect(remove).not.toHaveBeenCalled();

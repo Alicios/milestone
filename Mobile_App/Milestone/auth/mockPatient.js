@@ -58,6 +58,7 @@ export function createMockSession(patient, details) {
       email: details.email.trim(),
       preferredName: details.preferredName.trim(),
       dateOfBirth: details.dateOfBirth.trim(),
+      photoUri: details.photoUri || null,
     },
     pin: details.pinEnabled ? details.pin : null,
   };
@@ -70,6 +71,7 @@ export function isValidMockSession(session) {
     (profile.countryCallingCode === undefined || profile.countryCallingCode === MOCK_PATIENT.countryCallingCode) &&
     typeof profile.email === 'string' && typeof profile.preferredName === 'string' &&
     typeof profile.dateOfBirth === 'string' &&
+    (profile.photoUri == null || (typeof profile.photoUri === 'string' && /^(data:image\/jpeg;base64,[A-Za-z0-9+/]+=*|file:\/\/.+)$/.test(profile.photoUri))) &&
     (session.pin === null || (typeof session.pin === 'string' && /^\d{4}$/.test(session.pin))) &&
     Object.keys(validateProfile({ ...profile, pinEnabled: false })).length === 0);
 }

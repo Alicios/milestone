@@ -31,6 +31,14 @@
       }
     ],
     "expo-secure-store",
-    "expo-localization"
+    "expo-localization",
+    [
+      "expo-image-picker",
+      {
+        "photosPermission": "Allow Milestone to choose your profile photo.",
+        "cameraPermission": false,
+        "microphonePermission": false
+      }
+    ]
   ]
 }

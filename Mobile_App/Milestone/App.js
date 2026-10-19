@@ -21,6 +21,7 @@ import { Montserrat_700Bold } from '@expo-google-fonts/montserrat/700Bold';
 import { Montserrat_800ExtraBold } from '@expo-google-fonts/montserrat/800ExtraBold';
 import Text, { AppFontsContext } from './components/AppText';
 import Brand from './components/Brand';
+import ProfileAvatar from './components/ProfileAvatar';
 import UnlockGate from './components/UnlockGate';
 import EasterEggSelector from './components/EasterEggSelector';
 import LockKeyhole from 'lucide-react-native/icons/lock-keyhole';
@@ -637,9 +638,7 @@ function AppContent({ isUnlocked, onLock, profile }) {
       >
         <View style={styles.topRow}>
           <Brand />
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>F</Text>
-          </View>
+          <ProfileAvatar profile={profile} />
         </View>
 
         {!routineStarted && (
@@ -808,9 +807,7 @@ function HomeDashboard({
           {onLock && <Pressable accessibilityRole="button" accessibilityLabel="Lock Milestone" onPress={onLock} style={styles.lockButton}>
             <LockKeyhole size={21} color={palette.tealDark} accessible={false} />
           </Pressable>}
-          <View style={styles.avatar} accessibilityLabel={`${displayName}'s profile`}>
-            <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
-          </View>
+          <ProfileAvatar profile={profile} />
         </View>
       </View>
 
@@ -1147,21 +1144,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 2.4,
     marginBottom: 2,
-  },
-  avatar: {
-    alignItems: 'center',
-    backgroundColor: palette.orange,
-    borderColor: palette.ink,
-    borderRadius: 22,
-    borderWidth: 1.5,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  avatarText: {
-    color: palette.white,
-    fontSize: 21,
-    fontWeight: '800',
   },
   welcomeCard: {
     backgroundColor: palette.orange,

@@ -1,13 +1,15 @@
 import React from 'react';
-import { AppState, Pressable, Text, TextInput, Switch } from 'react-native';
+import { AppState, Image, Pressable, Text, TextInput, Switch } from 'react-native';
 import ReactTestRenderer from 'react-test-renderer';
 import UnlockGate from '../components/UnlockGate';
 import { createMockSession, MOCK_PATIENT } from '../auth/mockPatient';
 import { loadMockSession, saveMockSession } from '../auth/mockPatientStorage';
 import { getLocales } from 'expo-localization';
+import { chooseProfilePhoto } from '../auth/profilePhoto';
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('../auth/mockPatientStorage', () => ({ loadMockSession: jest.fn(), saveMockSession: jest.fn() }));
 jest.mock('expo-localization', () => ({ getLocales: jest.fn(() => [{ regionCode: 'US' }]) }));
+jest.mock('../auth/profilePhoto', () => ({ chooseProfilePhoto: jest.fn() }));
 let renderer;
 let background;
 function patientHome({ onLock, profile }) {
@@ -41,6 +43,7 @@ async function setup(pin = false) {
 beforeEach(() => {
   jest.clearAllMocks(); loadMockSession.mockResolvedValue(null); saveMockSession.mockResolvedValue(true);
   getLocales.mockReturnValue([{ regionCode: 'US' }]);
+  chooseProfilePhoto.mockResolvedValue(null);
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_, callback) => { background = callback; return { remove: jest.fn() }; });
 });
 afterEach(async () => { if (renderer) await ReactTestRenderer.act(async () => renderer.unmount()); jest.restoreAllMocks(); });
@@ -91,4 +94,21 @@ test.each([null, '6789'])('restores a saved session with PIN %s', async pin => {
 test('failed persistence allows entry with a visible warning', async () => {
   saveMockSession.mockResolvedValue(false); await open(true); await setup();
   expect(saveMockSession).toHaveBeenCalledWith(savedSession); expect(textIncludes('could not be saved')).toBe(true); expect(textIncludes('Patient profile home')).toBe(true);
+});
+test('previews, changes and removes a photo, and saves the chosen photo with the profile', async () => {
+  const photoUri = 'data:image/jpeg;base64,YWJj';
+  await open(true); await profileStep();
+  chooseProfilePhoto.mockResolvedValue(photoUri);
+  await press('Add profile photo');
+  const hasPhoto = () => renderer.root.findAllByType(Image).some(node => node.props.source?.uri === photoUri);
+  expect(hasPhoto()).toBe(true);
+  chooseProfilePhoto.mockResolvedValue(null);
+  await press('Change profile photo'); expect(hasPhoto()).toBe(true);
+  chooseProfilePhoto.mockRejectedValue(new Error('No photo access'));
+  await press('Change profile photo'); expect(textIncludes('Check photo access')).toBe(true); expect(hasPhoto()).toBe(true);
+  await press('Remove profile photo'); expect(hasPhoto()).toBe(false);
+  expect(button('Add profile photo')).toBeDefined();
+  chooseProfilePhoto.mockResolvedValue(photoUri);
+  await press('Add profile photo'); await fill('Email address', 'frank@example.com'); await press('Finish setup');
+  expect(saveMockSession).toHaveBeenCalledWith(expect.objectContaining({ profile: expect.objectContaining({ photoUri }) }));
 });

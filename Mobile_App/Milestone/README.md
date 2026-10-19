@@ -6,6 +6,8 @@ On a fresh launch, enter `(000) 000-0000` to find Frank Murgolo, then complete h
 
 The phone calling-code selector defaults to the device's country/region setting via Expo Localization, with US as the fallback when no supported region is available. It does not request location access. Tap the code to search and change countries. Numbers format while typing; Frank's mock profile uses `+1` and `(000) 000-0000`.
 
+Patients can optionally choose a profile photo from their photo library during setup, preview/change/remove it, or continue without one. Photos are cropped and resized to a small square JPEG and appear in the dashboard and routine avatars. They stay local: the default mock resets them on restart. When remembering setup is enabled, native photos are saved in app documents (only the reference goes into SecureStore); browser photos stay in localStorage with the mock profile.
+
 `REMEMBER_MOCK_PATIENT` in `auth/mockPatient.js` defaults to `false`: each full restart or browser reload repeats setup, while backgrounding preserves it. Set it to `true` to restore completed setup using Expo SecureStore on iOS/Android and localStorage for the mock browser preview. Saved setup opens the dashboard directly unless a PIN was enabled. Browser storage is for mock data only. If saving is unavailable, the session continues with a visible warning.
 
 When PIN protection is enabled, the dashboard lock button and backgrounding lock the app. Unlock using the PIN chosen during setup. Without PIN protection, the app assumes the person using the unlocked phone is the patient.

@@ -9,8 +9,7 @@
     "lint": "tsc -b --pretty false",
     "preview": "vite preview",
     "test:patients": "node --test tests/patientCreation.test.mjs",
-    "requests:list": "node scripts/list-access-requests.mjs",
-    "requests:approve": "node scripts/approve-access-request.mjs",
+    "test:approve-access-request": "node --test tests/approveAccessRequest.test.mjs",
     "requests:list": "node scripts/list-access-requests.mjs",
     "requests:approve": "node scripts/approve-access-request.mjs"
   },

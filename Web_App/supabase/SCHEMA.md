@@ -14,15 +14,20 @@ auth.users
 |-- providers
 |   `-- medical_practices
 |   `-- routines
-`-- provider_patient_profiles -- patients
-    |-- patient_statuses
-    |-- messages -- message_thread_state
-    `-- routine_assignments -- routines
-        |-- routine_assignment_exercises
-        `-- routine_follow_ups
+`-- patients -- auth.users (optional, nullable auth_user_id)
+    `-- provider_patient_profiles
+        |-- patient_statuses
+        |-- messages -- message_thread_state
+        `-- routine_assignments -- routines
+            |-- routine_assignment_exercises
+            `-- routine_follow_ups
 ```
 
 - A patient identity can be shared by multiple providers.
+- A patient identity optionally links to its own Supabase Auth account
+  (`patients.auth_user_id`), set administratively via the Supabase Admin API
+  as part of a provider-invited account-creation flow. Most patients have no
+  account; no such flow is implemented in this repo yet.
 - Each provider-patient pair has one private relationship profile.
 - Routine templates belong to a provider.
 - Assignments belong to a provider-specific patient profile and preserve
@@ -168,6 +173,7 @@ activity, and discharge state belong to `provider_patient_profiles`.
 | `treatment_focus` | `text`, nullable | Concise summary of the current treatment focus. |
 | `start_of_care` | `date`, nullable | Calendar date when care began; no time or timezone. |
 | `care_status` | `text` | Shared prototype state: `active` or `pending`. Provider-specific discharge uses `discharged_at`. |
+| `auth_user_id` | `uuid`, nullable, unique | Supabase Auth user backing this patient's own login (Mobile_App). Set administratively, not by a client-facing flow; null means the patient has no account yet. |
 
 ### `provider_patient_profiles`
 
@@ -272,6 +278,43 @@ the editor or claim deployed UUID validation.
 | `description` | `text`, nullable | Optional free-text routine description. |
 | `exercise_list` | `jsonb[]`, nullable | Ordered exercise values used by the routine editor and copied into assignment snapshots. |
 
+## Patient accounts and RPCs
+
+A signed-in patient (identified by `patients.auth_user_id = auth.uid()`) gets
+no direct RLS policy on any table — unlike providers, who read
+`provider_patient_profiles`, `routine_assignments`, etc. directly. Instead,
+every patient-facing read or write is a `security definer` function (added in
+`20261019000100_patient_accounts.sql`) that checks ownership internally and
+returns only patient-safe columns. This is what keeps
+`provider_patient_profiles.clinical_notes` unreachable by a patient even
+though providers and patients share the single `authenticated` Postgres role:
+RLS can restrict which *rows* a role sees, not which *columns*, so any direct
+table policy for patients would also hand over clinical notes. Routing through
+functions sidesteps that entirely.
+
+| Function | Purpose |
+| --- | --- |
+| `get_my_patient_profile()` | The calling patient's own `patients` row. |
+| `get_my_care_relationships()` | The calling patient's provider relationships (excludes `clinical_notes`). |
+| `get_my_routine_assignments(patient_profile_id)` | Assigned routines for one of the caller's own relationships. |
+| `get_my_routine_assignment_exercises(routine_assignment_id)` | Exercise snapshot for one of the caller's own assignments. |
+| `get_my_routine_follow_ups(patient_profile_id)` | Follow-ups for one of the caller's own relationships. |
+| `get_my_messages(patient_profile_id)` | Conversation history for one of the caller's own relationships. |
+| `send_my_message(patient_profile_id, body)` | The only patient write in this round: inserts a `sender_kind = 'patient'` message. |
+| `get_my_message_thread_state(patient_profile_id)` / `mark_my_messages_read(patient_profile_id)` / `set_my_message_thread_starred(patient_profile_id, starred)` | Read-cursor and starred state for the caller's own conversation. |
+
+`message_thread_state` needs a row with `participant_user_id = auth.uid()`
+before any of the three functions above can act on it. Two triggers create
+that row, covering both possible orderings: `create_provider_message_thread_state`
+(on `provider_patient_profiles` insert) now also seeds the patient's row if the
+patient already has an account, and `backfill_patient_message_thread_state`
+(on `patients.auth_user_id` transitioning from null) seeds rows for every
+relationship the patient already had.
+
+Mutating anything beyond sending a message (e.g. marking a routine assignment
+complete) is intentionally out of scope for this round; see
+`20261019000100_patient_accounts.sql`'s header comment.
+
 ## Constraints and indexes
 
 Every table has a UUID primary key. The following relationships define delete
@@ -337,6 +380,12 @@ The security-definer RPCs validate `auth.uid()` and ownership before changing
 routine, assignment, discharge, or follow-up data. The Supabase `service_role`
 and database owners remain trusted administrative paths and can bypass normal
 RLS behavior.
+
+The table above describes provider browser access only. A signed-in patient
+has no entry in it by design — every table keeps its provider-only policies
+unchanged, and patient access is exclusively through the RPCs listed in
+"Patient accounts and RPCs" above, not a browser RLS policy on any of these
+tables.
 
 ## Planning-document mapping
 

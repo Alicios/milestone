@@ -1,3 +1,5 @@
+import { useAppTheme, useThemedStyles } from './components/AppTheme';
+import { PatientSessionProvider } from './auth/PatientSession';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Pressable,
@@ -137,15 +139,19 @@ export default function App() {
   return (
     <SafeAreaProvider initialMetrics={initialMetrics}>
       <AppFontsContext.Provider value={fontsLoaded}>
+        <PatientSessionProvider>
         <UnlockGate>
-          {({ unlocked, onLock, profile }) => <AppContent isUnlocked={unlocked} onLock={onLock} profile={profile} />}
+          {({ unlocked, onLock, profile, onOpenProfile }) => <AppContent isUnlocked={unlocked} onLock={onLock} profile={profile} onOpenProfile={onOpenProfile} />}
         </UnlockGate>
+        </PatientSessionProvider>
       </AppFontsContext.Provider>
     </SafeAreaProvider>
   );
 }
 
-function AppContent({ isUnlocked, onLock, profile }) {
+function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
+  const styles = useThemedStyles(baseStyles);
+  const { colors, barStyle, mode } = useAppTheme();
   const { width } = useWindowDimensions();
   const [routineStarted, setRoutineStarted] = useState(false);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
@@ -524,9 +530,10 @@ function AppContent({ isUnlocked, onLock, profile }) {
   if (screen === 'home') {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor={palette.cream} />
+        <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
         <HomeDashboard
           onLock={onLock}
+          onOpenProfile={onOpenProfile}
           profile={profile}
           completedExerciseCount={completedExerciseCount}
           routineStarted={routineStarted}
@@ -630,7 +637,7 @@ function AppContent({ isUnlocked, onLock, profile }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={palette.cream} />
+      <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
 
       <ScrollView
         style={styles.screenScroll}
@@ -638,13 +645,13 @@ function AppContent({ isUnlocked, onLock, profile }) {
       >
         <View style={styles.topRow}>
           <Brand />
-          <ProfileAvatar profile={profile} />
+          <ProfileAvatar profile={profile} onPress={onOpenProfile} />
         </View>
 
         {!routineStarted && (
           <View style={styles.welcomeCard}>
             <Text style={styles.welcomeTitle}>WELCOME BACK,</Text>
-            <Text style={styles.welcomeTitle}>FRANK</Text>
+            <Text style={styles.welcomeTitle}>{(profile?.preferredName || profile?.fullName?.split(' ')[0] || 'Frank').toUpperCase()}</Text>
             <View style={styles.welcomeRule} />
             <Text style={styles.welcomeSubtext}>
               let's pick up where you left off
@@ -707,7 +714,7 @@ function AppContent({ isUnlocked, onLock, profile }) {
                 key={exercise.name}
                 style={[
                   styles.exerciseRow,
-                  { backgroundColor: exercise.accent },
+                  { backgroundColor: mode === 'dark' ? colors.raised : exercise.accent },
                   !routineStarted &&
                     index === 0 &&
                     styles.firstExercise,
@@ -772,6 +779,7 @@ function AppContent({ isUnlocked, onLock, profile }) {
 }
 
 function HomeDashboard({
+  onOpenProfile,
   onLock,
   profile,
   completedExerciseCount,
@@ -781,6 +789,8 @@ function HomeDashboard({
   onViewSummary,
   onMessages,
 }) {
+  const styles = useThemedStyles(baseStyles);
+  const { colors } = useAppTheme();
   const displayName = profile?.preferredName || profile?.fullName?.split(' ')[0] || 'Frank';
   const progressPercent = Math.round(
     (completedExerciseCount / exercises.length) * 100
@@ -805,9 +815,9 @@ function HomeDashboard({
         <Brand />
         <View style={styles.profileActions}>
           {onLock && <Pressable accessibilityRole="button" accessibilityLabel="Lock Milestone" onPress={onLock} style={styles.lockButton}>
-            <LockKeyhole size={21} color={palette.tealDark} accessible={false} />
+            <LockKeyhole size={21} color={colors.primary} accessible={false} />
           </Pressable>}
-          <ProfileAvatar profile={profile} />
+          <ProfileAvatar profile={profile} onPress={onOpenProfile} />
         </View>
       </View>
 
@@ -921,6 +931,8 @@ function BottomDock({
   enabled,
   onRevealEasterEgg,
 }) {
+  const styles = useThemedStyles(baseStyles);
+  const activePalette = useAppTheme().palette || palette;
   const [showEasterEgg, setShowEasterEgg] = useState(false);
   const homeWasHeld = useRef(false);
 
@@ -970,7 +982,7 @@ function BottomDock({
                 <Icon
                   accessible={false}
                   size={22}
-                  color={isActive ? palette.tealDark : palette.ink}
+                  color={isActive ? activePalette.tealDark : activePalette.ink}
                   strokeWidth={isActive ? 2.5 : 2}
                 />
                 <Text
@@ -1001,7 +1013,7 @@ function BottomDock({
             <RoutineActionIcon
               accessible={false}
               size={22}
-              color={palette.white}
+              color={activePalette.white}
               strokeWidth={2}
             />
             <Text style={styles.dockStartLabel}>{routineActionLabel}</Text>
@@ -1022,7 +1034,7 @@ const pageLayout = {
   paddingVertical: 20,
 };
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: palette.cream,

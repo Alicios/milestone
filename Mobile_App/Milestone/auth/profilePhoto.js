@@ -1,11 +1,12 @@
 import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
 // System photo picker only: no camera access and no upload to a server.
 export async function chooseProfilePhoto() {
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
-    allowsEditing: true,
+    allowsEditing: Platform.OS !== 'web',
     aspect: [1, 1],
     quality: 1,
   });

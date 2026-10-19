@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { File, Paths } from 'expo-file-system';
 import { isValidMockSession } from './mockPatient';
+import { normalizePreferences } from './preferences';
 
 const STORAGE_KEY = 'milestone.mock-patient.v1';
 
@@ -16,7 +17,7 @@ export async function loadMockSession() {
       const photo = new File(Paths.document, 'milestone-profile-photo.jpg');
       session.profile.photoUri = photo.exists ? photo.uri : null;
     }
-    return session;
+    return { ...session, preferences: normalizePreferences(session.preferences) };
   } catch {
     return null;
   }

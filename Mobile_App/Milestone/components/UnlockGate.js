@@ -1,16 +1,24 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, Platform, StyleSheet, View } from 'react-native';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, ActivityIndicator, AppState, findNodeHandle, Platform, StyleSheet, View } from 'react-native';
 import { unlockWithSecret } from '../auth/deviceUnlock';
 import UnlockScreen from './UnlockScreen';
 import PatientSetup from './PatientSetup';
 import Text from './AppText';
-import { REMEMBER_MOCK_PATIENT } from '../auth/mockPatient';
-import { loadMockSession, saveMockSession } from '../auth/mockPatientStorage';
+import { PatientSessionContext, PatientSessionProvider, usePatientSession } from '../auth/PatientSession';
+import { useAppTheme, useThemedStyles } from './AppTheme';
+import ProfileSettingsPanel from './ProfileSettingsPanel';
 
-export default function UnlockGate({ children, rememberPatient = REMEMBER_MOCK_PATIENT }) {
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(rememberPatient);
-  const [storageWarning, setStorageWarning] = useState('');
+export default function UnlockGate({ children, rememberPatient }) {
+  const context = useContext(PatientSessionContext);
+  return context ? <SessionGate>{children}</SessionGate> : <PatientSessionProvider rememberPatient={rememberPatient}><SessionGate>{children}</SessionGate></PatientSessionProvider>;
+}
+
+function SessionGate({ children }) {
+  const { session, loading, storageWarning, completeSetup: saveSetup } = usePatientSession();
+  const styles = useThemedStyles(baseStyles);
+  const { colors } = useAppTheme();
+  const [panelOpen, setPanelOpen] = useState(false);
+  const avatarButton = useRef(null);
   const [unlocked, setUnlocked] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -20,21 +28,13 @@ export default function UnlockGate({ children, rememberPatient = REMEMBER_MOCK_P
   const pending = useRef(false);
   const mounted = useRef(true);
   const pinEnabled = Boolean(session?.pin);
+  const patientId = session?.profile.id;
+  const patientPin = session?.pin;
 
   useEffect(() => {
-    if (!rememberPatient) return undefined;
-    let active = true;
-    loadMockSession().then(saved => {
-      if (!active) return;
-      setSession(saved);
-      if (saved && !saved.pin) {
-        setHasOpened(true);
-        setUnlocked(true);
-      }
-      setLoading(false);
-    });
-    return () => { active = false; };
-  }, [rememberPatient]);
+    operation.current += 1;
+    if (patientId && !patientPin) { setHasOpened(true); setUnlocked(true); }
+  }, [patientId, patientPin]);
 
   const lock = useCallback(() => {
     if (!pinEnabled) return;
@@ -87,16 +87,13 @@ export default function UnlockGate({ children, rememberPatient = REMEMBER_MOCK_P
     }
   }
 
-  async function completeSetup(nextSession) {
-    const saved = rememberPatient ? await saveMockSession(nextSession) : true;
-    if (!mounted.current) return;
-    if (!saved) setStorageWarning('Your setup could not be saved on this device. You can continue, but setup will repeat after restarting.');
-    setSession(nextSession);
+  function completeSetup(nextSession) {
+    saveSetup(nextSession);
     setHasOpened(true);
     setUnlocked(true);
   }
 
-  if (loading) return <View style={styles.loading}><ActivityIndicator color="#357F83" accessibilityLabel="Loading patient setup" /></View>;
+  if (loading) return <View style={styles.loading}><ActivityIndicator color={colors.primary} accessibilityLabel="Loading patient setup" /></View>;
   if (!session) return <PatientSetup onComplete={completeSetup} />;
 
   return (
@@ -104,7 +101,7 @@ export default function UnlockGate({ children, rememberPatient = REMEMBER_MOCK_P
       {storageWarning && unlocked ? <Text accessibilityRole="alert" style={styles.warning}>{storageWarning}</Text> : null}
       {hasOpened && (
         <View style={unlocked ? styles.content : styles.hidden} importantForAccessibility={unlocked ? 'auto' : 'no-hide-descendants'}>
-          {children({ unlocked, onLock: pinEnabled ? lock : undefined, profile: session.profile })}
+          {children({ unlocked, onLock: pinEnabled ? lock : undefined, profile: session.profile, onOpenProfile: target => { avatarButton.current = target; setPanelOpen(true); } })}
         </View>
       )}
       {!unlocked && (
@@ -116,11 +113,18 @@ export default function UnlockGate({ children, rememberPatient = REMEMBER_MOCK_P
           onClearError={clearError}
         />
       )}
+      {panelOpen && <ProfileSettingsPanel visible={unlocked} onClose={() => {
+        setPanelOpen(false);
+        requestAnimationFrame(() => {
+          if (Platform.OS === 'web') avatarButton.current?.focus?.();
+          else { const handle = findNodeHandle(avatarButton.current); if (handle) AccessibilityInfo.setAccessibilityFocus(handle); }
+        });
+      }} />}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   content: { flex: 1 },
   hidden: { display: 'none' },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4EACF' },

@@ -1,3 +1,4 @@
+import { useAppTheme, useThemedStyles } from './AppTheme';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,16 +11,20 @@ import { callingCode, formatPhoneInput, getDevicePhoneCountry } from '../auth/ph
 import { createMockSession, findMockPatient, formatPhone, validateProfile } from '../auth/mockPatient';
 
 function Field({ label, error, ...props }) {
+  const styles = useThemedStyles(baseStyles);
+  const { colors } = useAppTheme();
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput accessibilityLabel={label} placeholderTextColor="#637D7B" style={[styles.input, props.editable === false && styles.readOnly, error && styles.invalid]} {...props} />
+      <TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} style={[styles.input, props.editable === false && styles.readOnly, error && styles.invalid]} {...props} />
       {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
     </View>
   );
 }
 
 export default function PatientSetup({ onComplete }) {
+  const styles = useThemedStyles(baseStyles);
+  const { colors, barStyle } = useAppTheme();
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState(getDevicePhoneCountry);
   const [patient, setPatient] = useState(null);
@@ -78,7 +83,7 @@ export default function PatientSetup({ onComplete }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F4EACF" />
+      <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={styles.fill} contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
           <View style={styles.brand}><Brand /></View>
@@ -93,7 +98,7 @@ export default function PatientSetup({ onComplete }) {
                   <Text style={styles.label}>Phone number</Text>
                   <View style={styles.phoneRow}>
                     <CountryCodePicker country={country} onChange={nextCountry => { setCountry(nextCountry); setPhone(value => formatPhoneInput(value, nextCountry)); setPhoneError(''); }} />
-                    <TextInput accessibilityLabel="Phone number" value={phone} keyboardType="phone-pad" autoComplete="tel-national" textContentType="telephoneNumber" maxLength={30} placeholder={callingCode(country) === '1' ? '(000) 000-0000' : 'Phone number'} placeholderTextColor="#637D7B" style={[styles.input, styles.phoneInput, phoneError && styles.invalid]}
+                    <TextInput accessibilityLabel="Phone number" value={phone} keyboardType="phone-pad" autoComplete="tel-national" textContentType="telephoneNumber" maxLength={30} placeholder={callingCode(country) === '1' ? '(000) 000-0000' : 'Phone number'} placeholderTextColor={colors.muted} style={[styles.input, styles.phoneInput, phoneError && styles.invalid]}
                       onChangeText={value => { setPhone(formatPhoneInput(value, country)); setPhoneError(''); }} onSubmitEditing={lookup} returnKeyType="go" />
                   </View>
                   {phoneError ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{phoneError}</Text> : null}
@@ -118,7 +123,7 @@ export default function PatientSetup({ onComplete }) {
                 <Field label="Date of birth (optional)" value={details.dateOfBirth} editable={!busy} onChangeText={value => change('dateOfBirth', value)} keyboardType="numbers-and-punctuation" placeholder="MM/DD/YYYY" maxLength={10} error={errors.dateOfBirth} />
                 <View style={styles.pinOption}>
                   <Text style={styles.pinLabel}>Protect this app with a PIN</Text>
-                  <Switch accessibilityLabel="Protect this app with a PIN" value={details.pinEnabled} disabled={busy} trackColor={{ true: '#357F83', false: '#B7CAC2' }} onValueChange={value => {
+                  <Switch accessibilityLabel="Protect this app with a PIN" value={details.pinEnabled} disabled={busy} trackColor={{ true: colors.primary, false: colors.border }} onValueChange={value => {
                     setDetails(current => ({ ...current, pinEnabled: value, pin: '', confirmPin: '' }));
                     setErrors(current => ({ ...current, pin: '', confirmPin: '' }));
                   }} />
@@ -141,7 +146,7 @@ export default function PatientSetup({ onComplete }) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   fill: { flex: 1 },
   safeArea: { flex: 1, backgroundColor: '#F4EACF' },
   page: { width: '90%', maxWidth: 440, alignSelf: 'center', flexGrow: 1, justifyContent: 'center', paddingVertical: 32 },

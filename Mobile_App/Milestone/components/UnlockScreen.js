@@ -1,3 +1,4 @@
+import { useAppTheme, useThemedStyles } from './AppTheme';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,6 +16,8 @@ import Text from './AppText';
 import Brand from './Brand';
 
 function PinField({ label, value, onChangeText, disabled, onSubmitEditing }) {
+  const styles = useThemedStyles(baseStyles);
+  const { colors } = useAppTheme();
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -23,7 +26,7 @@ function PinField({ label, value, onChangeText, disabled, onSubmitEditing }) {
         value={value}
         onChangeText={onChangeText}
         placeholder="4-digit PIN"
-        placeholderTextColor="#637D7B"
+        placeholderTextColor={colors.muted}
         secureTextEntry
         keyboardType="number-pad"
         inputMode="numeric"
@@ -40,6 +43,8 @@ function PinField({ label, value, onChangeText, disabled, onSubmitEditing }) {
 }
 
 export default function UnlockScreen({ busy, error, onSubmit, onClearError }) {
+  const styles = useThemedStyles(baseStyles);
+  const { colors, barStyle } = useAppTheme();
   const [secret, setSecret] = useState('');
   const [validation, setValidation] = useState('');
   const disabled = busy;
@@ -54,7 +59,7 @@ export default function UnlockScreen({ busy, error, onSubmit, onClearError }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F4EACF" />
+      <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={styles.fill} contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
           <View style={styles.brand}>
@@ -95,7 +100,7 @@ export default function UnlockScreen({ busy, error, onSubmit, onClearError }) {
               onPress={submit}
               style={[styles.primary, disabled && styles.disabled]}
             >
-              {busy ? <ActivityIndicator color="#FFFDF7" accessibilityLabel="Checking unlock" /> : (
+              {busy ? <ActivityIndicator color={colors.onAccent} accessibilityLabel="Checking unlock" /> : (
                 <Text style={styles.primaryText}>Unlock</Text>
               )}
             </Pressable>
@@ -108,7 +113,7 @@ export default function UnlockScreen({ busy, error, onSubmit, onClearError }) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   fill: { flex: 1 },
   safeArea: { flex: 1, backgroundColor: '#F4EACF' },
   page: { width: '90%', maxWidth: 440, alignSelf: 'center', flexGrow: 1, justifyContent: 'center', paddingVertical: 32 },

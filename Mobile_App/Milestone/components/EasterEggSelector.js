@@ -1,3 +1,4 @@
+import { useAppTheme, useThemedStyles } from './AppTheme';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { setAudioModeAsync } from 'expo-audio';
@@ -14,6 +15,8 @@ const images = [
 ];
 
 export default function EasterEggSelector({ onClose }) {
+  const styles = useThemedStyles(baseStyles);
+  const { colors } = useAppTheme();
   const [selected, setSelected] = useState(0);
   const [error, setError] = useState('');
   const active = useRef(true);
@@ -63,7 +66,7 @@ export default function EasterEggSelector({ onClose }) {
                 <Text accessibilityRole="header" style={styles.title}>LeTeam</Text>
               </View>
               <Pressable accessibilityRole="button" accessibilityLabel="Close hidden selector" onPress={close} style={styles.close}>
-                <X size={24} color="#193333" accessible={false} />
+                <X size={24} color={colors.text} accessible={false} />
               </Pressable>
             </View>
 
@@ -107,7 +110,7 @@ export default function EasterEggSelector({ onClose }) {
               onPress={toggleSound}
               style={[styles.soundButton, !status.isLoaded && styles.loading]}
             >
-              {!status.isLoaded ? <ActivityIndicator color="#FFFDF7" /> : <SoundIcon size={20} color="#FFFDF7" accessible={false} />}
+              {!status.isLoaded ? <ActivityIndicator color={colors.onAccent} /> : <SoundIcon size={20} color={colors.onAccent} accessible={false} />}
               <Text style={styles.soundLabel}>{!status.isLoaded ? 'Loading sound…' : status.playing ? 'Pause sound' : 'Play sound'}</Text>
             </Pressable>
             {(error || status.error) && <Text accessibilityRole="alert" style={styles.error}>{error || 'The sound couldn’t load. Close the selector and try again.'}</Text>}
@@ -119,7 +122,7 @@ export default function EasterEggSelector({ onClose }) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   overlay: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(12, 35, 35, 0.65)', paddingVertical: '5%' },
   card: { width: '92%', maxWidth: 720, maxHeight: '94%', backgroundColor: '#F4EACF', borderRadius: 24, overflow: 'hidden' },
   content: { padding: '5%' },

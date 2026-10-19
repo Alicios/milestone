@@ -1,5 +1,6 @@
 import { isPossiblePhoneNumber } from 'libphonenumber-js';
 import { callingCode, nationalPhoneDigits } from './phoneNumber';
+import { defaultPreferences } from './preferences';
 
 // Set true to restore completed mock setup after a full restart.
 // False ignores saved data and keeps this launch entirely in memory.
@@ -61,6 +62,7 @@ export function createMockSession(patient, details) {
       photoUri: details.photoUri || null,
     },
     pin: details.pinEnabled ? details.pin : null,
+    preferences: defaultPreferences(),
   };
 }
 

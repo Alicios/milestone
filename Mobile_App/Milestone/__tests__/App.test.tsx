@@ -34,6 +34,10 @@ jest.mock('expo-font', () => ({
   useFonts: jest.fn(() => [true, null]),
 }));
 
+jest.mock('../auth/PatientSession', () => ({
+  PatientSessionProvider: ({children}: {children: React.ReactNode}) => children,
+}));
+
 // Routine regression tests run inside an already unlocked session.
 jest.mock('../components/UnlockGate', () => ({
   __esModule: true,

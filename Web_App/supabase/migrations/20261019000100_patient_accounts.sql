@@ -92,7 +92,7 @@ create or replace function public.get_my_routine_assignment_exercises(p_routine_
 returns table (
   id uuid,
   exercise_name_snapshot text,
-  position integer
+  exercise_position integer
 )
 language sql
 security definer

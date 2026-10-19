@@ -55,8 +55,13 @@ test('validates phone and profile, prefills identity, and supports back navigati
   await profileStep();
   const name = renderer.root.findAllByType(TextInput).find(node => node.props.accessibilityLabel === 'Full name');
   expect(name.props.value).toBe('Frank Murgolo'); expect(name.props.editable).toBe(false);
-  await press('Finish setup'); expect(textIncludes('valid email')).toBe(true);
+  await fill('Email address', 'invalid'); await press('Finish setup'); expect(textIncludes('valid email')).toBe(true);
   await press('Back to phone number'); expect(button('Continue')).toBeDefined();
+});
+test('completes signup with no email address', async () => {
+  await open(true); await profileStep(); await press('Finish setup');
+  expect(textIncludes('Patient profile home')).toBe(true);
+  expect(saveMockSession).toHaveBeenCalledWith(expect.objectContaining({ profile: expect.objectContaining({ email: '' }) }));
 });
 test('uses the device region and allows searching and changing the calling code', async () => {
   getLocales.mockReturnValue([{ regionCode: 'GB' }]);

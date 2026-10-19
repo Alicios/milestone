@@ -103,6 +103,7 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
   const mounted = useRef(true);
   const closing = useRef(false);
   const dismissRef = useRef(null);
+  const mouseStart = useRef(null);
   const dirty = draft.email !== profile.email || draft.preferredName !== profile.preferredName || draft.photoUri !== (profile.photoUri || null);
 
   useEffect(() => {
@@ -127,9 +128,10 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
   function finishClose() {
     if (closing.current) return;
     closing.current = true;
-    Animated.timing(translation, { toValue: 900, duration: reducedMotion.current ? 0 : 220, useNativeDriver: Platform.OS !== 'web' }).start(({ finished }) => { if (finished && mounted.current) { setPresent(false); onClose(); } });
+    Animated.timing(translation, { toValue: 900, duration: reducedMotion.current ? 0 : 220, useNativeDriver: Platform.OS !== 'web' }).start(({ finished }) => { if (finished && mounted.current) { setPresent(false); onClose(); } else closing.current = false; });
   }
   function requestDismiss() {
+    if (closing.current) return;
     translation.setValue(0);
     if (photoBusy) return;
     if (dirty) setDiscard(true); else finishClose();
@@ -137,11 +139,32 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
   dismissRef.current = requestDismiss;
 
   const drag = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 6 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
     onPanResponderMove: (_, gesture) => translation.setValue(Math.max(0, gesture.dy)),
     onPanResponderRelease: (_, gesture) => { if (gesture.dy > 80 || gesture.vy > 0.8) dismissRef.current(); else if (reducedMotion.current) translation.setValue(0); else Animated.spring(translation, { toValue: 0, useNativeDriver: Platform.OS !== 'web' }).start(); },
     onPanResponderTerminate: () => translation.setValue(0),
   })).current;
+  // Pointer capture keeps desktop dragging attached to the handle outside its bounds.
+  const mouseDrag = Platform.OS === 'web' ? {
+    onPointerDown: event => {
+      if (event.nativeEvent.pointerType !== 'mouse') return;
+      mouseStart.current = event.nativeEvent.clientY;
+      event.currentTarget.setPointerCapture(event.nativeEvent.pointerId);
+      event.preventDefault();
+    },
+    onPointerMove: event => {
+      if (mouseStart.current !== null) translation.setValue(Math.max(0, event.nativeEvent.clientY - mouseStart.current));
+    },
+    onPointerUp: event => {
+      if (mouseStart.current === null) return;
+      const distance = event.nativeEvent.clientY - mouseStart.current;
+      mouseStart.current = null;
+      event.currentTarget.releasePointerCapture(event.nativeEvent.pointerId);
+      if (distance > 80) dismissRef.current(); else translation.setValue(0);
+    },
+    onPointerCancel: () => { mouseStart.current = null; translation.setValue(0); },
+  } : {};
 
   useEffect(() => {
     if (!visible || Platform.OS !== 'web') return undefined;
@@ -181,7 +204,7 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
     <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable accessibilityRole="button" accessibilityLabel="Dismiss profile panel" onPress={requestDismiss} style={styles.backdrop} />
       <Animated.View ref={dialog} accessibilityViewIsModal style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12), transform: [{ translateY: translation }] }]}>
-        <View {...drag.panHandlers} style={styles.handleArea}><View style={styles.handle} /></View>
+        <View {...drag.panHandlers} {...mouseDrag} style={styles.handleArea}><View style={styles.handle} /></View>
         <View style={styles.header}><Text ref={title} tabIndex={-1} accessibilityRole="header" style={styles.title}>Your account</Text><Pressable accessibilityRole="button" accessibilityLabel="Close profile and settings" onPress={requestDismiss} style={styles.close}><X size={24} color={colors.text} accessible={false} /></Pressable></View>
         <View accessibilityRole="tablist" style={styles.tabs}>{[['profile', 'Profile'], ['settings', 'Settings']].map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityLabel={label} aria-selected={tab === value} accessibilityState={{ selected: tab === value }} onPress={() => setTab(value)} style={[styles.tab, tab === value && styles.activeTab, tab === value && { borderBottomColor: colors.primary }]}><Text style={[styles.tabText, tab === value && styles.activeTabText]}>{label}</Text></Pressable>)}</View>
         {discard ? <View style={styles.confirmation}><Text accessibilityRole="header" style={styles.sectionTitle}>Discard profile edits?</Text><Text style={styles.hint}>Your unsaved profile changes will be lost.</Text><Action label="Keep editing" onPress={() => setDiscard(false)} /><Action label="Discard changes" secondary onPress={finishClose} /></View> : <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -191,7 +214,7 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
             <Field label="Full name" value={profile.fullName} editable={false} />
             <Field label="Phone number" value={`+${profile.countryCallingCode || '1'} ${formatPhone(profile.phone)}`} editable={false} />
             <Field label="Preferred name" value={draft.preferredName} onChangeText={value => edit('preferredName', value)} maxLength={60} autoCapitalize="words" />
-            <Field label="Email address" value={draft.email} onChangeText={value => edit('email', value)} keyboardType="email-address" autoComplete="email" autoCorrect={false} autoCapitalize="none" />
+            <Field label="Email address (optional)" accessibilityLabel="Email address" value={draft.email} onChangeText={value => edit('email', value)} keyboardType="email-address" autoComplete="email" autoCorrect={false} autoCapitalize="none" />
             {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}{message ? <Text accessibilityRole="alert" style={styles.hint}>{message}</Text> : null}
             <Action label="Save profile" disabled={photoBusy} onPress={save} /><Action label="Cancel" secondary disabled={photoBusy} onPress={requestDismiss} />
           </View>

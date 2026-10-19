@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AccessibilityInfo, Animated, AppState, Pressable, Switch, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, AppState, Modal, Pressable, Switch, Text, View } from 'react-native';
 import ReactTestRenderer from 'react-test-renderer';
 import UnlockGate from '../components/UnlockGate';
 import ProfileAvatar from '../components/ProfileAvatar';
@@ -70,6 +70,15 @@ test('confirms discarding unsaved profile changes', async () => {
   await press('Keep editing'); expect(element('Preferred name', 'onChangeText').props.value).toBe('Unsaved');
   await press('Cancel'); await press('Discard changes');
   expect(sessionApi.session.profile.preferredName).toBe('');
+});
+test('Android Back respects unsaved drafts and reduced motion skips animation', async () => {
+  await open();
+  await ReactTestRenderer.act(async () => renderer.root.findByType(Modal).props.onRequestClose());
+  expect(Animated.timing).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ duration: 0 }));
+  await press('Open profile and settings'); await fill('Preferred name', 'Unsaved');
+  await ReactTestRenderer.act(async () => renderer.root.findByType(Modal).props.onRequestClose());
+  expect(hasText('Discard profile edits?')).toBe(true);
+  await press('Keep editing'); expect(element('Preferred name', 'onChangeText').props.value).toBe('Unsaved');
 });
 test('changes appearance immediately and validates reminder schedules', async () => {
   await open(); await press('Settings'); await press('Dark');

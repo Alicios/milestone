@@ -5,8 +5,11 @@ test('accepts formatted numbers and rejects unmatched or incomplete numbers', ()
   expect(findMockPatient('(000) 000- 0000')).toEqual(MOCK_PATIENT);
   expect(() => findMockPatient('000')).toThrow('10-digit'); expect(() => findMockPatient('1234567890')).toThrow('could not find');
 });
-test('requires valid email but accepts empty optional fields', () => {
+test('accepts blank email and validates email only when supplied', () => {
   expect(validateProfile(details)).toEqual({}); expect(validateProfile({ ...details, email: 'bad' })).toHaveProperty('email');
+  expect(validateProfile({ ...details, email: '' })).toEqual({});
+  expect(validateProfile({ ...details, email: '   ' })).toEqual({});
+  expect(isValidMockSession(createMockSession(MOCK_PATIENT, { ...details, email: '' }))).toBe(true);
 });
 test.each(['02/30/2000', '13/01/2000', '1/1/2000', '01/01/3000', '02/29/2001'])('rejects invalid or future birthday %s', dateOfBirth => {
   expect(validateProfile({ ...details, dateOfBirth })).toHaveProperty('dateOfBirth');

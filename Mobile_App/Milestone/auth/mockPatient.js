@@ -32,7 +32,7 @@ export function formatPhone(phone) {
 
 export function validateProfile({ email, dateOfBirth = '', pinEnabled, pin, confirmPin }, today = new Date()) {
   const errors = {};
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = 'Enter a valid email address.';
+  if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = 'Enter a valid email address.';
   if (dateOfBirth.trim()) {
     const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dateOfBirth.trim());
     const month = Number(match?.[1]);

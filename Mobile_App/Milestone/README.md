@@ -2,7 +2,7 @@ This is a new [**React Native**](https://reactnative.dev) project, bootstrapped 
 
 ## Mock patient setup
 
-On a fresh launch, enter `(000) 000-0000` to find Frank Murgolo, then complete his profile. Email is required; preferred name, date of birth (`MM/DD/YYYY`), and a patient-chosen four-digit PIN are optional. There is no database connection or SMS verification.
+On a fresh launch, enter `(000) 000-0000` to find Frank Murgolo, then complete his profile. Email, preferred name, date of birth (`MM/DD/YYYY`), and a patient-chosen four-digit PIN are optional. An email address is validated only when provided. There is no database connection or SMS verification.
 
 The phone calling-code selector defaults to the device's country/region setting via Expo Localization, with US as the fallback when no supported region is available. It does not request location access. Tap the code to search and change countries. Numbers format while typing; Frank's mock profile uses `+1` and `(000) 000-0000`.
 
@@ -11,6 +11,14 @@ Patients can optionally choose a profile photo from their photo library during s
 `REMEMBER_MOCK_PATIENT` in `auth/mockPatient.js` defaults to `false`: each full restart or browser reload repeats setup, while backgrounding preserves it. Set it to `true` to restore completed setup using Expo SecureStore on iOS/Android and localStorage for the mock browser preview. Saved setup opens the dashboard directly unless a PIN was enabled. Browser storage is for mock data only. If saving is unavailable, the session continues with a visible warning.
 
 When PIN protection is enabled, the dashboard lock button and backgrounding lock the app. Unlock using the PIN chosen during setup. Without PIN protection, the app assumes the person using the unlocked phone is the patient.
+
+### Profile and Settings panel
+
+Tap the avatar on the dashboard or routine page to open the sliding bottom panel. Profile lets patients save changes to their photo, preferred name, and email; name and phone remain read-only. Unsaved profile drafts survive tab switches and PIN locking. Closing a modified draft asks whether to discard it.
+
+Settings offers PIN protection (the current PIN is required to change or disable it), Light/Dark/Follow device appearance, and mock exercise reminders. Appearance applies throughout the app and defaults to Follow device; dark colors match the web app. Reminders default to off, all weekdays selected, at `09:00` in device-local time. They only preview preferences and never schedule notifications or request notification access.
+
+`PatientSessionProvider` owns profile, PIN, and preferences. Updates retain the current routine and serialize local storage writes. `REMEMBER_MOCK_PATIENT` controls persistence for edits and settings as well as signup; with its default `false`, a full restart resets everything. Existing saved sessions receive default appearance/reminder preferences. Storage errors show a warning while the app continues in memory.
 
 # Getting Started
 

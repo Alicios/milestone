@@ -29,6 +29,8 @@
       {
         "motionPermission": "Allow Milestone to use phone movement to tilt the hidden image."
       }
-    ]
+    ],
+    "expo-secure-store",
+    "expo-localization"
   ]
 }

@@ -137,14 +137,14 @@ export default function App() {
     <SafeAreaProvider initialMetrics={initialMetrics}>
       <AppFontsContext.Provider value={fontsLoaded}>
         <UnlockGate>
-          {({ unlocked, onLock }) => <AppContent isUnlocked={unlocked} onLock={onLock} />}
+          {({ unlocked, onLock, profile }) => <AppContent isUnlocked={unlocked} onLock={onLock} profile={profile} />}
         </UnlockGate>
       </AppFontsContext.Provider>
     </SafeAreaProvider>
   );
 }
 
-function AppContent({ isUnlocked, onLock }) {
+function AppContent({ isUnlocked, onLock, profile }) {
   const { width } = useWindowDimensions();
   const [routineStarted, setRoutineStarted] = useState(false);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
@@ -526,6 +526,7 @@ function AppContent({ isUnlocked, onLock }) {
         <StatusBar barStyle="dark-content" backgroundColor={palette.cream} />
         <HomeDashboard
           onLock={onLock}
+          profile={profile}
           completedExerciseCount={completedExerciseCount}
           routineStarted={routineStarted}
           routineComplete={routineComplete}
@@ -773,6 +774,7 @@ function AppContent({ isUnlocked, onLock }) {
 
 function HomeDashboard({
   onLock,
+  profile,
   completedExerciseCount,
   routineStarted,
   routineComplete,
@@ -780,6 +782,7 @@ function HomeDashboard({
   onViewSummary,
   onMessages,
 }) {
+  const displayName = profile?.preferredName || profile?.fullName?.split(' ')[0] || 'Frank';
   const progressPercent = Math.round(
     (completedExerciseCount / exercises.length) * 100
   );
@@ -802,11 +805,11 @@ function HomeDashboard({
       <View style={styles.topRow}>
         <Brand />
         <View style={styles.profileActions}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Lock Milestone" onPress={onLock} style={styles.lockButton}>
+          {onLock && <Pressable accessibilityRole="button" accessibilityLabel="Lock Milestone" onPress={onLock} style={styles.lockButton}>
             <LockKeyhole size={21} color={palette.tealDark} accessible={false} />
-          </Pressable>
-          <View style={styles.avatar} accessibilityLabel="Frank's profile">
-            <Text style={styles.avatarText}>F</Text>
+          </Pressable>}
+          <View style={styles.avatar} accessibilityLabel={`${displayName}'s profile`}>
+            <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
           </View>
         </View>
       </View>
@@ -814,7 +817,7 @@ function HomeDashboard({
       <View style={styles.dashboardGreeting}>
         <Text style={styles.dashboardDate}>{today}</Text>
         <Text accessibilityRole="header" style={styles.dashboardTitle}>
-          Welcome back, Frank.
+          Welcome back, {displayName}.
         </Text>
         <Text style={styles.dashboardSubtitle}>Here's your day at a glance.</Text>
       </View>

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Text from './AppText';
+import Brand from './Brand';
 
 function PinField({ label, value, onChangeText, disabled, onSubmitEditing }) {
   return (
@@ -57,7 +58,7 @@ export default function UnlockScreen({ busy, error, onSubmit, onClearError }) {
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={styles.fill} contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
           <View style={styles.brand}>
-            <Text style={styles.wordmark}>Milestone</Text>
+            <Brand />
           </View>
 
           <View style={styles.intro}>
@@ -112,7 +113,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F4EACF' },
   page: { width: '90%', maxWidth: 440, alignSelf: 'center', flexGrow: 1, justifyContent: 'center', paddingVertical: 32 },
   brand: { alignItems: 'center', marginBottom: 42 },
-  wordmark: { color: '#125b75', fontSize: 30, fontWeight: '800', letterSpacing: -1 },
   intro: { alignItems: 'center', marginBottom: 28 },
   eyebrow: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, color: '#357F83', textAlign: 'center', marginBottom: 10 },
   title: { fontSize: 34, fontWeight: '800', color: '#193333', textAlign: 'center' },

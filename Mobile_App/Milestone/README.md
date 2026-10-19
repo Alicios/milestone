@@ -1,5 +1,15 @@
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
+## Mock patient setup
+
+On a fresh launch, enter `(000) 000-0000` to find Frank Murgolo, then complete his profile. Email is required; preferred name, date of birth (`MM/DD/YYYY`), and a patient-chosen four-digit PIN are optional. There is no database connection or SMS verification.
+
+The phone calling-code selector defaults to the device's country/region setting via Expo Localization, with US as the fallback when no supported region is available. It does not request location access. Tap the code to search and change countries. Numbers format while typing; Frank's mock profile uses `+1` and `(000) 000-0000`.
+
+`REMEMBER_MOCK_PATIENT` in `auth/mockPatient.js` defaults to `false`: each full restart or browser reload repeats setup, while backgrounding preserves it. Set it to `true` to restore completed setup using Expo SecureStore on iOS/Android and localStorage for the mock browser preview. Saved setup opens the dashboard directly unless a PIN was enabled. Browser storage is for mock data only. If saving is unavailable, the session continues with a visible warning.
+
+When PIN protection is enabled, the dashboard lock button and backgrounding lock the app. Unlock using the PIN chosen during setup. Without PIN protection, the app assumes the person using the unlocked phone is the patient.
+
 # Getting Started
 
 > **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.

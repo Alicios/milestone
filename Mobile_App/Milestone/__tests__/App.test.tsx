@@ -37,7 +37,7 @@ jest.mock('expo-font', () => ({
 // Routine regression tests run inside an already unlocked session.
 jest.mock('../components/UnlockGate', () => ({
   __esModule: true,
-  default: ({children}: {children: Function}) => children({unlocked: true, onLock: jest.fn()}),
+  default: ({children}: {children: Function}) => children({unlocked: true, onLock: jest.fn(), profile: {fullName: 'Frank Murgolo', preferredName: '', phone: '0000000000', email: 'frank@example.com'}}),
 }));
 
 let renderer: ReactTestRenderer.ReactTestRenderer;

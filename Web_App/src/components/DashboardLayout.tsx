@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, AppBar, Avatar, Box, Button, Container, Divider, IconButton, Menu, MenuItem, Stack, Toolbar, Typography } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import type { Patient } from '../data/mockPatients'
-import type { Routine, RoutineAssignment } from '../types'
+import type { Routine, RoutineAssignment, RoutineExerciseInput } from '../types'
 import {
   assignRoutine as assignRoutineInDatabase,
   cancelRoutineAssignment as cancelAssignmentInDatabase,
@@ -18,6 +18,7 @@ import {
   scheduleRoutineFollowUp as scheduleFollowUpInDatabase,
 } from '../lib/supabaseData'
 import { getCurrentWeekDates } from '../lib/week'
+import { errorMessage } from '../lib/errors'
 
 export type DayAssignments = Record<string, RoutineAssignment[]>
 type RoutineAssignments = Record<string, DayAssignments>
@@ -32,7 +33,7 @@ export interface DashboardOutletContext {
   scheduleFollowUp: (assignmentId: string, scheduledAt: string) => Promise<void>
   cancelFollowUp: (assignmentId: string) => Promise<void>
   completeFollowUp: (assignmentId: string) => Promise<void>
-  saveRoutine: (routineId: string | null, name: string, exercises: string[]) => Promise<void>
+  saveRoutine: (routineId: string | null, name: string, exercises: RoutineExerciseInput[]) => Promise<void>
   dischargePatient: (patientId: string) => Promise<void>
 }
 
@@ -50,6 +51,30 @@ export function DashboardLayout() {
   const [patientsLoading, setPatientsLoading] = useState(true)
   const [patientsError, setPatientsError] = useState('')
   const [routines, setRoutines] = useState<Routine[]>([])
+  const [routineReloadError, setRoutineReloadError] = useState('')
+  const [routinesReloading, setRoutinesReloading] = useState(false)
+  const routineReloadPending = useRef(false)
+  const activeProvider = useRef(user?.id)
+  activeProvider.current = user?.id
+  const reloadRoutines = async () => {
+    if (!user || routineReloadPending.current) return
+    routineReloadPending.current = true
+    setRoutinesReloading(true)
+    try {
+      const rows = await loadRoutines(user.id)
+      if (activeProvider.current !== user.id) return
+      setRoutines(rows)
+      setRoutineReloadError('')
+    } catch (error) {
+      if (activeProvider.current !== user.id) return
+      setRoutineReloadError((current) => current.startsWith('Routine saved successfully')
+        ? 'Routine saved successfully, but routines still could not be reloaded. Retry loading routines.'
+        : errorMessage(error, 'Routines could not be loaded.'))
+    } finally {
+      routineReloadPending.current = false
+      setRoutinesReloading(false)
+    }
+  }
   const [assignments, setAssignments] = useState<RoutineAssignments>({})
   const weekDates = useMemo(() => getCurrentWeekDates(), [])
 
@@ -70,10 +95,9 @@ export function DashboardLayout() {
     if (!user) return () => { active = false }
     setPatientsLoading(true)
     setPatientsError('')
-    void Promise.all([loadPatients(user.id), loadRoutines()]).then(async ([nextPatients, nextRoutines]) => {
+    void loadPatients(user.id).then(async (nextPatients) => {
       if (!active) return
       setPatients(nextPatients)
-      setRoutines(nextRoutines)
       await refreshAssignments(nextPatients)
     }).catch((error: Error) => {
       if (active) setPatientsError(error.message || 'Patients could not be loaded from Supabase.')
@@ -82,6 +106,20 @@ export function DashboardLayout() {
     })
     return () => { active = false }
   }, [refreshAssignments, user])
+
+  useEffect(() => {
+    let active = true
+    setRoutines([])
+    setRoutineReloadError('')
+    if (user) {
+      void loadRoutines(user.id).then((rows) => {
+        if (active) setRoutines(rows)
+      }).catch((error) => {
+        if (active) setRoutineReloadError(errorMessage(error, 'Routines could not be loaded.'))
+      })
+    }
+    return () => { active = false }
+  }, [user])
 
   const assignRoutine = async (patientProfileId: string, scheduledDate: string, routineId: string) => {
     await assignRoutineInDatabase(patientProfileId, routineId, scheduledDate)
@@ -108,9 +146,19 @@ export function DashboardLayout() {
     await refreshAssignments(patients)
   }
 
-  const saveRoutine = async (routineId: string | null, name: string, exercises: string[]) => {
+  const saveRoutine = async (routineId: string | null, name: string, exercises: RoutineExerciseInput[]) => {
+    if (!user) throw new Error('Sign in before saving a routine.')
     await saveRoutineInDatabase(routineId, name, exercises)
-    setRoutines(await loadRoutines())
+    try {
+      const rows = await loadRoutines(user.id)
+      if (activeProvider.current !== user.id) return
+      setRoutines(rows)
+      setRoutineReloadError('')
+    } catch {
+      if (activeProvider.current !== user.id) return
+      // The database write succeeded. Retrying must reload, never repeat creation.
+      setRoutineReloadError('Routine saved successfully, but routines could not be reloaded. Retry loading routines to make it available for assignment.')
+    }
   }
 
   const dischargePatient = async (patientId: string) => {
@@ -160,6 +208,7 @@ export function DashboardLayout() {
     <Container maxWidth={false} sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: isMessagesPage ? 0 : { xs: 2, md: 3 } }}>
       {patientsLoading && <Alert severity="info" sx={{ mb: 2 }}>Loading patients from Supabase…</Alert>}
       {patientsError && <Alert severity="error" sx={{ mb: 2 }}>{patientsError}</Alert>}
+      {routineReloadError && <Alert severity="warning" sx={{ mb: 2 }} action={<Button color="inherit" disabled={routinesReloading} onClick={() => void reloadRoutines()}>{routinesReloading ? 'Loading…' : 'Retry loading routines'}</Button>}>{routineReloadError}</Alert>}
       <Outlet context={{ patients, routines, assignments, weekDates, assignRoutine, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, dischargePatient } satisfies DashboardOutletContext} />
     </Container>
   </Box>

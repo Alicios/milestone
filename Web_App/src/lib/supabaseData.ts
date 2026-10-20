@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
-import type { EditableUserFields, FollowUpAppointment, MedicalPractice, Routine, RoutineAssignment, RoutineAssignmentStatus, RoutineExercise, User } from '../types'
+import type { EditableUserFields, FollowUpAppointment, MedicalPractice, Routine, RoutineAssignment, RoutineAssignmentStatus, RoutineExercise, RoutineExerciseInput, User } from '../types'
+import { validPrescriptionInteger } from './prescriptions'
 import type { Patient } from '../data/mockPatients'
 
 export const PROFILE_IMAGE_BUCKET = 'profile-images'
@@ -193,16 +194,31 @@ type RoutineAssignmentRow = {
   status: RoutineAssignmentStatus
   routine_name_snapshot: string
 }
-type AssignmentExerciseRow = { id: string; routine_assignment_id: string; exercise_name_snapshot: string; position: number }
+type AssignmentExerciseRow = {
+  id: string; routine_assignment_id: string; exercise_name_snapshot: string; position: number
+  sets_snapshot?: number | null; reps_snapshot?: number | null
+  timer_seconds_snapshot?: number | null; notes_snapshot?: string | null
+}
 type LegacyAssignmentExerciseRow = { id: string; routine_assignment_id: string; name: string; position: number }
 type RoutineFollowUpRow = { id: string; routine_assignment_id: string; scheduled_at: string; status: FollowUpAppointment['status'] }
 
 function toExercise(row: RoutineExerciseRow | AssignmentExerciseRow): RoutineExercise {
   const name = 'exercise_name_snapshot' in row ? row.exercise_name_snapshot : row.name
-  return { id: row.id, name, position: row.position }
+  const snapshot = row as AssignmentExerciseRow
+  return { id: row.id, name, position: row.position, sets: snapshot.sets_snapshot ?? null,
+    reps: snapshot.reps_snapshot ?? null, durationSeconds: snapshot.timer_seconds_snapshot ?? null,
+    notes: snapshot.notes_snapshot ?? null }
 }
 
 async function loadAssignmentExerciseSnapshots(assignmentIds: string[]) {
+  const prescriptionResult = await supabase
+    .from('routine_assignment_exercises')
+    .select('id, routine_assignment_id, exercise_name_snapshot, position, sets_snapshot, reps_snapshot, timer_seconds_snapshot, notes_snapshot')
+    .in('routine_assignment_id', assignmentIds)
+    .order('position')
+  if (!prescriptionResult.error) return (prescriptionResult.data ?? []) as AssignmentExerciseRow[]
+  // Read compatibility before deployment. Never use a write fallback that loses prescriptions.
+  if (!isMissingSchemaObject(prescriptionResult.error, ['sets_snapshot', 'reps_snapshot', 'timer_seconds_snapshot', 'notes_snapshot', 'exercise_name_snapshot'])) throw prescriptionResult.error
   const currentResult = await supabase
     .from('routine_assignment_exercises')
     .select('id, routine_assignment_id, exercise_name_snapshot, position')
@@ -252,10 +268,11 @@ function routineExerciseName(entry: unknown) {
   return null
 }
 
-export async function loadRoutines(): Promise<Routine[]> {
+export async function loadRoutines(providerId: string): Promise<Routine[]> {
   const { data: routines, error: routineError } = await supabase
     .from('routines')
     .select('id, name, exercise_list')
+    .eq('provider_id', providerId)
     .order('name')
   if (routineError) throw routineError
 
@@ -263,19 +280,38 @@ export async function loadRoutines(): Promise<Routine[]> {
   return rows.map((routine) => ({
     id: routine.id,
     name: routine.name,
-    exercises: (routine.exercise_list ?? []).flatMap((entry, position) => {
-      const name = routineExerciseName(entry)
-      return name ? [{ id: `${routine.id}-${position}`, name, position }] : []
+    exercises: (routine.exercise_list ?? []).map((entry, position) => {
+      const record = entry && typeof entry === 'object' && !Array.isArray(entry) ? entry as Record<string, unknown> : null
+      const exerciseId = typeof record?.exercise_id === 'string' ? record.exercise_id : null
+      const requiresReview = !exerciseId || Object.keys(record ?? {}).some((key) => !['exercise_id', 'name', 'sets', 'reps', 'duration_seconds', 'notes'].includes(key))
+        || !['sets', 'reps', 'duration_seconds'].every((key) => validPrescriptionInteger(record?.[key]))
+        || (record?.notes != null && typeof record.notes !== 'string')
+      return { id: `${routine.id}-${position}`, name: routineExerciseName(entry) ?? `Unresolved exercise ${position + 1}`, position, exerciseId, requiresReview,
+        sets: validPrescriptionInteger(record?.sets) ? record?.sets ?? null : null,
+        reps: validPrescriptionInteger(record?.reps) ? record?.reps ?? null : null,
+        durationSeconds: validPrescriptionInteger(record?.duration_seconds) ? record?.duration_seconds ?? null : null,
+        notes: typeof record?.notes === 'string' ? record.notes : null }
     }),
   }))
 }
 
-export async function saveRoutine(routineId: string | null, name: string, exercises: string[]) {
-  const { data, error } = await supabase.rpc('save_routine', {
+export async function saveRoutine(routineId: string | null, name: string, exercises: RoutineExerciseInput[]) {
+  if (!name.trim() || name.length > 200) throw new Error('Routine name must contain 1 to 200 characters.')
+  if (!exercises.length || exercises.length > 100 || exercises.some((exercise) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(exercise.exerciseId))) {
+    throw new Error('Select 1 to 100 valid catalog exercises.')
+  }
+  if (exercises.some((exercise) => ![exercise.sets, exercise.reps, exercise.durationSeconds].every(validPrescriptionInteger)
+    || (exercise.notes != null && typeof exercise.notes !== 'string'))) {
+    throw new Error('Sets, reps, and duration must be positive whole numbers or blank; notes must be text.')
+  }
+  const { data, error } = await supabase.rpc('save_routine_prescriptions', {
     p_routine_id: routineId,
     p_routine_name: name.trim(),
-    p_exercise_names: exercises.map((exercise) => exercise.trim()).filter(Boolean),
+    p_exercises: exercises.map((exercise) => ({ exercise_id: exercise.exerciseId,
+      sets: exercise.sets ?? null, reps: exercise.reps ?? null,
+      duration_seconds: exercise.durationSeconds ?? null, notes: exercise.notes?.trim() || null })),
   })
+  if (error?.code === 'PGRST202') throw new Error('Prescription saving is not available on this backend yet. Your changes have not been saved.')
   if (error) throw error
   return data as string
 }

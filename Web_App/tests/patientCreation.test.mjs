@@ -37,7 +37,7 @@ function dataHarness(responses = []) {
     assert.ok(next, 'Unexpected RPC call')
     return next
   } }
-  const data = loadTs('../src/lib/supabaseData.ts', { './supabase': { supabase } })
+  const data = loadTs('../src/lib/supabaseData.ts', { './supabase': { supabase }, './prescriptions': loadTs('../src/lib/prescriptions.ts') })
   return { ...data, calls }
 }
 

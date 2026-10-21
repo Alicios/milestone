@@ -1,11 +1,34 @@
 # Milestone Supabase Schema
 
 This reference combines historical application schema documentation through
-`20261007000700_document_messages.sql` with the SCRUM-43 hosted evidence below.
+`20261007000700_document_messages.sql`, SCRUM-43 baseline evidence, and the
+deployed Sprint 3 routine/prescription contracts documented below.
 It is not a complete hosted schema dump or a reproducible migration baseline.
 Historical migrations must not be replayed; see [README.md](README.md). Supabase
 manages authentication in `auth`; this application never stores password
 hashes in `public` tables.
+
+## Sprint 3 catalog routines and prescriptions — deployed
+
+The project operator confirmed successful hosted deployment and verification of
+`20261020000200_catalog_routines_nondestructive.sql` and
+`20261020000300_routine_prescriptions.sql`. The prescription cutover passed all
+21 checks with unchanged preservation fingerprints and existing security. The
+migrations preserved all existing application data and the 248 catalog UUIDs.
+
+The frontend writes ordered catalog UUID/name/prescription objects through
+`save_routine_prescriptions` into the existing `routines.exercise_list jsonb[]`.
+Names are resolved server-side. New assignments copy names, order and optional
+prescriptions into immutable snapshots. The old assignment signature and patient
+exercise-read API remain compatible; the prescription migration extends the
+assignment implementation and adds a separate patient prescription-read API.
+
+See [CATALOG_ROUTINES.md](CATALOG_ROUTINES.md) and
+[ROUTINE_PRESCRIPTIONS.md](ROUTINE_PRESCRIPTIONS.md). Checked-in SQL retains its
+reviewed disabled gates and preparation comments for provenance. Do not replay
+these already-deployed migrations or the superseded `20261020000100` migration.
+Hosted historical ledger entries remain unchanged; this reference is not a full
+schema dump or authority to repair migration history.
 
 ## Relationship overview
 
@@ -38,12 +61,13 @@ auth.users
 
 ## Data dictionary
 
-### `exercises` — SCRUM-43 shared catalog
+### `exercises` — shared catalog and historical SCRUM-43 evidence
 
 The existing hosted catalog contains **248 exercises**. `public.exercises.id`
 is a **verified UUID primary key**. These facts and the verified
 `public.routines.exercise_list` type (`jsonb[]`) are supplied project evidence;
-no hosted SQL was executed for this baseline.
+no hosted SQL was executed for that original SCRUM-43 baseline. Subsequent Sprint 3
+operator-run preflights and deployed RPCs establish the current workflow above.
 
 | Column | Evidence and meaning |
 | --- | --- |
@@ -72,9 +96,9 @@ array[jsonb_build_object('exercise_id', '<existing catalog UUID>'::uuid)]::jsonb
 Two routines can store the same `exercise_id` and resolve it by unnesting their
 lists and joining `(entry ->> 'exercise_id')::uuid` to `exercises.id`. This reuses
 one exercise row without copying or inserting a catalog exercise. A prior
-read-only simulation demonstrated resolution; persisted reuse has **not yet
-been verified**. [tests/scrum43_reuse.sql](tests/scrum43_reuse.sql) adds the pending
-local test: insert two actual routine rows, read them back, assert both resolve
+read-only baseline simulation demonstrated resolution without proving commit
+durability. [tests/scrum43_reuse.sql](tests/scrum43_reuse.sql) is the historical
+model-only test: insert two routine rows, read them back, assert both resolve
 one existing catalog UUID and the entire catalog is unchanged, then roll back.
 Here “persisted” means table-backed inserts within a transaction, not committed
 records or a durability test. Local setup is documented in [README.md](README.md).
@@ -85,16 +109,15 @@ references, and duplicate entries are possible without separate validation.
 Casting malformed UUID text can fail; deleting a catalog row can leave an
 unresolved reference. Labels may change independently of the identity. This
 baseline adds no validation triggers, delete protection, normalization, or API
-contract. Existing routine entries may contain names or other legacy values;
-this example does not migrate them or change the name-based frontend/RPC flow.
-Frontend/backend integration belongs to Sprint 3.
+contract. Existing routine entries may contain names or other legacy values. The Sprint 3
+implementation preserves them until explicit provider editing; see the contract above.
 
 `exercises_seed.csv` is an unchanged reference copy from the integration commit.
 It has 248 name/description records and **no UUIDs**. Do not reseed the shared
 hosted catalog: importing it again could duplicate exercises or replace their
 identity mappings. It cannot restore existing UUIDs. The October 8 prescription
-migration is not deployed and is excluded from this deliverable; assignment,
-prescription, and SCRUM-50 changes are outside this baseline.
+migration remains excluded; it is distinct from the two deployed Sprint 3
+migrations above. Its overlapping prescription schema cannot be replayed unchanged.
 
 ### `messages`
 
@@ -224,8 +247,9 @@ administrative authorization remain separate concerns.
 
 ### `routine_assignment_exercises`
 
-Immutable ordered exercise-name snapshots copied when a routine is assigned.
-Later template edits do not alter these rows.
+Immutable ordered exercise-name and optional prescription snapshots copied when
+a routine is assigned. Later template edits do not alter these rows. The four
+prescription columns are nullable, without defaults or historical backfill.
 
 | Column | Type | Description |
 | --- | --- | --- |
@@ -233,6 +257,10 @@ Later template edits do not alter these rows.
 | `routine_assignment_id` | `uuid` | Assignment whose historical exercise list contains this snapshot. |
 | `exercise_name_snapshot` | `text` | Exercise name captured at assignment time. |
 | `position` | `integer` | Zero-based display order within the assignment snapshot. |
+| `sets_snapshot` | `integer`, nullable | Positive prescribed sets captured for a new assignment. |
+| `reps_snapshot` | `integer`, nullable | Positive prescribed repetitions captured for a new assignment. |
+| `timer_seconds_snapshot` | `integer`, nullable | Positive duration in seconds, from JSON `duration_seconds`. |
+| `notes_snapshot` | `text`, nullable | Optional provider-authored exercise notes captured on assignment. |
 
 ### `routine_assignments`
 
@@ -264,10 +292,12 @@ Current routine editing stores ordered exercise values in `routines.exercise_lis
 
 ### `routines`
 
-Reusable provider-owned routine templates. The live routine editor stores the
-ordered exercise names in `exercise_list`. Its hosted `jsonb[]` type can also
-represent catalog UUID objects as described above; this baseline does not change
-the editor or claim deployed UUID validation.
+Reusable provider-owned routine templates. The catalog editor stores ordered
+catalog UUID/name/prescription objects through `save_routine_prescriptions`;
+existing entries can retain name-only or legacy shapes. Optional JSON fields are
+`sets`, `reps`, `duration_seconds` and `notes`. The older UUID-only writer remains
+available but rejects edits that would erase non-null prescriptions or unknown
+object fields. The name-only writer is update-only for string-only templates.
 
 | Column | Type | Description |
 | --- | --- | --- |
@@ -298,6 +328,7 @@ functions sidesteps that entirely.
 | `get_my_care_relationships()` | The calling patient's provider relationships (excludes `clinical_notes`). |
 | `get_my_routine_assignments(patient_profile_id)` | Assigned routines for one of the caller's own relationships. |
 | `get_my_routine_assignment_exercises(routine_assignment_id)` | Exercise snapshot for one of the caller's own assignments. |
+| `get_my_routine_assignment_prescriptions(routine_assignment_id)` | Additive Sprint 3 API: own exercise name/order plus sets/reps/duration/notes snapshots; the old API is unchanged. |
 | `get_my_routine_follow_ups(patient_profile_id)` | Follow-ups for one of the caller's own relationships. |
 | `get_my_messages(patient_profile_id)` | Conversation history for one of the caller's own relationships. |
 | `send_my_message(patient_profile_id, body)` | The only patient write in this round: inserts a `sender_kind = 'patient'` message. |
@@ -342,6 +373,7 @@ Uniqueness and checks enforce the application invariants:
   `day_index` is between 0 and 6.
 - Exercise positions are non-negative and unique within each template and
   assignment snapshot; exercise names and routine names cannot be blank.
+- Non-null sets, repetitions and duration snapshot integers must be positive.
 - `routine_follow_ups.routine_assignment_id` is unique.
 - Status checks constrain patients, assignments, follow-ups, legacy statuses,
   and provider contact preferences to the values documented above.
@@ -407,8 +439,9 @@ concepts, but they are not a literal relational schema:
 
 The following planning concepts are intentionally deferred until an implemented
 workflow needs them: provider license numbers, patient invitations and login
-accounts, sets/repetitions/duration, frontend integration of the existing shared
-exercise catalog, exercise help/media, patient-authenticated messaging, and notifications.
+accounts, exercise help/media, patient-authenticated messaging, and notifications.
+Optional sets/repetitions/duration/notes are implemented by the deployed Sprint 3
+prescription migration; see the current contracts above.
 
 ## Verification query
 

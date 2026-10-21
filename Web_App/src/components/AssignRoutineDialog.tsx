@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Fade, FormControlLabel, Radio, RadioGroup, Typography, useTheme } from '@mui/material'
 import type { Routine } from '../types'
 import { formatCalendarDate } from '../lib/week'
+import { prescriptionSummary } from '../lib/prescriptions'
 
 interface AssignRoutineDialogProps {
   patientName: string
@@ -36,6 +37,12 @@ export function AssignRoutineDialog({ patientName, weekday, scheduledDate, routi
       <RadioGroup aria-label="Existing provider routines" name="routine" value={selectedRoutineId} onChange={(_, value) => setSelectedRoutineId(value)} sx={{ gap: 1 }}>
         {routines.map((routine, index) => <FormControlLabel key={routine.id} value={routine.id} control={<Radio autoFocus={index === 0} sx={{ color: 'text.secondary', '&.Mui-checked': { color: 'primary.main' } }} />} label={routine.name} sx={{ m: 0, px: 1, py: .5, border: `2px solid ${border}`, borderRadius: '18px', bgcolor: selectedRoutineId === routine.id ? selectedSurface : surface, '& .MuiFormControlLabel-label': { minWidth: 0, fontFamily: 'Georgia, serif', fontStyle: 'italic', overflowWrap: 'anywhere' } }} />)}
       </RadioGroup>
+      {selectedRoutine && <div>
+        {selectedRoutine.exercises.map((exercise) => <div key={exercise.id}>
+          <Typography variant="body2" sx={{ mt: 1 }}>{exercise.name}{prescriptionSummary(exercise) && ` · ${prescriptionSummary(exercise)}`}</Typography>
+          {exercise.notes && <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{exercise.notes}</Typography>}
+        </div>)}
+      </div>}
     </DialogContent>
     <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
       <Button disabled={saving} onClick={onCancel} sx={{ ...buttonSx, bgcolor: surface, '&:hover': { bgcolor: theme.palette.action.hover } }}>Cancel</Button>

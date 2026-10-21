@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "tsc -b --pretty false",
     "preview": "vite preview",
+    "test:routines": "node --test tests/catalogRoutines.test.mjs",
     "test:patients": "node --test tests/patientCreation.test.mjs",
     "test:approve-access-request": "node --test tests/approveAccessRequest.test.mjs",
     "requests:list": "node scripts/list-access-requests.mjs",

@@ -8,15 +8,45 @@ the original `profiles` and `access_requests` tables.
 SCRUM-50's limited patient-creation changes, local tests and remaining SCRUM-43
 dependencies are documented in [SCRUM50_VALIDATION.md](SCRUM50_VALIDATION.md).
 
+## Sprint 3 catalog routines and prescriptions — deployed
+
+Both migrations were manually deployed through the Supabase SQL Editor and
+verified by the project operator:
+
+- [20261020000200_catalog_routines_nondestructive.sql](migrations/20261020000200_catalog_routines_nondestructive.sql)
+  enabled provider-owned catalog routine creation without deleting legacy data.
+- [20261020000300_routine_prescriptions.sql](migrations/20261020000300_routine_prescriptions.sql)
+  added optional exercise prescriptions and nullable assignment snapshots.
+
+Prescription post-deployment verification passed all 21 checks. All seven
+preservation counts/hashes and the existing-security hash matched preflight;
+no existing application records were modified. The 248 catalog exercises and
+their UUIDs were retained. These are operator-confirmed hosted results; local
+rehearsals are documented separately from hosted/browser evidence.
+
+See [CATALOG_ROUTINES.md](CATALOG_ROUTINES.md) and
+[ROUTINE_PRESCRIPTIONS.md](ROUTINE_PRESCRIPTIONS.md) for the current frontend,
+RPC contracts, compatibility, validation and remaining browser acceptance.
+The frontend uses `save_routine_prescriptions` and the existing assignment UI.
+
+The checked-in migration sources retain disabled execution gates and original
+review comments. Reviewed copies were enabled for those manual deployments;
+the source comments do not mean deployment remains pending. **Do not replay
+either migration, run the superseded `20261020000100` migration, or run cleanup.**
+No historical migration-ledger entries were changed. Agree on separate release
+bookkeeping before any future automated migration workflow; do not apply these
+migrations again merely because their versions are absent from the hosted ledger.
+
 ## SCRUM-43 exercise-model baseline
 
-Sprint 2 documents the existing shared exercise catalog; Sprint 3 will integrate
-it with the frontend. Hosted Supabase already contains 248 exercises with a
+The Sprint 2 baseline documents the existing shared exercise catalog. The Sprint 3
+implementation is described above; the evidence limits below still apply. Hosted Supabase already contains 248 exercises with a
 verified UUID primary key. `routines.exercise_list` is verified as `jsonb[]`.
 Routine JSON objects can reuse an existing catalog UUID via `exercise_id`;
 multiple routine rows can resolve to one exercise without duplicating it.
 JSON references have no conventional foreign key, automatic validation, or
-protection against dangling IDs. Existing name-based UI/RPC behavior is unchanged.
+protection against dangling IDs. The original baseline left the name-based UI/RPC behavior unchanged; the focused
+Sprint 3 contract above now integrates catalog references.
 
 - [baselines/exercises.sql](baselines/exercises.sql): **LOCAL/REFERENCE ONLY**
   catalog DDL, not a migration or full hosted schema dump. The reported columns
@@ -33,10 +63,12 @@ protection against dangling IDs. Existing name-based UI/RPC behavior is unchange
   It has 248 records and no UUIDs. **Never reseed the shared catalog**: the CSV
   cannot preserve hosted identity mappings and another import can duplicate data.
 
-The previous read-only simulation proved UUID resolution, not persisted reuse.
-The rollback test has not yet been executed for this baseline. The October 8
-prescription migration is not deployed and is not included here. This work adds
-no assignments, prescriptions, SCRUM-50 functionality, or frontend integration.
+The earlier SCRUM-43 baseline simulation proved UUID resolution, not committed
+reuse. The local model-only test below describes that historical baseline.
+The broader October 8 SCRUM-43 prescription migration remains excluded and must
+not be merged or replayed unchanged: it overlaps the deployed Sprint 3 snapshot
+columns and uses different JSON duration conventions and validation limits.
+Current persistence/prescription behavior is documented in the Sprint 3 links above.
 
 ## Local verification only
 

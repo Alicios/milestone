@@ -38,7 +38,7 @@ import Play from 'lucide-react-native/icons/play';
 import RotateCcw from 'lucide-react-native/icons/rotate-ccw';
 import Info from 'lucide-react-native/icons/info';
 
-import {supabase} from './lib/supabase';
+import {isSupabaseConfigured, supabase} from './lib/supabase';
 
 const palette = {
   cream: '#F4EACF',
@@ -194,6 +194,14 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     let cancelled = false;
 
     async function loadAssignedRoutine() {
+      if (!isSupabaseConfigured) {
+        setRoutineError(
+          'Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file, then restart Expo.'
+        );
+        setRoutineLoading(false);
+        return;
+      }
+
       if (!profile?.phone) {
         setRoutineLoading(false);
         return;
@@ -988,6 +996,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
                 <ExerciseRow
                   exercise={exercise}
                   index={index}
+                  showDetails={false}
                   expanded={expanded}
                   onPress={() => setExpandedExerciseIndex(expanded ? null : index)}
                 />
@@ -996,6 +1005,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
                   expanded={expanded}
                   reduceMotion={reduceMotion}
                 />
+                <ExerciseStats exercise={exercise} />
               </View>
             );
           })}
@@ -1034,14 +1044,16 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   );
 }
 
-function ExerciseRow({ exercise, index, onPress, expanded = false }) {
+function ExerciseRow({ exercise, index, onPress, expanded = false, showDetails = true }) {
   const styles = useThemedStyles(baseStyles);
   const { colors, mode } = useAppTheme();
+  const { fontScale } = useWindowDimensions();
   const Row = onPress ? Pressable : View;
   const rowStyle = [
     styles.exerciseRow,
     { backgroundColor: mode === 'dark' ? colors.raised : exercise.accent },
     index === 0 && styles.firstExercise,
+    !showDetails && { height: Math.ceil(80 * Math.max(1, fontScale)) },
   ];
 
   return (
@@ -1062,8 +1074,15 @@ function ExerciseRow({ exercise, index, onPress, expanded = false }) {
         <Text style={styles.exerciseNumberText}>{index + 1}</Text>
       </View>
       <View style={styles.exerciseCopy}>
-        <Text style={styles.listTitle}>{exercise.name}</Text>
-        <Text style={styles.listSubtitle}>{exercise.detail}</Text>
+        <Text
+          style={styles.listTitle}
+          numberOfLines={showDetails ? undefined : 2}
+          adjustsFontSizeToFit={!showDetails}
+          minimumFontScale={0.75}
+        >
+          {exercise.name}
+        </Text>
+        {showDetails && <Text style={styles.listSubtitle}>{exercise.detail}</Text>}
       </View>
       {onPress && (
         <Text style={[styles.chevron, expanded && styles.expandedChevron]}>›</Text>
@@ -1110,19 +1129,19 @@ function AnimatedExerciseInfo({ exercise, expanded, reduceMotion }) {
       pointerEvents={expanded ? 'auto' : 'none'}
       style={[styles.exercisePreview, !reduceMotion && { height }]}
     >
-      {reduceMotion ? expanded && <ExerciseInfo exercise={exercise} /> : visible && (
+      {reduceMotion ? expanded && <ExerciseInfo exercise={exercise} showStats={false} /> : visible && (
         <View
           style={styles.exercisePreviewContent}
           onLayout={({ nativeEvent: { layout } }) => setContentHeight(Math.ceil(layout.height))}
         >
-          <ExerciseInfo exercise={exercise} />
+          <ExerciseInfo exercise={exercise} showStats={false} />
         </View>
       )}
     </Animated.View>
   );
 }
 
-function ExerciseInfo({ exercise, showTitle = false }) {
+function ExerciseInfo({ exercise, showTitle = false, showStats = true }) {
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
 
@@ -1141,16 +1160,24 @@ function ExerciseInfo({ exercise, showTitle = false }) {
         </View>
         <Text style={styles.overviewText}>{exercise.overview}</Text>
       </View>
-      <View style={styles.statsRow}>
-        <Text style={styles.statsText}>
-          {exercise.sets} {exercise.sets === 1 ? 'Set' : 'Sets'}
-        </Text>
-        <Text style={styles.statsText}>
-          {exercise.type === 'countdown'
-            ? `${exercise.durationSeconds} Seconds`
-            : `${exercise.reps} Reps`}
-        </Text>
-      </View>
+      {showStats && <ExerciseStats exercise={exercise} />}
+    </View>
+  );
+}
+
+function ExerciseStats({ exercise }) {
+  const styles = useThemedStyles(baseStyles);
+
+  return (
+    <View style={styles.statsRow}>
+      <Text style={styles.statsText}>
+        {exercise.sets} {exercise.sets === 1 ? 'Set' : 'Sets'}
+      </Text>
+      <Text style={styles.statsText}>
+        {exercise.type === 'countdown'
+          ? `${exercise.durationSeconds} Seconds`
+          : `${exercise.reps} Reps`}
+      </Text>
     </View>
   );
 }

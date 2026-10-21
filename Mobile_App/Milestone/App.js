@@ -38,6 +38,8 @@ import Play from 'lucide-react-native/icons/play';
 import RotateCcw from 'lucide-react-native/icons/rotate-ccw';
 import Info from 'lucide-react-native/icons/info';
 
+import {supabase} from './lib/supabase';
+
 const palette = {
   cream: '#F4EACF',
   orange: '#E9611C',
@@ -49,68 +51,21 @@ const palette = {
   white: '#FFFDF7',
 };
 
-const exercises = [
-  {
-    name: 'Push Ups',
-    detail: 'Upper body',
-    accent: '#8BC0BC',
-    type: 'countup',
-    sets: 3,
-    reps: 5,
-    estimatedSeconds: 180,
-    overview:
-      'A simple upper-body exercise that strengthens your chest, shoulders, and arms. Keep your body straight and move at a comfortable pace.',
-  },
-  {
-    name: 'Sit Ups',
-    detail: 'Core strength',
-    accent: '#91C6C1',
-    type: 'countup',
-    sets: 3,
-    reps: 5,
-    estimatedSeconds: 180,
-    overview:
-      'A core-strengthening exercise that works your abdominal muscles. Move slowly and avoid pulling on your neck.',
-  },
-  {
-    name: 'Quad Stretch',
-    detail: 'Flexibility',
-    accent: '#98CCC5',
-    type: 'countdown',
-    durationSeconds: 30,
-    sets: 1,
-    reps: 1,
-    overview:
-      'A lower-body stretch that helps improve flexibility in the front of your thigh.',
-  },
-  {
-    name: 'Leg Stretch',
-    detail: 'Lower body',
-    accent: '#A0D1C9',
-    type: 'countdown',
-    durationSeconds: 30,
-    sets: 1,
-    reps: 1,
-    overview:
-      'A gentle stretch for the legs that helps improve mobility and flexibility.',
-  },
-].map((exercise) => ({
-  ...exercise,
-  estimatedSeconds:
-    exercise.durationSeconds ?? exercise.estimatedSeconds,
-}));
-
-const totalRoutineSeconds = exercises.reduce(
-  (total, exercise) => total + exercise.estimatedSeconds,
-  0
-);
-
-const routineMinutes = Math.ceil(totalRoutineSeconds / 60);
+const exerciseAccents = [
+  '#8BC0BC',
+  '#91C6C1',
+  '#98CCC5',
+  '#A0D1C9',
+];
 
 function getStartingTime(exercise) {
-  return exercise.type === 'countdown'
-    ? exercise.durationSeconds * 100
-    : 0;
+  if (!exercise || exercise.type !== 'countdown') {
+    return 0;
+  }
+
+  // The timer is now stored in seconds.
+  // The UI timer uses centiseconds, so multiply by 100.
+  return exercise.durationSeconds * 100;
 }
 
 function formatTimer(centiseconds) {
@@ -160,7 +115,20 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   const { width } = useWindowDimensions();
   const [routineStarted, setRoutineStarted] = useState(false);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  const [exercises, setExercises] = useState([]);
+  const [routine, setRoutine] = useState(null);
+  const [routineLoading, setRoutineLoading] = useState(true);
+  const [routineError, setRoutineError] = useState(null);
+
   const activeExercise = exercises[currentExerciseIndex];
+
+  const routineMinutes = Math.ceil(
+    exercises.reduce(
+      (total, exercise) => total + exercise.estimatedSeconds,
+      0
+    ) / 60
+  );
+
 
   const [screen, setScreen] = useState('home');
   const [routineScreen, setRoutineScreen] = useState('exerciseIntro');
@@ -179,10 +147,8 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
       ? 'Resume'
       : 'Start';
 
-  const [timerCentiseconds, setTimerCentiseconds] = useState(
-    getStartingTime(activeExercise)
-  );
 
+  const [timerCentiseconds, setTimerCentiseconds] = useState(0);
   useEffect(() => {
     let disposed = false;
     let preferenceChanged = false;
@@ -197,7 +163,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   }, []);
 
   useEffect(() => {
-    if (!isRunning || !isUnlocked) return;
+    if (!activeExercise || !isRunning || !isUnlocked) return;
 
     const timer = setInterval(() => {
       setTimerCentiseconds((currentTime) => {
@@ -216,11 +182,214 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     }, 10);
 
     return () => clearInterval(timer);
-  }, [isRunning, activeExercise.type, isUnlocked]);
+  }, [isRunning, activeExercise?.type, isUnlocked]);
+
+  //console.log('Loaded patient profile:', profile); <--testing
 
   useEffect(() => {
     if (!isUnlocked) setIsRunning(false);
   }, [isUnlocked]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAssignedRoutine() {
+      if (!profile?.phone) {
+        setRoutineLoading(false);
+        return;
+      }
+
+      try {
+        setRoutineLoading(true);
+        setRoutineError(null);
+
+        const now = new Date();
+
+        const today = [
+          now.getFullYear(),
+          String(now.getMonth() + 1).padStart(2, '0'),
+          String(now.getDate()).padStart(2, '0'),
+        ].join('-');
+
+        const {data: patient, error: patientError} = await supabase
+          .from('patients')
+          .select('id')
+          .eq('phone', profile.phone)
+          .single();
+
+        console.log('Patient lookup:', patient);
+
+        if (patientError) {
+          throw patientError;
+        }
+
+        if (!patient?.id) {
+          throw new Error('Patient lookup returned no UUID.');
+        }
+
+        const {data: patientProfiles, error: patientProfilesError} =
+          await supabase
+            .from('provider_patient_profiles')
+            .select('id, patient_id, provider_id')
+            .eq('patient_id', patient.id);
+
+        console.log('Provider-patient profiles:', patientProfiles);
+
+        if (patientProfilesError) {
+          throw patientProfilesError;
+        }
+
+        const patientProfileIds = patientProfiles
+          .map((patientProfile) => patientProfile.id)
+          .filter(Boolean);
+
+        if (!patientProfileIds.length) {
+          throw new Error('No provider-patient profile IDs were found.');
+        }
+
+        console.log('Patient profile IDs:', patientProfileIds);
+
+        const {data: assignment, error: assignmentError} =
+          await supabase
+            .from('routine_assignments')
+            .select('id, routine_id, patient_profile_id, scheduled_date, status')
+            .in('patient_profile_id', patientProfileIds)
+            .eq('scheduled_date', today)
+            .in('status', ['scheduled', 'in progress'])
+            .order('scheduled_date', {ascending: true})
+            .limit(1)
+            .maybeSingle();
+
+        console.log('Routine assignment:', assignment);
+
+        if (assignmentError) {
+          throw assignmentError;
+        }
+
+        if (!assignment?.routine_id) {
+          throw new Error('Assignment has no routine_id.');
+        }
+
+        if (!assignment) {
+          if (!cancelled) {
+            setRoutine(null);
+            setExercises([]);
+          }
+          return;
+        }
+
+        const {data: routineData, error: routineError} = await supabase
+          .from('routines')
+          .select('id, provider_id, name, description, exercise_list')
+          .eq('id', assignment.routine_id)
+          .single();
+
+        if (routineError) {
+          throw routineError;
+        }
+
+        const exerciseList = Array.isArray(routineData.exercise_list)
+          ? routineData.exercise_list
+          : JSON.parse(routineData.exercise_list || '[]');
+
+        const exerciseIds = exerciseList
+          .map((item) => item.exercise_id)
+          .filter(Boolean);
+
+        console.log('Exercise IDs:', exerciseIds);
+
+        if (!exerciseIds.length) {
+          throw new Error('The routine has no valid exercise IDs.');
+        }
+
+        const {data: exerciseData, error: exerciseError} = await supabase
+          .from('exercises')
+          .select('id, name, desc')
+          .in('id', exerciseIds);
+
+        if (exerciseError) {
+          throw exerciseError;
+        }
+
+        console.log('Exercise data:', exerciseData);
+
+        const exerciseMap = new Map(
+          exerciseData.map((exercise) => [
+            String(exercise.id),
+            exercise,
+          ])
+        );
+
+        const normalizedExercises = exerciseList
+          .map((item, index) => {
+            const exerciseDetails = exerciseMap.get(
+              String(item.exercise_id)
+            );
+
+            if (!exerciseDetails) {
+              return null;
+            }
+
+            const sets = Number(item.sets ?? 1);
+            const reps = Number(item.reps ?? 1);
+            const durationSeconds =
+              item.timer == null ? null : Number(item.timer);
+
+            const isTimedExercise = durationSeconds !== null;
+
+            return {
+              id: exerciseDetails.id,
+              name: exerciseDetails.name,
+              detail: exerciseDetails.desc,
+              overview: exerciseDetails.desc,
+              accent:
+                exerciseAccents[index % exerciseAccents.length],
+              type: isTimedExercise ? 'countdown' : 'countup',
+              durationSeconds,
+              sets,
+              reps,
+
+              // Timed exercises use their actual duration.
+              // Count-based exercises use an estimate of 60 seconds per set.
+              estimatedSeconds: isTimedExercise
+                ? durationSeconds * sets * reps
+                : 60 * sets,
+            };
+          })
+          .filter(Boolean);
+
+        if (!cancelled) {
+          setRoutine({
+            ...routineData,
+            assignmentId: assignment.id,
+            scheduledDate: assignment.scheduled_date,
+            status: assignment.status,
+          });
+          setExercises(normalizedExercises);
+          setCurrentExerciseIndex(0);
+          setCurrentSet(1);
+        }
+      } catch (error) {
+        console.error('Error loading assigned routine:', error);
+
+        if (!cancelled) {
+          setRoutineError(
+            error.message || 'Unable to load your assigned routine.'
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setRoutineLoading(false);
+        }
+      }
+    }
+
+    loadAssignedRoutine();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.phone]);
 
   function showRoutineScreen(nextScreen) {
     setRoutineScreen(nextScreen);
@@ -339,6 +508,42 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
         enabled={isUnlocked}
         onRevealEasterEgg={() => setIsRunning(false)}
       />
+    );
+  }
+
+  if (routineLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>
+            Loading your routine...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (routineError) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>
+            {routineError}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!exercises.length) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>
+            You do not have a routine scheduled for today.
+          </Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -561,6 +766,8 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
           onLock={onLock}
           onOpenProfile={onOpenProfile}
           profile={profile}
+          exercises={exercises}
+          routineMinutes={routineMinutes}
           completedExerciseCount={completedExerciseCount}
           routineStarted={routineStarted}
           routineComplete={routineComplete}
@@ -958,13 +1165,15 @@ function HomeDashboard({
   onViewRoutine,
   onViewSummary,
   onMessages,
+  exercises,
+  routineMinutes,
 }) {
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const displayName = profile?.preferredName || profile?.fullName?.split(' ')[0] || 'Frank';
-  const progressPercent = Math.round(
-    (completedExerciseCount / exercises.length) * 100
-  );
+  const progressPercent = exercises.length
+  ? Math.round((completedExerciseCount / exercises.length) * 100)
+  : 0;
   const progressStatus = routineComplete
     ? 'Complete'
     : routineStarted
@@ -1961,5 +2170,16 @@ const baseStyles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     marginTop: 4,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  loadingText: {
+    color: palette.ink,
+    fontSize: 18,
+    textAlign: 'center',
   },
 });

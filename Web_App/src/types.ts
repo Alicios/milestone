@@ -44,7 +44,26 @@ export interface ActivityItem {
   type: 'appointment' | 'message' | 'record'
 }
 
-export interface RoutineExercise {
+export interface CatalogExercise {
+  id: string
+  name: string
+  description: string
+}
+
+export interface ExercisePrescription {
+  sets?: number | null
+  reps?: number | null
+  durationSeconds?: number | null
+  notes?: string | null
+}
+
+export interface RoutineExerciseInput extends ExercisePrescription {
+  exerciseId: string
+}
+
+export interface RoutineExercise extends ExercisePrescription {
+  exerciseId?: string | null
+  requiresReview?: boolean
   id: string
   name: string
   position: number

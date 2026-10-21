@@ -1,5 +1,5 @@
 import { useAppTheme, useThemedStyles } from './AppTheme';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { setAudioModeAsync } from 'expo-audio';
 import Play from 'lucide-react-native/icons/play';
@@ -11,17 +11,23 @@ import useImageMotionTilt from './useImageMotionTilt';
 import ImageSpotlight from './ImageSpotlight';
 
 const images = [
-  { label: 'The King', description: 'LeBron James in a Los Angeles Lakers uniform.', source: require('../assets/easter-egg/lebron-king.jpg'), aspectRatio: 16 / 9 },
-  { label: 'Number 76', description: 'LeBron James, number 76.', source: require('../assets/easter-egg/lebron-76.jpg'), aspectRatio: 3 / 2 },
+  { label: 'The King', description: 'LeBron James in a Los Angeles Lakers uniform.', source: require('../assets/easter-egg/lebron-king.jpg'), sound: require('../assets/easter-egg/lebroooon-james.mp3'), aspectRatio: 16 / 9 },
+  { label: 'Number 76', description: 'LeBron James, number 76.', source: require('../assets/easter-egg/lebron-76.jpg'), sound: require('../assets/easter-egg/bang-basketball_Y4765Ub.mp3'), aspectRatio: 3 / 2 },
+  { label: 'NFL', description: 'LeBron James holding a football in a Dallas Cowboys cap.', source: require('../assets/easter-egg/lebron-nfl.jpg'), sound: require('../assets/easter-egg/nfl-on-fox-theme-music.mp3'), aspectRatio: 474 / 324 },
 ];
 
 export default function EasterEggSelector({ onClose }) {
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useState({ index: 0, flip: 0 });
+  const regularSide = useRef(0);
   const [error, setError] = useState('');
   const active = useRef(true);
-  const { player, status } = useEasterEggAudio();
+  const playbackRequest = useRef(0);
+  const autoplayedFlip = useRef(null);
+  const audioMode = useRef(null);
+  const current = images[selected.index];
+  const { player, status } = useEasterEggAudio(current.sound);
   const motion = useImageMotionTilt();
   const motionRef = useRef(motion);
   motionRef.current = motion;
@@ -39,36 +45,62 @@ export default function EasterEggSelector({ onClose }) {
     onPanResponderTerminate: () => motionRef.current.endTouch(),
     onPanResponderTerminationRequest: () => false,
   })).current;
-  const current = images[selected];
   const SoundIcon = status.playing ? Pause : Play;
 
   useEffect(() => {
     active.current = true;
     // The audio hook releases its player and stops playback on unmount.
-    return () => { active.current = false; };
+    return () => { active.current = false; playbackRequest.current += 1; };
   }, []);
 
   function close() {
+    active.current = false;
+    playbackRequest.current += 1;
     player.pause();
     onClose();
   }
 
-  async function toggleSound() {
+  const playSound = useCallback(async (restart) => {
+    const request = ++playbackRequest.current;
     setError('');
     try {
-      if (status.playing) {
-        player.pause();
-        return;
+      if (!audioMode.current) {
+        audioMode.current = setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false })
+          .catch(failure => { audioMode.current = null; throw failure; });
       }
-      await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false });
-      if (!active.current) return;
-      if (status.didJustFinish || (status.duration > 0 && status.currentTime >= status.duration)) {
-        await player.seekTo(0);
-      }
-      if (active.current) await player.play();
+      await audioMode.current;
+      if (!active.current || playbackRequest.current !== request) return;
+      if (restart) await player.seekTo(0);
+      if (active.current && playbackRequest.current === request) await player.play();
     } catch {
-      if (active.current) setError('The sound couldn’t play. Please try again.');
+      if (active.current && playbackRequest.current === request) setError('The sound couldn’t play. Please try again.');
     }
+  }, [player]);
+
+  useEffect(() => {
+    if (!status.isLoaded || autoplayedFlip.current === selected.flip) return;
+    autoplayedFlip.current = selected.flip;
+    // Fresh clips already start at zero; seeking here can trigger buffering.
+    playSound(player.currentTime > 0);
+  }, [playSound, player, status.isLoaded, selected.flip]);
+
+  function flipImage() {
+    if (dragged.current) return;
+    playbackRequest.current += 1;
+    player.pause();
+    regularSide.current = 1 - regularSide.current;
+    const index = Math.random() < 0.1 ? 2 : regularSide.current;
+    setError('');
+    setSelected(selection => ({ index, flip: selection.flip + 1 }));
+  }
+
+  function toggleSound() {
+    if (status.playing) {
+      playbackRequest.current += 1;
+      player.pause();
+      return;
+    }
+    playSound(status.didJustFinish || (status.duration > 0 && status.currentTime >= status.duration));
   }
 
   return (
@@ -93,7 +125,7 @@ export default function EasterEggSelector({ onClose }) {
                 { rotateX: motion.tilt.x.interpolate({ inputRange: [-45, 45], outputRange: ['-45deg', '45deg'], extrapolate: 'clamp' }) },
                 { rotateY: motion.tilt.y.interpolate({ inputRange: [-45, 45], outputRange: ['-45deg', '45deg'], extrapolate: 'clamp' }) },
               ] }}>
-                <Pressable accessibilityRole="button" accessibilityLabel="Flip the LeBron image" accessibilityHint="Tap to flip. Drag to tilt the photo." onPressIn={() => { dragged.current = false; }} onPress={() => { if (!dragged.current) setSelected(index => 1 - index); }} style={styles.preview}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Flip the LeBron image" accessibilityHint="Tap to flip. Drag to tilt the photo." onPressIn={() => { dragged.current = false; }} onPress={flipImage} style={styles.preview}>
                   <Image accessibilityLabel={current.description} source={current.source} resizeMode="contain" style={[styles.image, { aspectRatio: current.aspectRatio }]} />
                   <ImageSpotlight tilt={motion.tilt} motionStatus={motion.status} />
                 </Pressable>
@@ -115,7 +147,9 @@ export default function EasterEggSelector({ onClose }) {
               <Text style={styles.soundLabel}>{!status.isLoaded ? 'Loading sound…' : status.playing ? 'Pause sound' : 'Play sound'}</Text>
             </Pressable>
             {(error || status.error) && <Text accessibilityRole="alert" style={styles.error}>{error || 'The sound couldn’t load. Close the selector and try again.'}</Text>}
-            <Text style={styles.caption}>LeTeam was for a King</Text>
+            <Text style={styles.caption}>
+              {current.label === 'NFL' ? 'Lets play some Football!' : 'LeTeam was for a King'}
+            </Text>
           </ScrollView>
         </View>
       </View>

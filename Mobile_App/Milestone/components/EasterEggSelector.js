@@ -24,6 +24,8 @@ export default function EasterEggSelector({ onClose }) {
   const [error, setError] = useState('');
   const active = useRef(true);
   const playbackRequest = useRef(0);
+  const autoplayedFlip = useRef(null);
+  const audioMode = useRef(null);
   const current = images[selected.index];
   const { player, status } = useEasterEggAudio(current.sound);
   const motion = useImageMotionTilt();
@@ -62,7 +64,11 @@ export default function EasterEggSelector({ onClose }) {
     const request = ++playbackRequest.current;
     setError('');
     try {
-      await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false });
+      if (!audioMode.current) {
+        audioMode.current = setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: false })
+          .catch(failure => { audioMode.current = null; throw failure; });
+      }
+      await audioMode.current;
       if (!active.current || playbackRequest.current !== request) return;
       if (restart) await player.seekTo(0);
       if (active.current && playbackRequest.current === request) await player.play();
@@ -72,10 +78,11 @@ export default function EasterEggSelector({ onClose }) {
   }, [player]);
 
   useEffect(() => {
-    if (!status.isLoaded) return;
-    playSound(true);
-    return () => { playbackRequest.current += 1; };
-  }, [playSound, status.isLoaded, selected.flip]);
+    if (!status.isLoaded || autoplayedFlip.current === selected.flip) return;
+    autoplayedFlip.current = selected.flip;
+    // Fresh clips already start at zero; seeking here can trigger buffering.
+    playSound(player.currentTime > 0);
+  }, [playSound, player, status.isLoaded, selected.flip]);
 
   function flipImage() {
     if (dragged.current) return;

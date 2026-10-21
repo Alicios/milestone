@@ -16,7 +16,7 @@ jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: { Light: 'light' },
 }));
 
-const mockAudioPlayer = { isLoaded: true, play: jest.fn(), pause: jest.fn(), seekTo: jest.fn(async () => {}) };
+const mockAudioPlayer = { isLoaded: true, currentTime: 0, play: jest.fn(), pause: jest.fn(), seekTo: jest.fn(async () => {}) };
 jest.mock('expo-audio', () => ({
   useAudioPlayer: jest.fn(() => mockAudioPlayer),
   useAudioPlayerStatus: jest.fn(() => ({ isLoaded: true, playing: false, didJustFinish: false, currentTime: 0, duration: 3 })),
@@ -139,6 +139,7 @@ function expectIntroduction(index: number) {
 beforeEach(async () => {
   jest.clearAllMocks();
   mockAudioPlayer.isLoaded = true;
+  mockAudioPlayer.currentTime = 0;
   jest.spyOn(Math, 'random').mockReturnValue(0.5);
   (setAudioModeAsync as jest.Mock).mockResolvedValue(undefined);
   (Accelerometer.isAvailableAsync as jest.Mock).mockResolvedValue(false);
@@ -273,6 +274,23 @@ test('waits for the native player when status events still describe the previous
   expect(mockAudioPlayer.play).toHaveBeenCalledTimes(2);
 });
 
+test('does not restart autoplay when playback briefly reports loading again', async () => {
+  await ReactTestRenderer.act(async () => button('Home').props.onLongPress());
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(1);
+  mockAudioPlayer.isLoaded = false;
+  (useAudioPlayerStatus as jest.Mock).mockReturnValue({ isLoaded: false, playing: false });
+  await ReactTestRenderer.act(() => renderer.update(<App />));
+  mockAudioPlayer.isLoaded = true;
+  (useAudioPlayerStatus as jest.Mock).mockReturnValue({ isLoaded: true, playing: false });
+  await ReactTestRenderer.act(() => renderer.update(<App />));
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(1);
+  expect(setAudioModeAsync).toHaveBeenCalledTimes(1);
+  expect(mockAudioPlayer.seekTo).not.toHaveBeenCalled();
+  await press('Flip the LeBron image');
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(2);
+  expect(setAudioModeAsync).toHaveBeenCalledTimes(1);
+});
+
 test('cancels pending autoplay when the photo changes or the selector closes', async () => {
   let resolveFirst!: () => void;
   let resolveSecond!: () => void;
@@ -282,10 +300,13 @@ test('cancels pending autoplay when the photo changes or the selector closes', a
   await ReactTestRenderer.act(async () => button('Home').props.onLongPress());
   await press('Flip the LeBron image');
   await ReactTestRenderer.act(async () => resolveFirst());
-  expect(mockAudioPlayer.play).not.toHaveBeenCalled();
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(1);
+  expect(setAudioModeAsync).toHaveBeenCalledTimes(1);
+  await press('Close hidden selector');
+  await ReactTestRenderer.act(async () => button('Home').props.onLongPress());
   await press('Close hidden selector');
   await ReactTestRenderer.act(async () => resolveSecond());
-  expect(mockAudioPlayer.play).not.toHaveBeenCalled();
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(1);
 });
 
 test('lets the user retry if automatic playback fails', async () => {

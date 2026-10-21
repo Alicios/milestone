@@ -13,15 +13,19 @@ export default function useEasterEggAudio(source) {
     audioRef.current = audio;
     setStatus({ ...emptyStatus, source });
     audio.preload = 'auto';
-    const update = () => setStatus({
-      source,
-      isLoaded: audio.readyState >= 2,
-      playing: !audio.paused && !audio.ended,
-      currentTime: audio.currentTime,
-      duration: Number.isFinite(audio.duration) ? audio.duration : 0,
-      didJustFinish: audio.ended,
-      error: audio.error ? 'Unable to load sound.' : null,
-    });
+    let loaded = false;
+    const update = () => {
+      loaded = loaded || audio.readyState >= 2;
+      setStatus({
+        source,
+        isLoaded: loaded,
+        playing: !audio.paused && !audio.ended,
+        currentTime: audio.currentTime,
+        duration: Number.isFinite(audio.duration) ? audio.duration : 0,
+        didJustFinish: audio.ended,
+        error: audio.error ? 'Unable to load sound.' : null,
+      });
+    };
     const events = ['canplay', 'playing', 'pause', 'ended', 'timeupdate', 'error'];
     events.forEach(event => audio.addEventListener(event, update));
     audio.load();
@@ -35,6 +39,7 @@ export default function useEasterEggAudio(source) {
   }, [source]);
 
   const player = useMemo(() => ({
+    get currentTime() { return audioRef.current?.currentTime ?? 0; },
     async play() {
       const audio = audioRef.current;
       if (!audio) return;

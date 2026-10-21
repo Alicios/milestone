@@ -84,6 +84,20 @@ test('handles an interrupted play promise when flipping photos', async () => {
   expect(instances[1].play).not.toHaveBeenCalled();
 });
 
+test('keeps a loaded clip ready through temporary buffering without flashing loading', async () => {
+  await ReactTestRenderer.act(() => { renderer = ReactTestRenderer.create(<Harness source="king.mp3" />); });
+  await ReactTestRenderer.act(() => instances[0].ready());
+  await ReactTestRenderer.act(async () => audio.player.play());
+  instances[0].readyState = 1;
+  instances[0].currentTime = 0.5;
+  await ReactTestRenderer.act(() => instances[0].emit('timeupdate'));
+  expect(audio.status.isLoaded).toBe(true);
+  expect(audio.status.playing).toBe(true);
+  expect(audio.player.currentTime).toBe(0.5);
+  await ReactTestRenderer.act(() => instances[0].ready());
+  expect(instances[0].play).toHaveBeenCalledTimes(1);
+});
+
 test('reports an active browser autoplay rejection so the manual play button can retry', async () => {
   await ReactTestRenderer.act(() => { renderer = ReactTestRenderer.create(<Harness source="king.mp3" />); });
   const rejection = Object.assign(new Error('User interaction required'), { name: 'NotAllowedError' });

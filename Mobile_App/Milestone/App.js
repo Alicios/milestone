@@ -133,6 +133,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   const [screen, setScreen] = useState('home');
   const [routineScreen, setRoutineScreen] = useState('exerciseIntro');
   const [expandedExerciseIndex, setExpandedExerciseIndex] = useState(null);
+  const [expandedUpcomingExerciseIndex, setExpandedUpcomingExerciseIndex] = useState(null);
   const [reduceMotion, setReduceMotion] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [currentSet, setCurrentSet] = useState(1);
@@ -435,6 +436,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   }
 
   function goToNextExercise() {
+    setExpandedUpcomingExerciseIndex(null);
     const isLastExercise =
       currentExerciseIndex >= exercises.length - 1;
 
@@ -481,6 +483,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     }
 
     setRoutineStarted(true);
+    setExpandedUpcomingExerciseIndex(null);
     setCurrentExerciseIndex(0);
     setCurrentSet(1);
     setCompletedExerciseIndices([]);
@@ -940,7 +943,21 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
                       position === upcomingExercises.length - 1 && styles.lastExercise,
                     ]}
                   >
-                    <ExerciseRow exercise={exercise} index={index} />
+                    <ExerciseRow
+                      exercise={exercise}
+                      index={index}
+                      showDetails={false}
+                      expanded={expandedUpcomingExerciseIndex === index}
+                      onPress={() => setExpandedUpcomingExerciseIndex(
+                        expandedUpcomingExerciseIndex === index ? null : index
+                      )}
+                    />
+                    <AnimatedExerciseInfo
+                      exercise={exercise}
+                      expanded={expandedUpcomingExerciseIndex === index}
+                      reduceMotion={reduceMotion}
+                      showStats
+                    />
                   </View>
                 ))}
               </View>
@@ -1091,7 +1108,7 @@ function ExerciseRow({ exercise, index, onPress, expanded = false, showDetails =
   );
 }
 
-function AnimatedExerciseInfo({ exercise, expanded, reduceMotion }) {
+function AnimatedExerciseInfo({ exercise, expanded, reduceMotion, showStats = false }) {
   const styles = useThemedStyles(baseStyles);
   const height = useRef(new Animated.Value(0)).current;
   const [visible, setVisible] = useState(expanded);
@@ -1129,12 +1146,12 @@ function AnimatedExerciseInfo({ exercise, expanded, reduceMotion }) {
       pointerEvents={expanded ? 'auto' : 'none'}
       style={[styles.exercisePreview, !reduceMotion && { height }]}
     >
-      {reduceMotion ? expanded && <ExerciseInfo exercise={exercise} showStats={false} /> : visible && (
+      {reduceMotion ? expanded && <ExerciseInfo exercise={exercise} showStats={showStats} /> : visible && (
         <View
           style={styles.exercisePreviewContent}
           onLayout={({ nativeEvent: { layout } }) => setContentHeight(Math.ceil(layout.height))}
         >
-          <ExerciseInfo exercise={exercise} showStats={false} />
+          <ExerciseInfo exercise={exercise} showStats={showStats} />
         </View>
       )}
     </Animated.View>

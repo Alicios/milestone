@@ -5,7 +5,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import PersonRemoveOutlinedIcon from '@mui/icons-material/PersonRemoveOutlined'
 import { Alert, Box, Button, Card, Chip, Divider, Link, MenuItem, Stack, Tab, Tabs, TextField, Typography } from '@mui/material'
-import { AssignRoutineDialog } from '../components/AssignRoutineDialog'
+import { CalendarWeekNavigation } from '../components/CalendarWeekNavigation'
+import { withinHorizon } from '../lib/scheduling'
 import { prescriptionSummary } from '../lib/prescriptions'
 import type { DashboardOutletContext } from '../components/DashboardLayout'
 import { DischargePatientDialog } from '../components/DischargePatientDialog'
@@ -24,11 +25,10 @@ function Detail({ label, children }: { label: string; children?: ReactNode }) {
 }
 
 function PatientOverview({ patient }: { patient: Patient }) {
-  const { routines, assignments, weekDates, assignRoutine, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, dischargePatient } = useOutletContext<DashboardOutletContext>()
+  const { assignments, weekDates, policy, occupied, setWeek, assignmentsLoading, openSchedule, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, dischargePatient } = useOutletContext<DashboardOutletContext>()
   const navigate = useNavigate()
   const heading = useRef<HTMLHeadingElement>(null)
   const [selectedDay, setSelectedDay] = useState(0)
-  const [assignmentDay, setAssignmentDay] = useState<number | null>(null)
   const [removal, setRemoval] = useState<RoutineAssignment | null>(null)
   const [followUpAssignment, setFollowUpAssignment] = useState<RoutineAssignment | null>(null)
   const [confirmDischarge, setConfirmDischarge] = useState(false)
@@ -77,13 +77,15 @@ function PatientOverview({ patient }: { patient: Patient }) {
 
         <Card component="section" aria-labelledby="patient-routines-heading" sx={{ p: { xs: 2.5, sm: 3 } }}>
           <Typography id="patient-routines-heading" component="h2" variant="h6">Assigned routines</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: .5, mb: 2.5 }}>Dated routine prescriptions for the current week. Assigned exercises remain unchanged if the template is edited later.</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: .5, mb: 2.5 }}>Dated routine prescriptions for the selected week. Assigned exercises remain unchanged if the template is edited later.</Typography>
+          <CalendarWeekNavigation dates={weekDates} policy={policy} onChange={setWeek} />
+          <Button variant="outlined" disabled={!policy || !weekDates.some((date) => withinHorizon(date, policy)) || assignmentsLoading} onClick={() => openSchedule(patient)}>Schedule week</Button>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
-            <TextField select label="Routine date" value={selectedDay} onChange={(event) => setSelectedDay(Number(event.target.value))} size="small" sx={{ flex: 1 }}>
+            <TextField select label="Routine date" value={weekDates.length ? selectedDay : ''} onChange={(event) => setSelectedDay(Number(event.target.value))} size="small" sx={{ flex: 1 }}>
               {weekDates.map((date, index) => <MenuItem key={date} value={index}>{weekdayNames[index]}, {formatCalendarDate(date)}</MenuItem>)}
             </TextField>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAssignmentDay(selectedDay)} sx={{ flexShrink: 0 }}>Assign Routine</Button>
+            <Button variant="contained" startIcon={<AddIcon />} disabled={assignmentsLoading || !withinHorizon(weekDates[selectedDay], policy) || (occupied[patient.profileId] ?? []).some((entry) => entry.date === weekDates[selectedDay])} onClick={() => openSchedule(patient, weekDates[selectedDay])} sx={{ flexShrink: 0 }}>Assign Routine</Button>
           </Stack>
           <Typography role="status" variant="body2" color="success.main" sx={{ mt: feedback ? 1.5 : 0 }}>{feedback}</Typography>
 
@@ -92,7 +94,7 @@ function PatientOverview({ patient }: { patient: Patient }) {
               const dayAssignments = patientAssignments[date] ?? []
               return <Box component="li" key={date} sx={{ py: 2 }}>
                 <Typography fontWeight={700}>{weekdayNames[index]}, {formatCalendarDate(date)}</Typography>
-                {!dayAssignments.length && <Typography variant="body2" color="text.secondary" sx={{ mt: .5 }}>No routine assigned</Typography>}
+                {!dayAssignments.length && <Typography variant="body2" color="text.secondary" sx={{ mt: .5 }}>{assignmentsLoading ? 'Loading…' : (occupied[patient.profileId] ?? []).some((entry) => entry.date === date) ? 'This date already has an active assignment. Contact the assigning provider before replacing it.' : 'No routine assigned'}</Typography>}
                 <Stack spacing={1.5} sx={{ mt: dayAssignments.length ? 1.25 : 0 }}>
                   {dayAssignments.map((assignment) => <Card key={assignment.id} variant="outlined" sx={{ p: 1.5 }}>
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between">
@@ -137,18 +139,11 @@ function PatientOverview({ patient }: { patient: Patient }) {
       </Stack>
     </Box>
 
-    {assignmentDay !== null && <AssignRoutineDialog patientName={patient.name} weekday={weekdayNames[assignmentDay]} scheduledDate={weekDates[assignmentDay]} routines={routines} onCancel={() => setAssignmentDay(null)} onAssign={async (routine) => {
-      await assignRoutine(patient.profileId, weekDates[assignmentDay], routine.id)
-      setFeedback(`${routine.name} assigned for ${weekdayNames[assignmentDay]}.`)
+    {removal && <RemoveRoutineDialog patientName={patient.name} weekday={formatCalendarDate(removal.scheduledDate)} routineName={removal.routineName} onCancel={() => setRemoval(null)} onRemove={async () => {
+      await cancelAssignment(removal.id)
+      setFeedback(`${removal.routineName} cancelled for ${formatCalendarDate(removal.scheduledDate)}.`)
       setError('')
-      setAssignmentDay(null)
-    }} />}
-    {removal && <RemoveRoutineDialog patientName={patient.name} weekday={formatCalendarDate(removal.scheduledDate)} routineName={removal.routineName} onCancel={() => setRemoval(null)} onRemove={() => {
-      void cancelAssignment(removal.id).then(() => {
-        setFeedback(`${removal.routineName} cancelled for ${formatCalendarDate(removal.scheduledDate)}.`)
-        setError('')
-        setRemoval(null)
-      }).catch((removeError: Error) => setError(removeError.message))
+      setRemoval(null)
     }} />}
     {followUpAssignment && <FollowUpDialog assignment={followUpAssignment} onCancel={() => setFollowUpAssignment(null)} onSave={async (scheduledAt) => {
       await scheduleFollowUp(followUpAssignment.id, scheduledAt)

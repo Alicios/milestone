@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, AppBar, Avatar, Box, Button, Container, Divider, IconButton, Menu, MenuItem, Stack, Toolbar, Typography } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom'
@@ -6,19 +6,21 @@ import { useAuth } from '../auth/AuthContext'
 import type { Patient } from '../data/mockPatients'
 import type { Routine, RoutineAssignment, RoutineExerciseInput } from '../types'
 import {
-  assignRoutine as assignRoutineInDatabase,
   cancelRoutineAssignment as cancelAssignmentInDatabase,
   cancelRoutineFollowUp as cancelFollowUpInDatabase,
   completeRoutineFollowUp as completeFollowUpInDatabase,
   dischargePatient as dischargePatientFromDatabase,
   loadPatients,
-  loadRoutineAssignments,
   loadRoutines,
   saveRoutine as saveRoutineInDatabase,
   scheduleRoutineFollowUp as scheduleFollowUpInDatabase,
 } from '../lib/supabaseData'
-import { getCurrentWeekDates } from '../lib/week'
 import { errorMessage } from '../lib/errors'
+import { useAssignmentCalendar } from '../hooks/useAssignmentCalendar'
+import { useScheduleOperations } from '../hooks/useScheduleOperations'
+import { SingleFlight } from '../lib/scheduleRecovery'
+import { withinHorizon, type OccupiedDate, type SchedulingPolicy } from '../lib/scheduling'
+import { ScheduleRoutineDialog } from './ScheduleRoutineDialog'
 
 export type DayAssignments = Record<string, RoutineAssignment[]>
 type RoutineAssignments = Record<string, DayAssignments>
@@ -28,7 +30,11 @@ export interface DashboardOutletContext {
   routines: Routine[]
   assignments: RoutineAssignments
   weekDates: string[]
-  assignRoutine: (patientProfileId: string, scheduledDate: string, routineId: string) => Promise<void>
+  openSchedule: (patient: Patient, singleDate?: string) => void
+  policy: SchedulingPolicy | null
+  occupied: Record<string, OccupiedDate[]>
+  setWeek: (week: string) => void
+  assignmentsLoading: boolean
   cancelAssignment: (assignmentId: string) => Promise<void>
   scheduleFollowUp: (assignmentId: string, scheduledAt: string) => Promise<void>
   cancelFollowUp: (assignmentId: string) => Promise<void>
@@ -41,6 +47,12 @@ const teal = '#4b9da9'
 const aqua = '#91c8c0'
 
 export function DashboardLayout() {
+  const { user } = useAuth()
+  // Provider-specific state is discarded synchronously on an account change.
+  return <DashboardWorkspace key={user?.id ?? 'signed-out'} />
+}
+
+export function DashboardWorkspace() {
   const { user, logout } = useAuth()
   const location = useLocation()
   const isMessagesPage = location.pathname === '/dashboard/messages'
@@ -56,6 +68,10 @@ export function DashboardLayout() {
   const routineReloadPending = useRef(false)
   const activeProvider = useRef(user?.id)
   activeProvider.current = user?.id
+  useEffect(() => {
+    activeProvider.current = user?.id
+    return () => { activeProvider.current = undefined }
+  }, [user?.id])
   const reloadRoutines = async () => {
     if (!user || routineReloadPending.current) return
     routineReloadPending.current = true
@@ -72,40 +88,48 @@ export function DashboardLayout() {
         : errorMessage(error, 'Routines could not be loaded.'))
     } finally {
       routineReloadPending.current = false
-      setRoutinesReloading(false)
+      if (activeProvider.current === user.id) setRoutinesReloading(false)
     }
   }
-  const [assignments, setAssignments] = useState<RoutineAssignments>({})
-  const weekDates = useMemo(() => getCurrentWeekDates(), [])
-
-  const refreshAssignments = useCallback(async (nextPatients: Patient[]) => {
-    const rows = await loadRoutineAssignments(nextPatients.map((patient) => patient.profileId), weekDates[0], weekDates[6])
-    const nextAssignments: RoutineAssignments = {}
-    for (const assignment of rows) {
-      const profileAssignments = nextAssignments[assignment.patientProfileId] ?? {}
-      const dayAssignments = profileAssignments[assignment.scheduledDate] ?? []
-      profileAssignments[assignment.scheduledDate] = [...dayAssignments, assignment]
-      nextAssignments[assignment.patientProfileId] = profileAssignments
-    }
-    setAssignments(nextAssignments)
-  }, [weekDates])
+  const calendar = useAssignmentCalendar(user?.id, patients.map((patient) => patient.profileId))
+  const { assignments, weekDates, policy, occupied, setWeek } = calendar
+  const [assignmentNotice, setAssignmentNotice] = useState('')
+  const [target, setTarget] = useState<{ patient: Patient; singleDate?: string } | null>(null)
+  const mutations = useRef(new SingleFlight())
+  const refreshAfterSave = async () => {
+    if (!user || activeProvider.current !== user.id) return
+    calendar.invalidate()
+    setAssignmentNotice('')
+    try { await calendar.refresh() }
+    catch { setAssignmentNotice('Changes saved successfully, but assignments could not be reloaded. Retry loading assignments; do not repeat the save.') }
+    // No prescription or patient data is broadcast to other tabs.
+    try { window.localStorage.setItem('milestone.schedule.changed', crypto.randomUUID()) } catch { /* focus/poll also refresh */ }
+  }
+  const operations = useScheduleOperations(user?.id, refreshAfterSave)
+  const afterSave = useRef(refreshAfterSave)
+  afterSave.current = refreshAfterSave
+  const refreshCalendar = useRef(calendar.refresh)
+  refreshCalendar.current = calendar.refresh
+  const openSchedule = (patient: Patient, singleDate?: string) => {
+    if (!policy || !weekDates.length || (singleDate && !withinHorizon(singleDate, policy))) return
+    setTarget({ patient, singleDate })
+  }
 
   useEffect(() => {
     let active = true
     if (!user) return () => { active = false }
     setPatientsLoading(true)
     setPatientsError('')
-    void loadPatients(user.id).then(async (nextPatients) => {
+    void loadPatients(user.id).then((nextPatients) => {
       if (!active) return
       setPatients(nextPatients)
-      await refreshAssignments(nextPatients)
     }).catch((error: Error) => {
       if (active) setPatientsError(error.message || 'Patients could not be loaded from Supabase.')
     }).finally(() => {
       if (active) setPatientsLoading(false)
     })
     return () => { active = false }
-  }, [refreshAssignments, user])
+  }, [user?.id])
 
   useEffect(() => {
     let active = true
@@ -121,29 +145,30 @@ export function DashboardLayout() {
     return () => { active = false }
   }, [user])
 
-  const assignRoutine = async (patientProfileId: string, scheduledDate: string, routineId: string) => {
-    await assignRoutineInDatabase(patientProfileId, routineId, scheduledDate)
-    await refreshAssignments(patients)
-  }
-
-  const cancelAssignment = async (assignmentId: string) => {
-    await cancelAssignmentInDatabase(assignmentId)
-    await refreshAssignments(patients)
-  }
+  const cancelAssignment = (assignmentId: string) => mutations.current.run(`cancel:${assignmentId}`, async () => {
+    const provider = user?.id
+    calendar.invalidate()
+    try { await cancelAssignmentInDatabase(assignmentId) }
+    catch (error) {
+      if (activeProvider.current === provider) void refreshCalendar.current().catch(() => {})
+      throw error
+    }
+    if (activeProvider.current === provider) await afterSave.current()
+  })
 
   const scheduleFollowUp = async (assignmentId: string, scheduledAt: string) => {
     await scheduleFollowUpInDatabase(assignmentId, scheduledAt)
-    await refreshAssignments(patients)
+    await afterSave.current()
   }
 
   const cancelFollowUp = async (assignmentId: string) => {
     await cancelFollowUpInDatabase(assignmentId)
-    await refreshAssignments(patients)
+    await afterSave.current()
   }
 
   const completeFollowUp = async (assignmentId: string) => {
     await completeFollowUpInDatabase(assignmentId)
-    await refreshAssignments(patients)
+    await afterSave.current()
   }
 
   const saveRoutine = async (routineId: string | null, name: string, exercises: RoutineExerciseInput[]) => {
@@ -163,13 +188,9 @@ export function DashboardLayout() {
 
   const dischargePatient = async (patientId: string) => {
     await dischargePatientFromDatabase(patientId)
-    const patient = patients.find((item) => item.id === patientId)
+    if (activeProvider.current !== user?.id) return
     setPatients((current) => current.filter((item) => item.id !== patientId))
-    setAssignments((current) => {
-      const remaining = { ...current }
-      if (patient) delete remaining[patient.profileId]
-      return remaining
-    })
+    calendar.invalidate()
   }
 
   const buttonSx = { color: 'black', border: '4px solid black', borderRadius: '18px', px: { xs: 2, sm: 3 }, py: 0.75, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '1.2rem', sm: '1.7rem' }, '&:hover': { bgcolor: '#eb681d', color: 'white' } }
@@ -208,8 +229,25 @@ export function DashboardLayout() {
     <Container maxWidth={false} sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: isMessagesPage ? 0 : { xs: 2, md: 3 } }}>
       {patientsLoading && <Alert severity="info" sx={{ mb: 2 }}>Loading patients from Supabase…</Alert>}
       {patientsError && <Alert severity="error" sx={{ mb: 2 }}>{patientsError}</Alert>}
+      {calendar.error && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" disabled={calendar.refreshing} onClick={() => { void calendar.refreshPolicy(); void calendar.refresh().catch(() => {}) }}>Retry loading assignments</Button>}>{calendar.error}</Alert>}
+      {calendar.loading && !calendar.error && <Alert severity="info" sx={{ mb: 2 }}>Loading assignment calendar…</Alert>}
+      {assignmentNotice && <Alert severity="warning" sx={{ mb: 2 }} action={<Button color="inherit" disabled={calendar.refreshing} onClick={() => void calendar.refresh().then(() => setAssignmentNotice('')).catch(() => {})}>Retry loading assignments</Button>}>{assignmentNotice}</Alert>}
+      {operations.storageError && <Alert severity="error">{operations.storageError}</Alert>}
+      {operations.notice && <Alert severity="info" sx={{ mb: 2 }}>{operations.notice}</Alert>}
+      {operations.pending.map((operation) => <Alert key={operation.requestId} severity="warning" sx={{ mb: 2 }}>
+        Confirmed schedule awaiting verification for {patients.find((patient) => patient.profileId === operation.patientProfileId)?.name ?? 'a patient relationship'}: {operation.entries.map((entry) => entry.date).join(', ')}.
+        <Stack direction="row" spacing={1}><Button disabled={operations.busy.includes(operation.requestId)} onClick={() => void operations.recover(operation)}>Check receipt</Button><Button disabled={operations.busy.includes(operation.requestId)} onClick={() => void operations.recover(operation, true)}>Retry same confirmed request</Button></Stack>
+      </Alert>)}
       {routineReloadError && <Alert severity="warning" sx={{ mb: 2 }} action={<Button color="inherit" disabled={routinesReloading} onClick={() => void reloadRoutines()}>{routinesReloading ? 'Loading…' : 'Retry loading routines'}</Button>}>{routineReloadError}</Alert>}
-      <Outlet context={{ patients, routines, assignments, weekDates, assignRoutine, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, dischargePatient } satisfies DashboardOutletContext} />
+      <Outlet context={{ patients, routines, assignments, weekDates, openSchedule, policy, occupied, setWeek, assignmentsLoading: calendar.loading, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, dischargePatient } satisfies DashboardOutletContext} />
+      {target && policy && <ScheduleRoutineDialog key={`${target.patient.profileId}/${target.singleDate ?? weekDates[0]}`} patientName={target.patient.name} patientProfileId={target.patient.profileId} routines={routines} weekStart={weekDates[0]} singleDate={target.singleDate} policy={policy} onCancel={() => setTarget(null)} onConfirm={async (entries) => {
+        calendar.invalidate()
+        try {
+          const saved = await operations.confirm(target.patient.profileId, entries)
+          if (!saved) void refreshCalendar.current().catch(() => {})
+          return saved
+        } catch (error) { void refreshCalendar.current().catch(() => {}); throw error }
+      }} />}
     </Container>
   </Box>
 }

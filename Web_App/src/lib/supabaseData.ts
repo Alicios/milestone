@@ -198,6 +198,7 @@ type AssignmentExerciseRow = {
   id: string; routine_assignment_id: string; exercise_name_snapshot: string; position: number
   sets_snapshot?: number | null; reps_snapshot?: number | null
   timer_seconds_snapshot?: number | null; notes_snapshot?: string | null
+  exercise_id_snapshot?: string | null
 }
 type LegacyAssignmentExerciseRow = { id: string; routine_assignment_id: string; name: string; position: number }
 type RoutineFollowUpRow = { id: string; routine_assignment_id: string; scheduled_at: string; status: FollowUpAppointment['status'] }
@@ -207,15 +208,21 @@ function toExercise(row: RoutineExerciseRow | AssignmentExerciseRow): RoutineExe
   const snapshot = row as AssignmentExerciseRow
   return { id: row.id, name, position: row.position, sets: snapshot.sets_snapshot ?? null,
     reps: snapshot.reps_snapshot ?? null, durationSeconds: snapshot.timer_seconds_snapshot ?? null,
-    notes: snapshot.notes_snapshot ?? null }
+    notes: snapshot.notes_snapshot ?? null,
+    ...('exercise_id_snapshot' in snapshot ? { exerciseId: snapshot.exercise_id_snapshot } : {}) }
 }
 
 async function loadAssignmentExerciseSnapshots(assignmentIds: string[]) {
-  const prescriptionResult = await supabase
+  const fields = 'id, routine_assignment_id, exercise_name_snapshot, position, sets_snapshot, reps_snapshot, timer_seconds_snapshot, notes_snapshot'
+  let prescriptionResult: { data: AssignmentExerciseRow[] | null; error: SchemaError | null } = await supabase
     .from('routine_assignment_exercises')
-    .select('id, routine_assignment_id, exercise_name_snapshot, position, sets_snapshot, reps_snapshot, timer_seconds_snapshot, notes_snapshot')
+    .select(`${fields}, exercise_id_snapshot`)
     .in('routine_assignment_id', assignmentIds)
     .order('position')
+  if (isMissingSchemaObject(prescriptionResult.error, ['exercise_id_snapshot'])) {
+    prescriptionResult = await supabase.from('routine_assignment_exercises').select(fields)
+      .in('routine_assignment_id', assignmentIds).order('position')
+  }
   if (!prescriptionResult.error) return (prescriptionResult.data ?? []) as AssignmentExerciseRow[]
   // Read compatibility before deployment. Never use a write fallback that loses prescriptions.
   if (!isMissingSchemaObject(prescriptionResult.error, ['sets_snapshot', 'reps_snapshot', 'timer_seconds_snapshot', 'notes_snapshot', 'exercise_name_snapshot'])) throw prescriptionResult.error

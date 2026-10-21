@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { EditableUserFields, User } from '../types'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
@@ -34,14 +34,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(isSupabaseConfigured)
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null)
   const navigate = useNavigate()
+  const authGeneration = useRef(0)
+  const publishCurrentProvider = async (id: string, email: string) => {
+    const generation = authGeneration.current
+    const next = await loadProvider(id, email)
+    const { data, error } = await supabase.auth.getSession()
+    if (!error && generation === authGeneration.current && data.session?.user.id === id) setUser(next)
+  }
 
   useEffect(() => {
     if (!isSupabaseConfigured) return
     let active = true
+    let generation = 0
+    let sessionProvider: string | undefined
 
-    async function applySession(sessionUser: { id: string; email?: string } | null) {
+    async function applySession(sessionUser: { id: string; email?: string } | null, request: number) {
+      const current = () => active && request === generation
+      if (!current()) return
       if (!sessionUser) {
-        if (active) { setUser(null); setMfaFactorId(null); setLoading(false) }
+        if (current()) { setUser(null); setMfaFactorId(null); setLoading(false) }
         return
       }
       try {
@@ -51,26 +62,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // instead of granting access.
         if (await needsMfaChallenge()) {
           const factorId = await getVerifiedTotpFactorId()
-          if (active) { setUser(null); setMfaFactorId(factorId); setLoading(false) }
+          if (current()) { setUser(null); setMfaFactorId(factorId); setLoading(false) }
           return
         }
         const next = await loadProvider(sessionUser.id, sessionUser.email ?? '')
-        if (active) { setUser(next); setMfaFactorId(null); setLoading(false) }
+        if (current()) { setUser(next); setMfaFactorId(null); setLoading(false) }
       } catch (error) {
         console.error(error)
-        if (active) setLoading(false)
+        if (current()) setLoading(false)
       }
     }
 
     supabase.auth.getSession().then(({ data, error }) => {
       if (error) console.error(error)
-      void applySession(data.session?.user ?? null)
+      if (generation === 0) void applySession(data.session?.user ?? null, ++generation)
     })
     // Defer the provider query out of the auth callback to avoid deadlocking supabase-js.
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setTimeout(() => { void applySession(session?.user ?? null) }, 0)
+      authGeneration.current++
+      const request = ++generation
+      if (sessionProvider !== session?.user.id) {
+        sessionProvider = session?.user.id
+        setUser(null); setMfaFactorId(null); setLoading(Boolean(session))
+      }
+      setTimeout(() => { void applySession(session?.user ?? null, request) }, 0)
     })
-    return () => { active = false; listener.subscription.unsubscribe() }
+    return () => { active = false; authGeneration.current++; listener.subscription.unsubscribe() }
   }, [])
 
   const value = useMemo<AuthContextValue>(() => ({
@@ -86,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setMfaFactorId(await getVerifiedTotpFactorId())
         return { status: 'mfa-required' }
       }
-      setUser(await loadProvider(data.user.id, data.user.email ?? email))
+      await publishCurrentProvider(data.user.id, data.user.email ?? email)
       return { status: 'signed-in' }
     },
     verifyMfaLogin: async (code) => {
@@ -98,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: userData, error: userError } = await supabase.auth.getUser()
       if (userError) throw userError
       if (!userData.user) throw new Error('Supabase did not return a signed-in user after verification.')
-      setUser(await loadProvider(userData.user.id, userData.user.email ?? ''))
+      await publishCurrentProvider(userData.user.id, userData.user.email ?? '')
       setMfaFactorId(null)
     },
     cancelMfaLogin: async () => {
@@ -122,9 +139,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       if (error) throw error
       if (!data.user || !data.session) throw new Error('Account created. Confirm your email before signing in.')
-      setUser(await loadProvider(data.user.id, data.user.email ?? email))
+      await publishCurrentProvider(data.user.id, data.user.email ?? email)
     },
     logout: async () => {
+      authGeneration.current++
       await supabase.auth.signOut()
       setUser(null)
       setMfaFactorId(null)
@@ -133,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateProfile: async (profile) => {
       if (!user) return
       await updateProvider(user.id, { ...user, ...profile })
-      setUser(await loadProvider(user.id, user.email))
+      await publishCurrentProvider(user.id, user.email)
     },
   }), [loading, mfaFactorId, navigate, user])
 

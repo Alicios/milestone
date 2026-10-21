@@ -139,10 +139,42 @@ test('another tab refreshes occupancy after a confirmed mutation and dashboard c
   await expect(other.getByText('Catalog A', { exact: true })).toBeVisible()
   await page.goto('/dashboard')
   await page.getByRole('button', { name: 'Expand weekly routines for Synthetic Browser Patient' }).click()
-  await expect(page.getByRole('button', { name: 'Assign routine to Synthetic Browser Patient on Tuesday' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Assign routine to Synthetic Browser Patient on Tuesday' })).toHaveCount(0)
+  await expect(page.getByText('Catalog A', { exact: true })).toBeVisible()
+  await expect(page.getByText('Occupied', { exact: true })).toBeVisible()
   await expect(page.getByText('Add another', { exact: true })).toHaveCount(0)
   expect(state.writes).toHaveLength(1)
 })
+for (const width of [1280, 390]) {
+  test(`weekly dashboard hides occupied date controls and retains available and restricted dates at ${width}px`, async ({ context, page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    const state = await setup(context, {
+      assignments: [{ id: 'assigned', patient_profile_id: profile, routine_id: routineA,
+        scheduled_date: '2026-10-21', status: 'scheduled', routine_name_snapshot: 'Bulletproof Back' }],
+      foreignDates: ['2026-10-22'],
+    })
+    await page.goto('/dashboard')
+    await page.getByRole('button', { name: 'Expand weekly routines for Synthetic Browser Patient' }).click()
+    const week = page.locator(`#patient-week-${patient}`)
+    const assign = (day) => week.getByRole('button', { name: `Assign routine to Synthetic Browser Patient on ${day}`, exact: true })
+    await expect(week.getByText('Bulletproof Back', { exact: true })).toBeVisible()
+    await expect(week.getByText('Occupied', { exact: true })).toHaveCount(2)
+    for (const day of ['Wednesday', 'Thursday']) await expect(assign(day)).toHaveCount(0)
+    await expect(week.getByRole('button')).toHaveCount(5)
+    await expect(week.getByTestId('AddIcon')).toHaveCount(5)
+    await expect(assign('Monday')).toBeDisabled()
+    await expect(assign('Friday')).toBeEnabled()
+    await assign('Friday').click()
+    await expect(page.getByRole('dialog', { name: 'Schedule routine', exact: true })).toBeVisible()
+    await expect(page.getByRole('combobox', { name: 'Routine for 2026-10-23', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Close', exact: true }).click()
+    await page.getByRole('button', { name: 'Next calendar week' }).click()
+    await page.getByRole('button', { name: 'Next calendar week' }).click()
+    await expect(assign('Monday')).toBeEnabled()
+    await expect(assign('Tuesday')).toBeDisabled()
+    expect(state.writes).toHaveLength(0)
+  })
+}
 test('sign-out and sign-in recover an unresolved confirmed operation without another write', async ({ context, page }) => {
   const state = await setup(context, { lostResponse: true, failReceipt: true }); await page.goto(path); await previewTuesday(page)
   await page.getByRole('button', { name: 'Confirm schedule' }).click()

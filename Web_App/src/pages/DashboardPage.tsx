@@ -62,15 +62,17 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
           {weekDates.map((date, index) => {
             const day = days[index]
             const dayAssignments = assignments[weekDates[index]] ?? []
+            const isOccupied = dayAssignments.length > 0 || occupied.some((entry) => entry.date === date)
 
             return <Box key={weekDates[index]} sx={{ flex: 1, minWidth: 0, textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
               <Typography sx={{ bgcolor: weekDates[index] === policy?.today ? '#eb681d' : neutralSurface, color: 'white', border: `3px solid ${border}`, borderRadius: '28px', py: { xs: 1, sm: 1.5 }, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 700, fontSize: { xs: '.65rem', sm: '1.05rem' } }}>{day}<br />{formatCalendarDate(weekDates[index])}</Typography>
-              <Stack sx={{ mt: .5, bgcolor: dayAssignments.length ? surface : assignableSurface, border: `3px solid ${border}`, borderRadius: '24px', minHeight: { xs: 112, sm: 132 }, flexGrow: 1, p: .5 }} spacing={.5}>
+              <Stack sx={{ mt: .5, bgcolor: isOccupied ? surface : assignableSurface, border: `3px solid ${border}`, borderRadius: '24px', minHeight: { xs: 112, sm: 132 }, flexGrow: 1, p: .5 }} spacing={.5}>
                 {dayAssignments.map((assignment) => <Grow in key={assignment.id} timeout={220}><Typography sx={{ width: '100%', minWidth: 0, bgcolor: '#91c8c0', color: accentText, border: `2px solid ${border}`, borderRadius: '18px', px: .5, py: .75, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '.72rem', sm: '.82rem' }, lineHeight: 1.3, overflowWrap: 'anywhere' }}>{assignment.routineName}</Typography></Grow>)}
-                <Button disabled={loading || !withinHorizon(date, policy) || occupied.some((entry) => entry.date === date) || dayAssignments.length > 0} onClick={() => onAssign(index)} aria-label={`Assign routine to ${patient.name} on ${weekdayNames[index]}`} sx={{ minWidth: 0, width: '100%', flexGrow: dayAssignments.length ? 0 : 1, p: .5, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: .5, color: text, borderRadius: '18px', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '.7rem', sm: '.8rem' }, lineHeight: 1.2, '&:hover': { bgcolor: isDark ? '#35545c' : '#c8deda' }, '&.Mui-focusVisible': { outline: `3px solid ${border}`, outlineOffset: -2 } }}>
+                {isOccupied ? <Typography variant="caption" color="text.secondary" sx={{ py: .75 }}>Occupied</Typography> :
+                <Button disabled={loading || !withinHorizon(date, policy)} onClick={() => onAssign(index)} aria-label={`Assign routine to ${patient.name} on ${weekdayNames[index]}`} sx={{ minWidth: 0, width: '100%', flexGrow: 1, p: .5, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: .5, color: text, borderRadius: '18px', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '.7rem', sm: '.8rem' }, lineHeight: 1.2, '&:hover': { bgcolor: isDark ? '#35545c' : '#c8deda' }, '&.Mui-focusVisible': { outline: `3px solid ${border}`, outlineOffset: -2 } }}>
                   <Box component="span" sx={{ width: 38, height: 38, flexShrink: 0, borderRadius: '50%', bgcolor: '#4b9da9', border: `3px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><AddIcon sx={{ color: 'white', fontSize: 28 }} /></Box>
-                  <Box component="span">{dayAssignments.length || occupied.some((entry) => entry.date === date) ? 'Date occupied' : <>Assign<br />Routine</>}</Box>
-                </Button>
+                  <Box component="span">Assign<br />Routine</Box>
+                </Button>}
               </Stack>
             </Box>
           })}

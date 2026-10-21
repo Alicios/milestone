@@ -7,7 +7,7 @@ import {Image, Text} from 'react-native';
 import ReactTestRenderer from 'react-test-renderer';
 import type {ReactTestInstance} from 'react-test-renderer';
 import App from '../App';
-import { useAudioPlayerStatus } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Accelerometer } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
 
@@ -16,7 +16,7 @@ jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: { Light: 'light' },
 }));
 
-const mockAudioPlayer = { play: jest.fn(), pause: jest.fn(), seekTo: jest.fn(async () => {}) };
+const mockAudioPlayer = { isLoaded: true, play: jest.fn(), pause: jest.fn(), seekTo: jest.fn(async () => {}) };
 jest.mock('expo-audio', () => ({
   useAudioPlayer: jest.fn(() => mockAudioPlayer),
   useAudioPlayerStatus: jest.fn(() => ({ isLoaded: true, playing: false, didJustFinish: false, currentTime: 0, duration: 3 })),
@@ -59,7 +59,15 @@ function textOf(node: ReactTestInstance): string {
 }
 
 function hasText(value: string) {
-  return renderer.root.findAllByType(Text).some(node => textOf(node) === value);
+  return renderer.root.findAllByType(Text).some(node => {
+    if (textOf(node) !== value) return false;
+    let ancestor: ReactTestInstance | null = node;
+    while (ancestor) {
+      if (ancestor.props['aria-hidden'] === true || ancestor.props.accessibilityElementsHidden === true) return false;
+      ancestor = ancestor.parent;
+    }
+    return true;
+  });
 }
 
 function button(label: string) {
@@ -98,12 +106,45 @@ async function finishExercise(sets: number) {
   }
 }
 
+const exerciseNames = ['Push Ups', 'Sit Ups', 'Quad Stretch', 'Leg Stretch'];
+const exerciseOverviews = [
+  'A simple upper-body exercise that strengthens your chest, shoulders, and arms. Keep your body straight and move at a comfortable pace.',
+  'A core-strengthening exercise that works your abdominal muscles. Move slowly and avoid pulling on your neck.',
+  'A lower-body stretch that helps improve flexibility in the front of your thigh.',
+  'A gentle stretch for the legs that helps improve mobility and flexibility.',
+];
+
+function expectIntroduction(index: number) {
+  expect(hasText('Up next')).toBe(true);
+  expect(hasText(`Exercise ${index + 1} of 4`)).toBe(true);
+  expect(button('Start exercise')).toBeDefined();
+  expect(renderer.root.findAllByProps({testID: 'exercise-timer'})).toHaveLength(0);
+  exerciseOverviews.forEach((overview, overviewIndex) => {
+    expect(hasText(overview)).toBe(overviewIndex === index);
+  });
+
+  if (index < exerciseNames.length - 1) {
+    expect(hasText('Coming up')).toBe(true);
+    const upcoming = renderer.root.findByProps({testID: 'upcoming-exercises'});
+    const upcomingNames = upcoming.findAllByType(Text)
+      .map(textOf).filter(value => exerciseNames.includes(value));
+    expect(upcomingNames).toEqual(exerciseNames.slice(index + 1));
+    expect(upcoming.findAll(node => node.props.accessibilityRole === 'button')).toHaveLength(0);
+  } else {
+    expect(hasText('Coming up')).toBe(false);
+    expect(renderer.root.findAllByProps({testID: 'upcoming-exercises'})).toHaveLength(0);
+  }
+}
+
 beforeEach(async () => {
   jest.clearAllMocks();
+  mockAudioPlayer.isLoaded = true;
+  jest.spyOn(Math, 'random').mockReturnValue(0.5);
+  (setAudioModeAsync as jest.Mock).mockResolvedValue(undefined);
   (Accelerometer.isAvailableAsync as jest.Mock).mockResolvedValue(false);
   (useAudioPlayerStatus as jest.Mock).mockReturnValue({ isLoaded: true, playing: false, didJustFinish: false, currentTime: 0, duration: 3 });
   jest.useFakeTimers();
-  await ReactTestRenderer.act(() => {
+  await ReactTestRenderer.act(async () => {
     renderer = ReactTestRenderer.create(<App />);
   });
 });
@@ -122,16 +163,21 @@ test('reveals the hidden selector only through the three-second Home hold', asyn
   expect(hasText("You're all caught up")).toBe(true);
   expect(renderer.root.findAllByType(Image)).toHaveLength(1);
   expect(renderer.root.findByProps({accessibilityLabel: 'LeBron James in a Los Angeles Lakers uniform.'})).toBeDefined();
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(1);
+  expect(useAudioPlayer).toHaveBeenLastCalledWith(require('../assets/easter-egg/lebroooon-james.mp3'));
   await press('Flip the LeBron image');
   expect(renderer.root.findByProps({accessibilityLabel: 'LeBron James, number 76.'})).toBeDefined();
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(2);
+  expect(useAudioPlayer).toHaveBeenLastCalledWith(require('../assets/easter-egg/bang-basketball_Y4765Ub.mp3'));
   await press('Flip the LeBron image');
   expect(renderer.root.findByProps({accessibilityLabel: 'LeBron James in a Los Angeles Lakers uniform.'})).toBeDefined();
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(3);
   await press('Play the easter egg sound');
-  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(1);
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(4);
   (useAudioPlayerStatus as jest.Mock).mockReturnValue({ isLoaded: true, playing: true, duration: 3, currentTime: 1 });
   await ReactTestRenderer.act(() => renderer.update(<App />));
   await press('Pause the easter egg sound');
-  expect(mockAudioPlayer.pause).toHaveBeenCalledTimes(1);
+  expect(mockAudioPlayer.pause).toHaveBeenCalledTimes(3);
   (useAudioPlayerStatus as jest.Mock).mockReturnValue({ isLoaded: true, playing: false, didJustFinish: true, duration: 3, currentTime: 3 });
   await ReactTestRenderer.act(() => renderer.update(<App />));
   await press('Play the easter egg sound');
@@ -148,6 +194,7 @@ test('reveals the hidden selector only through the three-second Home hold', asyn
 test('opening the selector pauses the exercise without losing the current timer', async () => {
   (Haptics.impactAsync as jest.Mock).mockRejectedValueOnce(new Error('Haptics unavailable'));
   await press('Start routine');
+  await press('Start exercise');
   await advanceTime(1200);
   const saved = timerText();
   await ReactTestRenderer.act(async () => button('Home').props.onLongPress());
@@ -178,6 +225,76 @@ test('both image choices retain the same active accelerometer subscription', asy
 afterEach(async () => {
   await ReactTestRenderer.act(() => renderer.unmount());
   jest.useRealTimers();
+  jest.restoreAllMocks();
+});
+
+test('gives every flip a 10 percent NFL chance with its matching sound', async () => {
+  await ReactTestRenderer.act(async () => button('Home').props.onLongPress());
+  (Math.random as jest.Mock).mockReturnValue(0.099);
+  await press('Flip the LeBron image');
+  expect(renderer.root.findByProps({accessibilityLabel: 'LeBron James holding a football in a Dallas Cowboys cap.'})).toBeDefined();
+  expect(useAudioPlayer).toHaveBeenLastCalledWith(require('../assets/easter-egg/nfl-on-fox-theme-music.mp3'));
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(2);
+  expect(mockAudioPlayer.pause).toHaveBeenCalledTimes(1);
+
+  // Consecutive NFL rolls still restart the matching sound.
+  await press('Flip the LeBron image');
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(3);
+  (Math.random as jest.Mock).mockReturnValue(0.1);
+  await press('Flip the LeBron image');
+  expect(renderer.root.findByProps({accessibilityLabel: 'LeBron James, number 76.'})).toBeDefined();
+  expect(useAudioPlayer).toHaveBeenLastCalledWith(require('../assets/easter-egg/bang-basketball_Y4765Ub.mp3'));
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(4);
+});
+
+test('waits for the current sound to load and does not autoplay again after a pause', async () => {
+  (useAudioPlayerStatus as jest.Mock).mockReturnValue({ isLoaded: false, playing: false });
+  await ReactTestRenderer.act(async () => button('Home').props.onLongPress());
+  expect(mockAudioPlayer.play).not.toHaveBeenCalled();
+  (useAudioPlayerStatus as jest.Mock).mockReturnValue({ isLoaded: true, playing: false });
+  await ReactTestRenderer.act(() => renderer.update(<App />));
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(1);
+  (useAudioPlayerStatus as jest.Mock).mockReturnValue({ isLoaded: true, playing: true });
+  await ReactTestRenderer.act(() => renderer.update(<App />));
+  await press('Pause the easter egg sound');
+  (useAudioPlayerStatus as jest.Mock).mockReturnValue({ isLoaded: true, playing: false });
+  await ReactTestRenderer.act(() => renderer.update(<App />));
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(1);
+});
+
+test('waits for the native player when status events still describe the previous clip', async () => {
+  await ReactTestRenderer.act(async () => button('Home').props.onLongPress());
+  mockAudioPlayer.isLoaded = false;
+  await press('Flip the LeBron image');
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(1);
+  expect(button('Play the easter egg sound').props.disabled).toBe(true);
+  mockAudioPlayer.isLoaded = true;
+  await ReactTestRenderer.act(() => renderer.update(<App />));
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(2);
+});
+
+test('cancels pending autoplay when the photo changes or the selector closes', async () => {
+  let resolveFirst!: () => void;
+  let resolveSecond!: () => void;
+  (setAudioModeAsync as jest.Mock)
+    .mockImplementationOnce(() => new Promise<void>(resolve => { resolveFirst = resolve; }))
+    .mockImplementationOnce(() => new Promise<void>(resolve => { resolveSecond = resolve; }));
+  await ReactTestRenderer.act(async () => button('Home').props.onLongPress());
+  await press('Flip the LeBron image');
+  await ReactTestRenderer.act(async () => resolveFirst());
+  expect(mockAudioPlayer.play).not.toHaveBeenCalled();
+  await press('Close hidden selector');
+  await ReactTestRenderer.act(async () => resolveSecond());
+  expect(mockAudioPlayer.play).not.toHaveBeenCalled();
+});
+
+test('lets the user retry if automatic playback fails', async () => {
+  (setAudioModeAsync as jest.Mock).mockRejectedValueOnce(new Error('Audio unavailable'));
+  await ReactTestRenderer.act(async () => button('Home').props.onLongPress());
+  expect(hasText('The sound couldn’t play. Please try again.')).toBe(true);
+  await press('Play the easter egg sound');
+  expect(mockAudioPlayer.play).toHaveBeenCalledTimes(1);
+  expect(hasText('The sound couldn’t play. Please try again.')).toBe(false);
 });
 
 test('opens Home with the daily overview and navigates to routines and messages', async () => {
@@ -201,8 +318,97 @@ test('opens Home with the daily overview and navigates to routines and messages'
   expect(hasText('Not started')).toBe(true);
 });
 
+test('expands one exercise preview at a time without starting the routine', async () => {
+  await press('View routine');
+  expect(button('Push Ups information').props.accessibilityState.expanded).toBe(false);
+  expect(button('Push Ups information').props['aria-expanded']).toBe(false);
+  await press('Push Ups information');
+  expect(button('Push Ups information').props.accessibilityState.expanded).toBe(true);
+  expect(button('Push Ups information').props['aria-expanded']).toBe(true);
+  expect(hasText(exerciseOverviews[0])).toBe(true);
+  expect(hasText('3 Sets')).toBe(true);
+  expect(hasText('5 Reps')).toBe(true);
+
+  await press('Quad Stretch information');
+  expect(button('Push Ups information').props.accessibilityState.expanded).toBe(false);
+  expect(button('Quad Stretch information').props.accessibilityState.expanded).toBe(true);
+  expect(hasText(exerciseOverviews[0])).toBe(false);
+  expect(hasText(exerciseOverviews[2])).toBe(true);
+  expect(hasText('1 Set')).toBe(true);
+  expect(hasText('30 Seconds')).toBe(true);
+  expect(hasText('5 Reps')).toBe(false);
+
+  await press('Quad Stretch information');
+  expect(button('Quad Stretch information').props.accessibilityState.expanded).toBe(false);
+  expect(hasText(exerciseOverviews[2])).toBe(false);
+  await advanceTime(2000);
+  await press('Home');
+  expect(hasText('Not started')).toBe(true);
+  expect(hasText('0 of 4 exercises complete')).toBe(true);
+});
+
+test.each(['Start routine', "Start today's routine"])(
+  '%s opens the first introduction and waits for an explicit exercise start',
+  async startLabel => {
+    if (startLabel === "Start today's routine") {
+      await press('View routine');
+      await press('Leg Stretch information');
+    }
+    await press(startLabel);
+    expectIntroduction(0);
+    await advanceTime(2500);
+    await press('Start exercise');
+    expect(hasText('Set 1 of 3')).toBe(true);
+    expect(timerText()).toBe('00.00.00');
+    await advanceTime(100);
+    expect(timerText()).toBe('00.00.10');
+  },
+);
+
+test('resumes introductions across tabs without starting or changing the exercise', async () => {
+  await press('Start routine');
+  expectIntroduction(0);
+  await press('Home');
+  await advanceTime(2000);
+  await press('Messages');
+  await press('Resume routine');
+  expectIntroduction(0);
+  await press('Routines');
+  await press('Leg Stretch information');
+  await press('Continue routine');
+  expectIntroduction(0);
+
+  await press('Start exercise');
+  await finishExercise(3);
+  await press('Next exercise');
+  expectIntroduction(1);
+  await press('Start exercise');
+  await finishExercise(3);
+  await press('Next exercise');
+  expectIntroduction(2);
+  expect(hasText('30 Seconds')).toBe(true);
+  await advanceTime(5000);
+  await press('Routines');
+  await press('Push Ups information');
+  await press('Continue routine');
+  expectIntroduction(2);
+  await press('Messages');
+  await press('Resume routine');
+  expectIntroduction(2);
+  await press('Home');
+  expect(hasText('2 of 4 exercises complete')).toBe(true);
+  await press('Resume routine');
+  await press('Start exercise');
+  expect(timerText()).toBe('00.30.00');
+  await advanceTime(100);
+  expect(timerText()).toBe('00.29.90');
+});
+
 test('pauses between tabs and resumes the same exercise, set, and timer', async () => {
   await press('Start routine');
+  await press('Start exercise');
+  expect(hasText('How to do it')).toBe(true);
+  expect(hasText(exerciseOverviews[0])).toBe(true);
   await advanceTime(1230);
   await press('Pause exercise');
   await press('Next set');
@@ -218,9 +424,15 @@ test('pauses between tabs and resumes the same exercise, set, and timer', async 
   expect(timerText()).toBe(savedTime);
 
   await press('Routines');
+  await press('Leg Stretch information');
+  expect(hasText(exerciseOverviews[3])).toBe(true);
+  expect(hasText('30 Seconds')).toBe(true);
+  await press('Push Ups information');
+  expect(hasText(exerciseOverviews[0])).toBe(true);
   await advanceTime(2000);
   await press('Continue routine');
   expect(hasText('Set 2 of 3')).toBe(true);
+  expect(hasText(exerciseOverviews[0])).toBe(true);
   expect(timerText()).toBe(savedTime);
   await advanceTime(100);
   expect(timerText()).not.toBe(savedTime);
@@ -228,6 +440,7 @@ test('pauses between tabs and resumes the same exercise, set, and timer', async 
 
 test('preserves exercise review and counts a finished exercise only once', async () => {
   await press('Start routine');
+  await press('Start exercise');
   await finishExercise(3);
   await press('Exercise felt good');
   await press('Home');
@@ -246,6 +459,7 @@ test('preserves exercise review and counts a finished exercise only once', async
   );
 
   await press('Routines');
+  await press('Sit Ups information');
   await press('Continue routine');
   expect(hasText('You finished Push Ups')).toBe(true);
   expect(button('Exercise felt good').props.accessibilityState.selected).toBe(
@@ -255,7 +469,7 @@ test('preserves exercise review and counts a finished exercise only once', async
   await press('Resume routine');
   expect(hasText('You finished Push Ups')).toBe(true);
   await press('Next exercise');
-  await press('Continue routine');
+  await press('Start exercise');
   expect(hasText('Sit Ups')).toBe(true);
   expect(hasText('Set 1 of 3')).toBe(true);
   await press('Home');
@@ -264,12 +478,14 @@ test('preserves exercise review and counts a finished exercise only once', async
 
 test('keeps completion and the final review until an explicit restart', async () => {
   await press('Start routine');
-  for (const sets of [3, 3, 1, 1]) {
+  for (const [index, sets] of [3, 3, 1, 1].entries()) {
+    expectIntroduction(index);
+    await press('Start exercise');
+    exerciseOverviews.forEach((overview, overviewIndex) => {
+      expect(hasText(overview)).toBe(overviewIndex === index);
+    });
     await finishExercise(sets);
     await press('Next exercise');
-    if (!hasText('ROUTINE COMPLETE!')) {
-      await press('Continue routine');
-    }
   }
   await press('Routine felt good');
   await press('Return home');
@@ -289,6 +505,10 @@ test('keeps completion and the final review until an explicit restart', async ()
   expect(hasText('ROUTINE COMPLETE!')).toBe(true);
   await press('Home');
   await press('Start routine again');
+  expect(hasText('Up next')).toBe(true);
+  expect(hasText('Exercise 1 of 4')).toBe(true);
+  expect(renderer.root.findAllByProps({testID: 'exercise-timer'})).toHaveLength(0);
+  await press('Start exercise');
   expect(hasText('Set 1 of 3')).toBe(true);
   expect(timerText()).toBe('00.00.00');
   await press('Home');
@@ -298,6 +518,7 @@ test('keeps completion and the final review until an explicit restart', async ()
 
 test('does not double-count repeated finish taps', async () => {
   await press('Start routine');
+  await press('Start exercise');
   for (let set = 1; set < 3; set += 1) {
     await press('Pause exercise');
     await press('Next set');
@@ -314,10 +535,11 @@ test('does not double-count repeated finish taps', async () => {
 
 test('resumes an elapsed countdown without making the timer negative', async () => {
   await press('Start routine');
+  await press('Start exercise');
   for (let exercise = 0; exercise < 2; exercise += 1) {
     await finishExercise(3);
     await press('Next exercise');
-    await press('Continue routine');
+    await press('Start exercise');
   }
   await advanceTime(30000);
   expect(timerText()).toBe('00.00.00');
@@ -330,9 +552,10 @@ test('resumes an elapsed countdown without making the timer negative', async () 
 
 test('resets the sample session on a fresh mount', async () => {
   await press('Start routine');
+  await press('Start exercise');
   await finishExercise(3);
   await ReactTestRenderer.act(() => renderer.unmount());
-  await ReactTestRenderer.act(() => {
+  await ReactTestRenderer.act(async () => {
     renderer = ReactTestRenderer.create(<App />);
   });
   expect(hasText('Not started')).toBe(true);

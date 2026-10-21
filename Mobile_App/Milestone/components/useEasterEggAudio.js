@@ -1,7 +1,8 @@
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 
-export default function useEasterEggAudio() {
-  const player = useAudioPlayer(require('../assets/easter-egg/lebroooon-james.mp3'));
+export default function useEasterEggAudio(source) {
+  const player = useAudioPlayer(source);
   const status = useAudioPlayerStatus(player);
-  return { player, status };
+  // Status events can still describe the previous source during a flip.
+  return { player, status: { ...status, isLoaded: player.isLoaded && status.isLoaded } };
 }

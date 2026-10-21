@@ -2,6 +2,9 @@ import { useAppTheme, useThemedStyles } from './components/AppTheme';
 import { PatientSessionProvider } from './auth/PatientSession';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
   Pressable,
   ScrollView,
   StatusBar,
@@ -152,14 +155,16 @@ export default function App() {
 
 function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   const styles = useThemedStyles(baseStyles);
-  const { colors, barStyle, mode } = useAppTheme();
+  const { colors, barStyle } = useAppTheme();
   const { width } = useWindowDimensions();
   const [routineStarted, setRoutineStarted] = useState(false);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const activeExercise = exercises[currentExerciseIndex];
 
   const [screen, setScreen] = useState('home');
-  const [routineScreen, setRoutineScreen] = useState('routine');
+  const [routineScreen, setRoutineScreen] = useState('exerciseIntro');
+  const [expandedExerciseIndex, setExpandedExerciseIndex] = useState(null);
+  const [reduceMotion, setReduceMotion] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [currentSet, setCurrentSet] = useState(1);
   const [reviewRating, setReviewRating] = useState(null);
@@ -176,6 +181,20 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   const [timerCentiseconds, setTimerCentiseconds] = useState(
     getStartingTime(activeExercise)
   );
+
+  useEffect(() => {
+    let disposed = false;
+    let preferenceChanged = false;
+    AccessibilityInfo.isReduceMotionEnabled().then(value => {
+      if (!disposed && !preferenceChanged) setReduceMotion(value);
+    }).catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', value => {
+      preferenceChanged = true;
+      setReduceMotion(value);
+    });
+    return () => { disposed = true; subscription.remove(); };
+  }, []);
+
   useEffect(() => {
     if (!isRunning || !isUnlocked) return;
 
@@ -255,7 +274,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     setReviewRating(null);
     setTimerCentiseconds(getStartingTime(exercises[nextIndex]));
     setRoutineStarted(true);
-    showRoutineScreen('routine');
+    showRoutineScreen('exerciseIntro');
   }
 
   function resumeExercise() {
@@ -287,18 +306,14 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     setCurrentExerciseIndex(0);
     setCurrentSet(1);
     setCompletedExerciseIndices([]);
+    setExpandedExerciseIndex(null);
     setReviewRating(null);
     setTimerCentiseconds(getStartingTime(exercises[0]));
-    setIsRunning(true);
-    showRoutineScreen('exercise');
+    setIsRunning(false);
+    showRoutineScreen('exerciseIntro');
   }
 
   function resumeRoutine() {
-    if (routineScreen === 'routine') {
-      startExercise();
-      return;
-    }
-
     setIsRunning(
       routineScreen === 'exercise' &&
         (activeExercise.type !== 'countdown' || timerCentiseconds > 0)
@@ -350,7 +365,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
                 minimumFontScale={0.65}
                 style={[
                   styles.timerText,
-                  { fontSize: Math.min(64, width * 0.125) },
+                  { color: palette.white, fontSize: Math.min(64, width * 0.125) },
                 ]}
               >
                 {formatTimer(timerCentiseconds)}
@@ -365,6 +380,15 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
               <View style={styles.exerciseInfoPill}>
                 <Text style={styles.exerciseInfoText}>
                   {activeExercise.reps} Reps
+                </Text>
+              </View>
+
+              <View style={styles.exerciseInstructions}>
+                <Text accessibilityRole="header" style={styles.exerciseInstructionsTitle}>
+                  How to do it
+                </Text>
+                <Text style={styles.exerciseInstructionsText}>
+                  {activeExercise.overview}
                 </Text>
               </View>
 
@@ -636,11 +660,90 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     );
   }
 
+  if (screen === 'exerciseIntro') {
+    const upcomingExercises = exercises
+      .map((exercise, index) => ({ exercise, index }))
+      .filter(({ index }) =>
+        index > currentExerciseIndex && !completedExerciseIndices.includes(index)
+      );
+
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
+        <ScrollView
+          key={`exercise-intro-${currentExerciseIndex}`}
+          style={styles.screenScroll}
+          contentContainerStyle={styles.container}
+        >
+          <View style={styles.topRow}>
+            <Brand />
+            <ProfileAvatar profile={profile} onPress={onOpenProfile} />
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionCopy}>
+              <Text style={styles.sectionTitle}>Up next</Text>
+              <Text style={styles.sectionSubtitle}>
+                Exercise {currentExerciseIndex + 1} of {exercises.length}
+              </Text>
+            </View>
+            <View style={styles.progressBadge}>
+              <Text style={styles.progressText}>
+                {completedExerciseCount} / {exercises.length}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.exerciseList}>
+            <ExerciseInfo exercise={activeExercise} showTitle />
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Start exercise"
+            onPress={startExercise}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              pressed && styles.primaryButtonPressed,
+            ]}
+          >
+            <Text style={styles.primaryButtonText}>START EXERCISE</Text>
+          </Pressable>
+
+          {upcomingExercises.length > 0 && (
+            <View style={styles.comingUpSection}>
+              <Text accessibilityRole="header" style={styles.sectionTitle}>
+                Coming up
+              </Text>
+              <View testID="upcoming-exercises" style={styles.exerciseList}>
+                {upcomingExercises.map(({ exercise, index }, position) => (
+                  <View
+                    key={exercise.name}
+                    style={[
+                      styles.exerciseListItem,
+                      position === upcomingExercises.length - 1 && styles.lastExercise,
+                    ]}
+                  >
+                    <ExerciseRow exercise={exercise} index={index} />
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          <Text style={styles.footerText}>Move well. Feel better.</Text>
+        </ScrollView>
+        {renderDock('routines')}
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
 
       <ScrollView
+        key="routine-list"
         style={styles.screenScroll}
         contentContainerStyle={styles.container}
       >
@@ -675,66 +778,27 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
         </View>
 
         <View style={styles.exerciseList}>
-          {routineStarted && (
-            <View style={styles.expandedExercise}>
-              <View style={styles.expandedHeader}>
-                <Text style={styles.expandedHeaderText}>
-                  {activeExercise.name}
-                </Text>
-              </View>
-
-              <View style={styles.overviewPanel}>
-                <View style={styles.infoIcon}>
-                  <Text style={styles.infoIconText}>(i)</Text>
-                </View>
-
-                <Text style={styles.overviewText}>
-                  {activeExercise.overview}
-                </Text>
-              </View>
-
-              <View style={styles.statsRow}>
-                <Text style={styles.statsText}>
-                  {activeExercise.sets} Sets
-                </Text>
-
-                <Text style={styles.statsText}>
-                  {activeExercise.reps} Reps
-                </Text>
-              </View>
-            </View>
-          )}
-
           {exercises.map((exercise, index) => {
-            if (routineStarted && index === currentExerciseIndex) {
-              return null;
-            }
-
+            const expanded = expandedExerciseIndex === index;
             return (
               <View
                 key={exercise.name}
                 style={[
-                  styles.exerciseRow,
-                  { backgroundColor: mode === 'dark' ? colors.raised : exercise.accent },
-                  !routineStarted &&
-                    index === 0 &&
-                    styles.firstExercise,
-                  index === exercises.length - 1 &&
-                    styles.lastExercise,
+                  styles.exerciseListItem,
+                  index === exercises.length - 1 && styles.lastExercise,
                 ]}
               >
-                <View style={styles.exerciseNumber}>
-                  <Text style={styles.exerciseNumberText}>
-                    {index + 1}
-                  </Text>
-                </View>
-
-                <View style={styles.exerciseCopy}>
-                  <Text style={styles.listTitle}>{exercise.name}</Text>
-                  <Text style={styles.listSubtitle}>{exercise.detail}</Text>
-                </View>
-
-                <Text style={styles.chevron}>›</Text>
+                <ExerciseRow
+                  exercise={exercise}
+                  index={index}
+                  expanded={expanded}
+                  onPress={() => setExpandedExerciseIndex(expanded ? null : index)}
+                />
+                <AnimatedExerciseInfo
+                  exercise={exercise}
+                  expanded={expanded}
+                  reduceMotion={reduceMotion}
+                />
               </View>
             );
           })}
@@ -749,13 +813,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
                 ? 'Continue routine'
                 : "Start today's routine"
           }
-          onPress={() => {
-            if (!routineStarted) {
-              setRoutineStarted(true);
-            } else {
-              resumeRoutine();
-            }
-          }}
+          onPress={routineComplete ? viewSummary : startRoutineFromDock}
           style={({ pressed }) => [
             styles.primaryButton,
             pressed && styles.primaryButtonPressed,
@@ -776,6 +834,126 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
       </ScrollView>
       {renderDock('routines')}
     </SafeAreaView>
+  );
+}
+
+function ExerciseRow({ exercise, index, onPress, expanded = false }) {
+  const styles = useThemedStyles(baseStyles);
+  const { colors, mode } = useAppTheme();
+  const Row = onPress ? Pressable : View;
+  const rowStyle = [
+    styles.exerciseRow,
+    { backgroundColor: mode === 'dark' ? colors.raised : exercise.accent },
+    index === 0 && styles.firstExercise,
+  ];
+
+  return (
+    <Row
+      {...(onPress ? {
+        onPress,
+        accessibilityRole: 'button',
+        accessibilityLabel: `${exercise.name} information`,
+        accessibilityHint: expanded ? 'Collapse exercise information' : 'Expand exercise information',
+        accessibilityState: { expanded },
+        'aria-expanded': expanded,
+      } : {})}
+      style={onPress
+        ? ({ pressed }) => [rowStyle, pressed && styles.primaryButtonPressed]
+        : rowStyle}
+    >
+      <View style={styles.exerciseNumber}>
+        <Text style={styles.exerciseNumberText}>{index + 1}</Text>
+      </View>
+      <View style={styles.exerciseCopy}>
+        <Text style={styles.listTitle}>{exercise.name}</Text>
+        <Text style={styles.listSubtitle}>{exercise.detail}</Text>
+      </View>
+      {onPress && (
+        <Text style={[styles.chevron, expanded && styles.expandedChevron]}>›</Text>
+      )}
+    </Row>
+  );
+}
+
+function AnimatedExerciseInfo({ exercise, expanded, reduceMotion }) {
+  const styles = useThemedStyles(baseStyles);
+  const height = useRef(new Animated.Value(0)).current;
+  const [visible, setVisible] = useState(expanded);
+  const [contentHeight, setContentHeight] = useState(0);
+  const targetHeight = expanded ? contentHeight : 0;
+
+  useEffect(() => {
+    if (expanded && !visible) {
+      setVisible(true);
+      return;
+    }
+    if (!visible) return;
+    if (reduceMotion) {
+      height.setValue(targetHeight);
+      setVisible(expanded);
+      return;
+    }
+    const animation = Animated.timing(height, {
+      toValue: targetHeight,
+      duration: 260,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: false,
+    });
+    animation.start(({ finished }) => {
+      if (finished && !expanded) setVisible(false);
+    });
+    return () => animation.stop();
+  }, [expanded, visible, targetHeight, reduceMotion, height]);
+
+  return (
+    <Animated.View
+      accessibilityElementsHidden={!expanded}
+      importantForAccessibility={expanded ? 'auto' : 'no-hide-descendants'}
+      aria-hidden={!expanded}
+      pointerEvents={expanded ? 'auto' : 'none'}
+      style={[styles.exercisePreview, { height }]}
+    >
+      {visible && (
+        <View
+          style={styles.exercisePreviewContent}
+          onLayout={({ nativeEvent: { layout } }) => setContentHeight(Math.ceil(layout.height))}
+        >
+          <ExerciseInfo exercise={exercise} />
+        </View>
+      )}
+    </Animated.View>
+  );
+}
+
+function ExerciseInfo({ exercise, showTitle = false }) {
+  const styles = useThemedStyles(baseStyles);
+
+  return (
+    <View style={styles.expandedExercise}>
+      {showTitle && (
+        <View style={styles.expandedHeader}>
+          <Text accessibilityRole="header" style={styles.expandedHeaderText}>
+            {exercise.name}
+          </Text>
+        </View>
+      )}
+      <View style={styles.overviewPanel}>
+        <View style={styles.infoIcon}>
+          <Text style={styles.infoIconText}>(i)</Text>
+        </View>
+        <Text style={styles.overviewText}>{exercise.overview}</Text>
+      </View>
+      <View style={styles.statsRow}>
+        <Text style={styles.statsText}>
+          {exercise.sets} {exercise.sets === 1 ? 'Set' : 'Sets'}
+        </Text>
+        <Text style={styles.statsText}>
+          {exercise.type === 'countdown'
+            ? `${exercise.durationSeconds} Seconds`
+            : `${exercise.reps} Reps`}
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -1232,10 +1410,21 @@ const baseStyles = StyleSheet.create({
     borderWidth: 1.6,
     overflow: 'hidden',
   },
-  exerciseRow: {
-    alignItems: 'center',
+  exerciseListItem: {
     borderBottomColor: palette.ink,
     borderBottomWidth: 1.4,
+  },
+  exercisePreview: {
+    overflow: 'hidden',
+  },
+  exercisePreviewContent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  },
+  exerciseRow: {
+    alignItems: 'center',
     flexDirection: 'row',
     minHeight: 63,
     paddingHorizontal: '4%',
@@ -1280,6 +1469,13 @@ const baseStyles = StyleSheet.create({
     fontWeight: '300',
     lineHeight: 30,
     opacity: 0.65,
+  },
+  expandedChevron: {
+    transform: [{ rotate: '90deg' }],
+  },
+  comingUpSection: {
+    marginTop: 28,
+    gap: 14,
   },
   primaryButton: {
     alignItems: 'center',
@@ -1335,6 +1531,7 @@ const baseStyles = StyleSheet.create({
     minHeight: 58,
     justifyContent: 'center',
     paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   expandedHeaderText: {
     color: palette.white,
@@ -1374,8 +1571,6 @@ const baseStyles = StyleSheet.create({
   statsRow: {
     alignItems: 'center',
     backgroundColor: palette.orange,
-    borderBottomColor: palette.ink,
-    borderBottomWidth: 1.4,
     borderTopColor: palette.ink,
     borderTopWidth: 1.4,
     flexDirection: 'row',
@@ -1458,9 +1653,26 @@ const baseStyles = StyleSheet.create({
     textAlign: 'center',
   },
   exerciseControls: {
-    flexGrow: 1,
     justifyContent: 'flex-end',
     paddingTop: 24,
+  },
+  exerciseInstructions: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    gap: 8,
+    paddingTop: 24,
+  },
+  exerciseInstructionsTitle: {
+    color: palette.ink,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  exerciseInstructionsText: {
+    color: palette.ink,
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
   },
   stopButton: {
     alignItems: 'center',

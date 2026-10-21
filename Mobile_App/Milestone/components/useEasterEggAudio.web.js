@@ -2,15 +2,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Asset } from 'expo-asset';
 
 // Await HTMLAudioElement.play() so closing during startup handles AbortError.
-export default function useEasterEggAudio() {
+const emptyStatus = { isLoaded: false, playing: false, currentTime: 0, duration: 0, didJustFinish: false, error: null };
+
+export default function useEasterEggAudio(source) {
   const audioRef = useRef(null);
-  const [status, setStatus] = useState({ isLoaded: false, playing: false, currentTime: 0, duration: 0, didJustFinish: false, error: null });
+  const [status, setStatus] = useState({ ...emptyStatus, source });
 
   useEffect(() => {
-    const audio = new window.Audio(Asset.fromModule(require('../assets/easter-egg/lebroooon-james.mp3')).uri);
+    const audio = new window.Audio(Asset.fromModule(source).uri);
     audioRef.current = audio;
+    setStatus({ ...emptyStatus, source });
     audio.preload = 'auto';
     const update = () => setStatus({
+      source,
       isLoaded: audio.readyState >= 2,
       playing: !audio.paused && !audio.ended,
       currentTime: audio.currentTime,
@@ -28,7 +32,7 @@ export default function useEasterEggAudio() {
       audio.removeAttribute('src');
       audio.load();
     };
-  }, []);
+  }, [source]);
 
   const player = useMemo(() => ({
     async play() {
@@ -46,5 +50,5 @@ export default function useEasterEggAudio() {
     },
   }), []);
 
-  return { player, status };
+  return { player, status: status.source === source ? status : emptyStatus };
 }

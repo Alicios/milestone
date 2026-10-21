@@ -140,7 +140,9 @@ export default function EasterEggSelector({ onClose }) {
               <Text style={styles.soundLabel}>{!status.isLoaded ? 'Loading sound…' : status.playing ? 'Pause sound' : 'Play sound'}</Text>
             </Pressable>
             {(error || status.error) && <Text accessibilityRole="alert" style={styles.error}>{error || 'The sound couldn’t load. Close the selector and try again.'}</Text>}
-            <Text style={styles.caption}>LeTeam was for a King</Text>
+            <Text style={styles.caption}>
+              {current.label === 'NFL' ? 'Lets play some Football!' : 'LeTeam was for a King'}
+            </Text>
           </ScrollView>
         </View>
       </View>

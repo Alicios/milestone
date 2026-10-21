@@ -36,6 +36,7 @@ import House from 'lucide-react-native/icons/house';
 import MessageSquare from 'lucide-react-native/icons/message-square';
 import Play from 'lucide-react-native/icons/play';
 import RotateCcw from 'lucide-react-native/icons/rotate-ccw';
+import Info from 'lucide-react-native/icons/info';
 
 const palette = {
   cream: '#F4EACF',
@@ -343,7 +344,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
 
   if (screen === 'exercise') {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <ScrollView
           style={styles.screenScroll}
           contentContainerStyle={styles.exerciseScreen}
@@ -444,7 +445,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
 
   if (screen === 'messages') {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <ScrollView
           style={styles.screenScroll}
           contentContainerStyle={styles.messagesScreen}
@@ -467,7 +468,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
 
   if (screen === 'finalReview') {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <ScrollView
           style={styles.screenScroll}
           contentContainerStyle={styles.finalSummaryScreen}
@@ -554,7 +555,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
 
   if (screen === 'home') {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
         <HomeDashboard
           onLock={onLock}
@@ -574,7 +575,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
 
   if (screen === 'review') {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <ScrollView
           style={styles.screenScroll}
           contentContainerStyle={styles.reviewScreen}
@@ -668,7 +669,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
       );
 
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
         <ScrollView
           key={`exercise-intro-${currentExerciseIndex}`}
@@ -739,7 +740,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
 
       <ScrollView
@@ -751,17 +752,6 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
           <Brand />
           <ProfileAvatar profile={profile} onPress={onOpenProfile} />
         </View>
-
-        {!routineStarted && (
-          <View style={styles.welcomeCard}>
-            <Text style={styles.welcomeTitle}>WELCOME BACK,</Text>
-            <Text style={styles.welcomeTitle}>{(profile?.preferredName || profile?.fullName?.split(' ')[0] || 'Frank').toUpperCase()}</Text>
-            <View style={styles.welcomeRule} />
-            <Text style={styles.welcomeSubtext}>
-              let's pick up where you left off
-            </Text>
-          </View>
-        )}
 
         <View style={styles.sectionHeader}>
           <View style={styles.sectionCopy}>
@@ -911,9 +901,9 @@ function AnimatedExerciseInfo({ exercise, expanded, reduceMotion }) {
       importantForAccessibility={expanded ? 'auto' : 'no-hide-descendants'}
       aria-hidden={!expanded}
       pointerEvents={expanded ? 'auto' : 'none'}
-      style={[styles.exercisePreview, { height }]}
+      style={[styles.exercisePreview, !reduceMotion && { height }]}
     >
-      {visible && (
+      {reduceMotion ? expanded && <ExerciseInfo exercise={exercise} /> : visible && (
         <View
           style={styles.exercisePreviewContent}
           onLayout={({ nativeEvent: { layout } }) => setContentHeight(Math.ceil(layout.height))}
@@ -927,6 +917,7 @@ function AnimatedExerciseInfo({ exercise, expanded, reduceMotion }) {
 
 function ExerciseInfo({ exercise, showTitle = false }) {
   const styles = useThemedStyles(baseStyles);
+  const { colors } = useAppTheme();
 
   return (
     <View style={styles.expandedExercise}>
@@ -939,7 +930,7 @@ function ExerciseInfo({ exercise, showTitle = false }) {
       )}
       <View style={styles.overviewPanel}>
         <View style={styles.infoIcon}>
-          <Text style={styles.infoIconText}>(i)</Text>
+          <Info size={26} color={colors.text} accessible={false} />
         </View>
         <Text style={styles.overviewText}>{exercise.overview}</Text>
       </View>
@@ -1000,12 +991,13 @@ function HomeDashboard({
         </View>
       </View>
 
-      <View style={styles.dashboardGreeting}>
+      <View style={[styles.dashboardGreeting, styles.welcomeCard]}>
         <Text style={styles.dashboardDate}>{today}</Text>
-        <Text accessibilityRole="header" style={styles.dashboardTitle}>
+        <Text accessibilityRole="header" style={styles.welcomeTitle}>
           Welcome back, {displayName}.
         </Text>
-        <Text style={styles.dashboardSubtitle}>Here's your day at a glance.</Text>
+        <View style={styles.welcomeRule} />
+        <Text style={styles.welcomeSubtext}>Here's your day at a glance.</Text>
       </View>
 
       <View style={[styles.dashboardCard, styles.dashboardRoutineCard]}>
@@ -1128,7 +1120,7 @@ function BottomDock({
 
   return (
     <>
-      <View style={styles.dock}>
+      <SafeAreaView edges={['bottom']} style={styles.dock}>
         <View style={styles.dockContent}>
           {items.map((item) => {
             const isActive = activeTab === item.id;
@@ -1199,7 +1191,7 @@ function BottomDock({
             <Text style={styles.dockStartLabel}>{routineActionLabel}</Text>
           </Pressable>
         </View>
-      </View>
+      </SafeAreaView>
       {showEasterEgg && enabled && <EasterEggSelector onClose={() => setShowEasterEgg(false)} />}
     </>
   );
@@ -1556,10 +1548,6 @@ const baseStyles = StyleSheet.create({
     justifyContent: 'center',
     width: 52,
   },
-  infoIconText: {
-    color: palette.ink,
-    fontSize: 20,
-  },
   overviewText: {
     color: palette.ink,
     flexGrow: 1,
@@ -1844,22 +1832,10 @@ const baseStyles = StyleSheet.create({
     marginBottom: 24,
   },
   dashboardDate: {
-    color: palette.tealDark,
+    color: palette.ink,
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
-  },
-  dashboardTitle: {
-    color: palette.ink,
-    fontSize: 30,
-    fontWeight: '800',
-    lineHeight: 36,
-  },
-  dashboardSubtitle: {
-    color: palette.ink,
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: 8,
   },
   dashboardCard: {
     backgroundColor: palette.white,

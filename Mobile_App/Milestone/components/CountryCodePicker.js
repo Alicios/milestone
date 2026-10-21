@@ -2,8 +2,6 @@ import { useAppTheme, useThemedStyles } from './AppTheme';
 import React, { useMemo, useState } from 'react';
 import { FlatList, Image, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ChevronDown from 'lucide-react-native/icons/chevron-down';
-import Check from 'lucide-react-native/icons/check';
 import Text from './AppText';
 import { callingCode, phoneCountries } from '../auth/phoneNumber';
 import countryFlags from '../assets/flags';
@@ -27,7 +25,7 @@ export default function CountryCodePicker({ country, onChange }) {
     <>
       <Pressable accessibilityRole="button" accessibilityLabel="Country calling code" accessibilityHint={`${selected?.name}, +${callingCode(country)}. Choose a country.`} accessibilityState={{ expanded: open }} onPress={() => { setSearch(''); setOpen(true); }} style={styles.trigger}>
         <View style={styles.countryRow}><CountryFlag country={country} compact /><Text style={styles.country}>{country}</Text></View>
-        <View style={styles.codeRow}><Text style={styles.code}>+{callingCode(country)}</Text><ChevronDown size={12} color={colors.primary} accessible={false} /></View>
+        <View style={styles.codeRow}><Text style={styles.code}>+{callingCode(country)}</Text><View style={[styles.chevron, { borderColor: colors.primary }]} accessible={false} /></View>
       </Pressable>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <SafeAreaView style={styles.overlay}>
@@ -42,7 +40,7 @@ export default function CountryCodePicker({ country, onChange }) {
                 <CountryFlag country={item.country} />
                 <Text style={styles.name}>{item.name} <Text style={styles.iso}>({item.country})</Text></Text>
                 <Text style={styles.optionCode}>+{item.code}</Text>
-                {item.country === country && <Check size={18} color={colors.primary} accessible={false} />}
+                {item.country === country && <View style={styles.check} accessible={false}><View style={[styles.checkShort, { backgroundColor: colors.primary }]} /><View style={[styles.checkLong, { backgroundColor: colors.primary }]} /></View>}
               </Pressable>
             )} />
           </View>
@@ -60,6 +58,10 @@ const baseStyles = StyleSheet.create({
   flag: { width: 30, height: 28 },
   codeRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   code: { color: '#193333', fontSize: 14, fontWeight: '600' },
+  chevron: { width: 6, height: 6, borderRightWidth: 1.5, borderBottomWidth: 1.5, transform: [{ rotate: '45deg' }], marginTop: -3 },
+  check: { width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
+  checkShort: { position: 'absolute', width: 6, height: 2, borderRadius: 1, left: 3, top: 10, transform: [{ rotate: '45deg' }] },
+  checkLong: { position: 'absolute', width: 10, height: 2, borderRadius: 1, left: 7, top: 9, transform: [{ rotate: '-50deg' }] },
   overlay: { flex: 1, backgroundColor: 'rgba(25,51,51,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 },
   dialog: { width: '100%', maxWidth: 440, height: '80%', backgroundColor: '#FFFDF7', borderRadius: 24, padding: 16 },
   heading: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },

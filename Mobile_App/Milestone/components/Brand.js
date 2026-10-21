@@ -1,6 +1,6 @@
 import { useAppTheme, useThemedStyles } from './AppTheme';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import Text from './AppText';
 
@@ -8,13 +8,22 @@ import Text from './AppText';
 export default function Brand() {
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
+  const mark = Platform.OS === 'web' ? (
+    React.createElement('svg', { width: 38, height: 38, viewBox: '0 0 48 48', 'aria-hidden': true },
+      React.createElement('path', { fill: colors.brand, d: 'M24 4C12.954 4 4 12.954 4 24s8.954 20 20 20 20-8.954 20-20S35.046 4 24 4Zm0 4c8.837 0 16 7.163 16 16 0 2.105-.406 4.115-1.144 5.953l-5.3-2.367A10.005 10.005 0 0 0 34 24c0-5.523-4.477-10-10-10s-10 4.477-10 10c0 1.25.23 2.446.65 3.55l-5.282 2.361A15.938 15.938 0 0 1 8 24C8 15.163 15.163 8 24 8Z' }),
+      React.createElement('path', { fill: colors.brand, d: 'M16.164 29.82A9.98 9.98 0 0 0 24 34a9.98 9.98 0 0 0 7.836-4.18l-3.278-1.465A6.003 6.003 0 0 1 24 30a6.003 6.003 0 0 1-4.558-1.645l-3.278 1.465Z' }),
+      React.createElement('path', { fill: '#d9822b', d: 'M22 18h4v4h4v4h-4v4h-4v-4h-4v-4h4v-4Z' })
+    )
+  ) : (
+    <Svg width={38} height={38} viewBox="0 0 48 48" accessible={false}>
+      <Path fill={colors.brand} d="M24 4C12.954 4 4 12.954 4 24s8.954 20 20 20 20-8.954 20-20S35.046 4 24 4Zm0 4c8.837 0 16 7.163 16 16 0 2.105-.406 4.115-1.144 5.953l-5.3-2.367A10.005 10.005 0 0 0 34 24c0-5.523-4.477-10-10-10s-10 4.477-10 10c0 1.25.23 2.446.65 3.55l-5.282 2.361A15.938 15.938 0 0 1 8 24C8 15.163 15.163 8 24 8Z" />
+      <Path fill={colors.brand} d="M16.164 29.82A9.98 9.98 0 0 0 24 34a9.98 9.98 0 0 0 7.836-4.18l-3.278-1.465A6.003 6.003 0 0 1 24 30a6.003 6.003 0 0 1-4.558-1.645l-3.278 1.465Z" />
+      <Path fill="#d9822b" d="M22 18h4v4h4v4h-4v4h-4v-4h-4v-4h4v-4Z" />
+    </Svg>
+  );
   return (
     <View accessible accessibilityLabel="Milestone" style={styles.brand}>
-      <Svg width={38} height={38} viewBox="0 0 48 48" accessible={false}>
-        <Path fill={colors.brand} d="M24 4C12.954 4 4 12.954 4 24s8.954 20 20 20 20-8.954 20-20S35.046 4 24 4Zm0 4c8.837 0 16 7.163 16 16 0 2.105-.406 4.115-1.144 5.953l-5.3-2.367A10.005 10.005 0 0 0 34 24c0-5.523-4.477-10-10-10s-10 4.477-10 10c0 1.25.23 2.446.65 3.55l-5.282 2.361A15.938 15.938 0 0 1 8 24C8 15.163 15.163 8 24 8Z" />
-        <Path fill={colors.brand} d="M16.164 29.82A9.98 9.98 0 0 0 24 34a9.98 9.98 0 0 0 7.836-4.18l-3.278-1.465A6.003 6.003 0 0 1 24 30a6.003 6.003 0 0 1-4.558-1.645l-3.278 1.465Z" />
-        <Path fill="#d9822b" d="M22 18h4v4h4v4h-4v4h-4v-4h-4v-4h4v-4Z" />
-      </Svg>
+      {mark}
       <Text style={styles.wordmark}>Milestone</Text>
     </View>
   );

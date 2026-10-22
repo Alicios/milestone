@@ -109,7 +109,11 @@ export async function setup(context, options = {}) {
       if (state.failReload && state.writes.length) return failure('XX000', 'Reload failed')
       return reply(rows)
     }
-    if (name === 'routine_assignment_exercises') return reply(state.snapshots)
+    if (name === 'routine_assignment_exercises') {
+      if (state.holdSnapshots) await state.holdSnapshots()
+      if (state.failSnapshots) return failure('42501', 'Snapshot access denied')
+      return reply(state.snapshots)
+    }
     return reply([])
   })
   return state

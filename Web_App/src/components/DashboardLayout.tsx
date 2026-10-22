@@ -35,6 +35,8 @@ export interface DashboardOutletContext {
   occupied: Record<string, OccupiedDate[]>
   setWeek: (week: string) => void
   assignmentsLoading: boolean
+  assignmentsError: string
+  retryAssignments: () => void
   cancelAssignment: (assignmentId: string) => Promise<void>
   scheduleFollowUp: (assignmentId: string, scheduledAt: string) => Promise<void>
   cancelFollowUp: (assignmentId: string) => Promise<void>
@@ -93,6 +95,7 @@ export function DashboardWorkspace() {
   }
   const calendar = useAssignmentCalendar(user?.id, patients.map((patient) => patient.profileId))
   const { assignments, weekDates, policy, occupied, setWeek } = calendar
+  const retryAssignments = () => { void calendar.refreshPolicy(); void calendar.refresh().catch(() => {}) }
   const [assignmentNotice, setAssignmentNotice] = useState('')
   const [target, setTarget] = useState<{ patient: Patient; singleDate?: string } | null>(null)
   const mutations = useRef(new SingleFlight())
@@ -229,7 +232,7 @@ export function DashboardWorkspace() {
     <Container maxWidth={false} sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: isMessagesPage ? 0 : { xs: 2, md: 3 } }}>
       {patientsLoading && <Alert severity="info" sx={{ mb: 2 }}>Loading patients from Supabase…</Alert>}
       {patientsError && <Alert severity="error" sx={{ mb: 2 }}>{patientsError}</Alert>}
-      {calendar.error && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" disabled={calendar.refreshing} onClick={() => { void calendar.refreshPolicy(); void calendar.refresh().catch(() => {}) }}>Retry loading assignments</Button>}>{calendar.error}</Alert>}
+      {calendar.error && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" disabled={calendar.refreshing} onClick={retryAssignments}>Retry loading assignments</Button>}>{calendar.error}</Alert>}
       {calendar.loading && !calendar.error && <Alert severity="info" sx={{ mb: 2 }}>Loading assignment calendar…</Alert>}
       {assignmentNotice && <Alert severity="warning" sx={{ mb: 2 }} action={<Button color="inherit" disabled={calendar.refreshing} onClick={() => void calendar.refresh().then(() => setAssignmentNotice('')).catch(() => {})}>Retry loading assignments</Button>}>{assignmentNotice}</Alert>}
       {operations.storageError && <Alert severity="error">{operations.storageError}</Alert>}
@@ -239,7 +242,7 @@ export function DashboardWorkspace() {
         <Stack direction="row" spacing={1}><Button disabled={operations.busy.includes(operation.requestId)} onClick={() => void operations.recover(operation)}>Check receipt</Button><Button disabled={operations.busy.includes(operation.requestId)} onClick={() => void operations.recover(operation, true)}>Retry same confirmed request</Button></Stack>
       </Alert>)}
       {routineReloadError && <Alert severity="warning" sx={{ mb: 2 }} action={<Button color="inherit" disabled={routinesReloading} onClick={() => void reloadRoutines()}>{routinesReloading ? 'Loading…' : 'Retry loading routines'}</Button>}>{routineReloadError}</Alert>}
-      <Outlet context={{ patients, routines, assignments, weekDates, openSchedule, policy, occupied, setWeek, assignmentsLoading: calendar.loading, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, dischargePatient } satisfies DashboardOutletContext} />
+      <Outlet context={{ patients, routines, assignments, weekDates, openSchedule, policy, occupied, setWeek, assignmentsLoading: calendar.loading, assignmentsError: calendar.error, retryAssignments, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, dischargePatient } satisfies DashboardOutletContext} />
       {target && policy && <ScheduleRoutineDialog key={`${target.patient.profileId}/${target.singleDate ?? weekDates[0]}`} patientName={target.patient.name} patientProfileId={target.patient.profileId} routines={routines} weekStart={weekDates[0]} singleDate={target.singleDate} policy={policy} onCancel={() => setTarget(null)} onConfirm={async (entries) => {
         calendar.invalidate()
         try {

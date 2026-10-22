@@ -160,7 +160,7 @@ for (const width of [1280, 390]) {
     await expect(week.getByText('Bulletproof Back', { exact: true })).toBeVisible()
     await expect(week.getByText('Occupied', { exact: true })).toHaveCount(2)
     for (const day of ['Wednesday', 'Thursday']) await expect(assign(day)).toHaveCount(0)
-    await expect(week.getByRole('button')).toHaveCount(5)
+    await expect(week.getByRole('button', { name: /^Assign routine to/ })).toHaveCount(5)
     await expect(week.getByTestId('AddIcon')).toHaveCount(5)
     await expect(assign('Monday')).toBeDisabled()
     await expect(assign('Friday')).toBeEnabled()

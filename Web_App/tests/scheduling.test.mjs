@@ -216,7 +216,8 @@ test('snapshot loading preserves captured catalog UUIDs and never reconstructs h
   const responses = {
     routine_assignments: [{ id: 'assignment', patient_profile_id: profile, routine_id: routine, scheduled_date: '2026-10-20', status: 'scheduled', routine_name_snapshot: 'Original' }],
     routine_assignment_exercises: [
-      { id: 'first', routine_assignment_id: 'assignment', exercise_name_snapshot: 'Captured name', exercise_id_snapshot: routine, position: 0, reps_snapshot: 7 },
+      { id: 'first', routine_assignment_id: 'assignment', exercise_name_snapshot: 'Captured name', exercise_id_snapshot: routine, position: 0,
+        sets_snapshot: 3, reps_snapshot: 7, timer_seconds_snapshot: 45, notes_snapshot: 'Captured notes' },
       { id: 'second', routine_assignment_id: 'assignment', exercise_name_snapshot: 'Historical', exercise_id_snapshot: null, position: 1 },
     ], routine_follow_ups: [],
   }
@@ -226,7 +227,54 @@ test('snapshot loading preserves captured catalog UUIDs and never reconstructs h
   const [assignment] = await loadRoutineAssignments([profile], '2026-10-19','2026-10-25')
   assert.deepEqual(assignment.exercises.map((exercise) => exercise.exerciseId), [routine, null])
   assert.equal(assignment.exercises[0].reps, 7)
+  assert.equal(assignment.exercises[0].sets, 3)
+  assert.equal(assignment.exercises[0].durationSeconds, 45)
+  assert.equal(assignment.exercises[0].notes, 'Captured notes')
   assert.ok(!calls.includes('routines') && !calls.includes('exercises'))
+})
+
+const detailsMui = Object.fromEntries(['Alert', 'Box', 'Button', 'Stack', 'Typography'].map(name => [name, name]))
+const { AssignedRoutineDetails } = loadTs('src/components/AssignedRoutineDetails.tsx', { '@mui/material': detailsMui })
+function detailNodes(node) {
+  if (Array.isArray(node)) return node.flatMap(detailNodes)
+  return node == null || typeof node === 'boolean' ? [] : [node, ...detailNodes(node.props?.children)]
+}
+const detailText = (node) => detailNodes(node).filter(n => typeof n === 'string' || typeof n === 'number').join(' ')
+const detailAssignment = { id: 'assigned', routineName: 'Captured routine', scheduledDate: '2026-10-21', exercises: [
+  { id: 'b', position: 1, name: 'Second exercise' },
+  { id: 'a', position: 0, name: 'First exercise', sets: 2, reps: 8, durationSeconds: 30, notes: 'Line one\nLine two' },
+] }
+const detailProps = { id: 'details', assignment: detailAssignment, loading: false, error: '', onRetry() {}, onClose() {} }
+
+test('assignment detail rendering preserves captured values, orders positions without mutation, and labels missing fields', () => {
+  const before = structuredClone(detailAssignment)
+  const nodes = detailNodes(AssignedRoutineDetails(detailProps))
+  assert.deepEqual(nodes.filter(n => n.props?.component === 'h4').map(detailText), ['First exercise', 'Second exercise'])
+  assert.deepEqual(nodes.filter(n => n.props?.component === 'dd').map(detailText), ['2', '8', '30 seconds', 'Line one\nLine two', ...Array(4).fill('Not specified')])
+  assert.equal(nodes.find(n => n.props?.component === 'time').props.dateTime, '2026-10-21')
+  assert.deepEqual(detailAssignment, before)
+})
+
+test('assignment detail loading and errors suppress prescription data; retry and collapse invoke only their handlers', () => {
+  let retries = 0; let closes = 0
+  const loading = AssignedRoutineDetails({ ...detailProps, loading: true })
+  assert.match(detailText(loading), /Loading assigned routine details/)
+  assert.doesNotMatch(detailText(loading), /Captured routine|First exercise/)
+  const failed = AssignedRoutineDetails({ ...detailProps, loading: true, error: 'Access denied', onRetry: () => retries++, onClose: () => closes++ })
+  assert.match(detailText(failed), /Unable to load assigned routine details\.\s+Access denied/)
+  assert.doesNotMatch(detailText(failed), /Captured routine|First exercise|Loading assigned/)
+  detailNodes(failed).find(n => n.props?.action).props.action.props.onClick()
+  detailNodes(failed).find(n => n.type === 'Button' && detailText(n) === 'Collapse details').props.onClick()
+  assert.equal(retries, 1); assert.equal(closes, 1)
+})
+
+test('assignment details distinguish no captured exercises from an unavailable assignment', () => {
+  const empty = AssignedRoutineDetails({ ...detailProps, assignment: { ...detailAssignment, exercises: [] } })
+  assert.match(detailText(empty), /No exercise details were recorded for this assignment/)
+  assert.match(detailText(empty), /Captured routine/)
+  const unavailable = AssignedRoutineDetails({ ...detailProps, assignment: undefined })
+  assert.match(detailText(unavailable), /This assignment is no longer available in this week/)
+  assert.doesNotMatch(detailText(unavailable), /Captured routine/)
 })
 test('late authentication/provider responses cannot restore a previous account or signed-out session', async () => {
   const hook = hooks(); let listener; const first = deferred()

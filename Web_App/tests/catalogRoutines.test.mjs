@@ -202,12 +202,17 @@ test('catalog failures block saves and display the original backend error', asyn
 async function layoutHarness({ save = async () => 'new-id', load = async () => [] } = {}) {
   const hook = hooks(); const writes = []; const reads = []
   const user = { id: 'provider-a', name: 'Provider' }
-  const { DashboardLayout } = loadTs('../src/components/DashboardLayout.tsx', {
+  const { DashboardWorkspace: DashboardLayout } = loadTs('../src/components/DashboardLayout.tsx', {
     react: hook.react, '@mui/material': mui,
     'react-router-dom': { Link: 'Link', Outlet: 'Outlet', useLocation: () => ({ pathname: '/dashboard/routines' }) },
     '../auth/AuthContext': { useAuth: () => ({ user, logout() {} }) },
     '../lib/week': { getCurrentWeekDates: () => ['2026-10-20', '', '', '', '', '', '2026-10-26'] },
     '../lib/errors': errors,
+    '../hooks/useAssignmentCalendar': { useAssignmentCalendar: () => ({ assignments: {}, occupied: {}, weekDates: [], policy: null, loading: false, refresh: async () => {}, invalidate() {} }) },
+    '../hooks/useScheduleOperations': { useScheduleOperations: () => ({ pending: [], busy: [], notice: '', storageError: '' }) },
+    '../lib/scheduleRecovery': loadTs('../src/lib/scheduleRecovery.ts'),
+    '../lib/scheduling': loadTs('../src/lib/scheduling.ts'),
+    './ScheduleRoutineDialog': { ScheduleRoutineDialog: 'ScheduleRoutineDialog' },
     '../lib/supabaseData': {
       loadPatients: async () => [], loadRoutineAssignments: async () => [],
       loadRoutines: async (...args) => { reads.push(args); return load(reads.length) },

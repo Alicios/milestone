@@ -17,6 +17,5 @@ export function getCurrentWeekDates(now = new Date()) {
 }
 
 export function formatCalendarDate(dateKey: string, options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }) {
-  const [year, month, day] = dateKey.split('-').map(Number)
-  return new Intl.DateTimeFormat('en-US', options).format(new Date(year, month - 1, day))
+  return new Intl.DateTimeFormat('en-US', { ...options, timeZone: 'UTC' }).format(new Date(`${dateKey}T12:00:00Z`))
 }

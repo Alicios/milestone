@@ -3,12 +3,22 @@
 Implementation worktree: `/private/tmp/milestone-scrum64-scheduling`.
 Branch: `feature/scrum-64-scheduling-integration`, based on catalog commit
 `4c459ddf47306d49c32a08b31643c0af475730ac`.
+Earlier implementation review: `a012449b71d2c1b47628b045997116d9186f5037`.
+Last confirmed HEAD from the resumed-session handoff:
+`75a77d0c25d57f1eb906ba4c75bc88744f81aa1f`.
 
 The catalog/prescription worktree and paused assignment worktree were preserved.
 The paused branch was not merged. Its duplicate-submit guard, separation of save
 success from reload failure, and read-only retry behavior were adapted to the
-batch API. No hosted migration, patient creation, push, merge, or Jira update was
-performed. Patient mobile code was not changed.
+batch API. The implementation is committed and pushed. No PR has been created or
+merged. The scheduling migration was successfully deployed to hosted Supabase on
+October 21, 2026, and provider-side hosted acceptance passed as recorded below.
+The final readiness audit verdict was **READY WITH CONDITIONS**; the separate
+anonymous clinical-read security release blocker remains open. Patient mobile
+code was not changed; mobile snapshot consumption remains a separate follow-up.
+This resumed task authorizes documentation changes only, with no hosted access
+or clinical data changes. Deployment and acceptance results below come from the
+handoff; they were not rerun during this documentation update.
 
 ## File map
 
@@ -16,12 +26,14 @@ performed. Patient mobile code was not changed.
 | --- | --- |
 | Patient/dashboard integration | `src/pages/PatientPage.tsx`, `src/pages/DashboardPage.tsx`, `src/components/DashboardLayout.tsx` |
 | Scheduling and cancellation UI | New `src/components/ScheduleRoutineDialog.tsx`, new `src/components/CalendarWeekNavigation.tsx`, updated `src/components/RemoveRoutineDialog.tsx` |
+| Expandable assigned prescription details | `src/pages/DashboardPage.tsx`, new `src/components/AssignedRoutineDetails.tsx`, `tests/browser/assignmentDetails.spec.mjs` |
 | Calendar/recovery state | New `src/hooks/useAssignmentCalendar.ts`, `src/hooks/useScheduleOperations.ts` |
 | Date policy, transport, durable recovery | New `src/lib/scheduling.ts`, `src/lib/schedulingData.ts`, `src/lib/scheduleRecovery.ts` |
 | Snapshot loading and session isolation | `src/lib/supabaseData.ts`, `src/lib/week.ts`, `src/auth/AuthContext.tsx` |
 | Database | New `supabase/migrations/20261021000100_patient_routine_scheduling.sql`, `supabase/audits/scheduling_preflight.sql`, `supabase/audits/scheduling_verify.sql` |
 | Tests | New `supabase/tests/scheduling_integration.py`, `tests/scheduling.test.mjs`, `tests/helpers/modules.mjs`, `tests/browser/fixture.mjs`, `tests/browser/scheduling.spec.mjs`; updated catalog harness in `tests/catalogRoutines.test.mjs` |
 | Test configuration and documentation | New `playwright.config.mjs` and this document; `package.json` and `package-lock.json` |
+| Hosted recovery procedure | [SCRUM64_RECOVERY.md](SCRUM64_RECOVERY.md) |
 
 ## User workflow
 
@@ -29,6 +41,13 @@ The existing patient page has week navigation, a weekly schedule button, and a
 single-date assignment button. Both entry points use `ScheduleRoutineDialog` and
 the same batch backend. The dashboard's existing date buttons use that dialog
 and cannot add another routine to an occupied date.
+
+On the dashboard, selecting an assigned routine expands its read-only details.
+The panel shows the assigned routine name and date, ordered exercises, sets,
+repetitions, duration, and notes from persisted assignment snapshots. It does not
+rebuild prescriptions from the editable template. The panel supports collapse,
+loading/error states, a read-only retry, and missing-detail messages. The patient
+page also displays assigned prescription snapshots.
 
 Each weekday selector uses the provider's persisted routines. Empty selectors
 create no assignments and do not cancel existing ones. Repetition expands the
@@ -46,8 +65,11 @@ nor elapsed 24-hour intervals decide scheduling eligibility.
 ## API and database contract
 
 Only `supabase/migrations/20261021000100_patient_routine_scheduling.sql` is new.
-It is forward-only, transactional, and disabled in source pending deployment
-review. Historical migrations must not be replayed.
+It is forward-only and transactional, and was deployed on October 21, 2026.
+Its source intentionally retains the disabled execution gate; that gate is not
+evidence of pending deployment and must remain disabled. **Do not replay this
+deployed migration**, enable its source gate, or replay historical migrations.
+Any subsequent database correction needs a separately reviewed repair.
 
 | RPC | Contract |
 | --- | --- |
@@ -130,8 +152,29 @@ before proposing a new schedule. Receipts are intentionally not expired or prune
 
 ## Verification
 
-Run from `Web_App` unless an absolute path is shown. All automated data writes
-are either in memory or in newly initialized disposable PostgreSQL clusters.
+### Final readiness audit reported in the handoff
+
+| Check | Recorded result |
+| --- | --- |
+| Scheduling unit tests | 29 passed |
+| Routine prescription tests | 28 passed |
+| Browser tests | 17 passed |
+| TypeScript checks | Passed |
+| Production build | Passed |
+| Database integration | Historical passing evidence; not a fresh database run in the final readiness audit |
+
+These are the latest reported audit results, not fresh runs in this documentation
+session. Exact run timestamps and complete command/output records were not
+supplied in the handoff; no additional run or aggregate test count is asserted.
+Hosted acceptance is recorded separately below.
+
+### Earlier implementation verification — historical evidence
+
+The following counts preserve the earlier implementation record and are not the
+latest suite totals. In particular, the PostgreSQL integration and prescription
+rehearsal results are historical passes, not freshly rerun database checks.
+Commands are relative to `Web_App` unless an absolute path is shown. Automated
+data writes use memory or newly initialized disposable PostgreSQL clusters.
 
 | Command | Result |
 | --- | --- |
@@ -143,8 +186,9 @@ are either in memory or in newly initialized disposable PostgreSQL clusters.
 | `npm run lint` | TypeScript build check |
 | `npm run build -- --outDir /private/tmp/milestone-scrum64-build` | TypeScript and Vite production build; output outside tracked dist |
 
-No tests are skipped. Browser tests block all external traffic except the
-intercepted synthetic project; they never use real login credentials or patients.
+The earlier record reported no skipped tests. Automated browser tests block all
+external traffic except the intercepted synthetic project; they never use real
+login credentials or patients.
 They exercise provider-created catalog routines, weekly repetition/rest, permanent
 prescription preview, conflict blocking, template-change rejection, browser refresh,
 sign-out/sign-in, cross-tab invalidation, navigation/stale responses, save/reload
@@ -161,100 +205,232 @@ historical records/prescription RPCs. The script accepts a local `--pg-bin` path
 (default Homebrew PostgreSQL 17), never a database connection URL. Fixture schema
 is reconstructed explicitly in a fresh cluster; it is not a deployment recipe.
 
-The build retains Vite's large-chunk warning (about 998 kB before gzip).
-`npm audit --json` reports two existing high-severity findings: `vite` 7.3.6 and
-`source-map-js` 1.2.1. Existing dependency versions and platform metadata were
+The earlier build recorded Vite's large-chunk warning (about 998 kB before gzip).
+The earlier `npm audit --json` reported two existing high-severity findings:
+`vite` 7.3.6 and `source-map-js` 1.2.1. Existing dependency versions and platform metadata were
 preserved; the only dependency addition is development-only Playwright. Resolve
-the existing dependency findings separately before release.
+the existing dependency findings separately before release. This documentation
+update does not provide a fresh dependency audit or evidence of their resolution.
 
-## Hosted preflight and deployment — approval still required
+## Hosted deployment and acceptance
 
-A read-only REST collision inspection at `2026-10-21T03:58:02Z` observed four
-assignments and five provider relationships, with zero conflicting patient/date
-groups and zero invalid assignment identities. No names or prescriptions were
-requested. Evidence is `/private/tmp/scrum64-hosted-rest-collisions.json` (private,
-outside Git). It used the existing administrator secret in an `apikey` header as
-documented by [Supabase](https://supabase.com/docs/guides/getting-started/api-keys).
-This was a pair of GET reads, not a transactionally consistent SQL snapshot.
+### Deployment status and evidence limits
 
-The direct PostgreSQL connection was rejected with `28P01` (authentication
-failure). Therefore hosted function definitions, privileges, triggers, migration
-history, and complete schema compatibility remain unverified. Local migration
-files do not prove hosted deployment. Obtain a working administrator SQL
-connection before deployment; do not infer success from the REST collision check.
+The resumed-session handoff confirms successful hosted Supabase deployment on
+October 21, 2026, followed by successful provider-side hosted acceptance. The
+exact deployment time, submitted SQL checksum, project reference, operator/reviewer
+identities, and complete SQL Editor outputs were not supplied in the handoff;
+this update does not invent them or claim fresh hosted inspection. The original
+export timestamps below are capture times, not deployment timestamps.
 
-After explicit deployment approval, perform these steps in order:
+The source migration gate remains disabled intentionally. Do not rerun the
+deployed migration or use migration-directory replay or a blanket push to
+reconcile migration history. Retain the submitted execution copy and original
+deployment evidence privately where available.
 
-1. Take the normal database backup and establish a quiet write window for the
-   before/after fingerprints. Confirm the intended Supabase project. Configure
-   `SCRUM64_DATABASE_URL` securely with a working administrator PostgreSQL URL;
-   do not print it or put it in browser configuration.
-2. Run only the read-only preflight:
+### Verified provider-side hosted acceptance
 
-   ```sh
-   psql "$SCRUM64_DATABASE_URL" -X -v ON_ERROR_STOP=1 \
-     -f supabase/audits/scheduling_preflight.sql \
-     -o /private/tmp/scrum64-sql-preflight.txt
-   ```
+Synthetic patient: **Jaden Shiba**, `05bac18e-b8cf-428e-b591-abd7e80ae4b3`.
+Provider: **Milestone Dev**, `924e8b62-4f8f-4226-bd33-bb526756228c`.
 
-   Require zero collision rows and zero invalid identities. Review current
-   columns, indexes, constraints, function definitions, RLS, grants, and triggers
-   against the catalog/prescription baseline. The migration expects `jsonb[]`
-   routine storage and the prescription helper/writer already deployed. Stop for
-   SCRUM-43 revision/format columns, superseded SCRUM-50 assignment definitions,
-   unexpected snapshot triggers, or other incompatible drift. Resolve any
-   collisions by a separately approved clinical decision, never migration cleanup.
-3. Review the exact new migration. Only after approval, make a deployment copy
-   with its single `hosted_execution_approved constant boolean := false;` changed
-   to `true`. Keep the source gate disabled. For example:
+The handoff records passing hosted checks for:
 
-   ```sh
-   python3 - <<'PY'
-   from pathlib import Path
-   source = Path('supabase/migrations/20261021000100_patient_routine_scheduling.sql').read_text()
-   gate = 'hosted_execution_approved constant boolean := false;'
-   assert source.count(gate) == 1
-   Path('/private/tmp/scrum64-approved.sql').write_text(source.replace(gate, gate.replace('false', 'true')))
-   PY
-   diff -u supabase/migrations/20261021000100_patient_routine_scheduling.sql /private/tmp/scrum64-approved.sql
-   ```
+- Routine creation and editing, including prescription persistence.
+- Scheduling assignments and persistence after browser refresh.
+- Assigned prescription details, including the expandable details feature.
+- Template edits leaving existing assignment snapshots unchanged.
+- Cancellation preserving historical assignment snapshots.
+- Replacement creating a new assignment UUID.
 
-4. Apply **only** the reviewed copy:
+For the October 24, 2026 scheduled date, the cancellation/replacement verification
+identified these assignments:
 
-   ```sh
-   psql "$SCRUM64_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f /private/tmp/scrum64-approved.sql
-   ```
+| Assignment | UUID | Preserved exercise snapshots |
+| --- | --- | ---: |
+| Cancelled | `8a570002-2ce4-467f-b38b-74eb3af3cb96` | 3 |
+| Replacement | `1a03e5b7-5295-4afd-9318-227bd8665d7a` | 3 |
 
-   It rechecks collisions while holding table locks, uses a 5-second lock timeout,
-   and commits atomically. Any mismatch/error requires review; do not replay the
-   migration directory or automatically retry with weaker checks. Do not apply
-   superseded SCRUM-43/SCRUM-50 SQL over the prescription implementation.
-5. Before any acceptance writes, run:
+October 24 is the assignment date; no exact acceptance execution timestamp was
+provided. These observations establish provider-side hosted acceptance for the
+listed flows. They do not establish patient mobile snapshot consumption or
+resolve the separate security release blocker.
 
-   ```sh
-   psql "$SCRUM64_DATABASE_URL" -X -v ON_ERROR_STOP=1 \
-     -f supabase/audits/scheduling_verify.sql \
-     -o /private/tmp/scrum64-sql-verification.txt
-   ```
+### Environment and completed review
 
-   Compare all preflight fingerprints/counts. Require unchanged routines, catalog,
-   and historical assignments/snapshots (excluding the two new columns), consistent
-   shared identities, zero collisions, zero new historical catalog identities,
-   and zero receipts before acceptance testing. Verify the new partial index,
-   14-day/Los Angeles policy, RPC authentication/grants, receipt RLS, and immutability
-   triggers. The migration sends the PostgREST schema-cache reload notification.
-6. Record this single applied migration in the team's deployment ledger after
-   success. Reconcile the existing hosted migration history separately; do not
-   use a blanket `supabase db push` or migration-directory replay.
-7. Configure the integration web app with only the public Supabase URL/key. Start
-   it against the updated project and verify policy/occupancy reads while signed
-   in as the provider. Then, after separate patient-data approval, perform manual
-   acceptance of creation/edit/schedule/cancel/replacement, two tabs, two providers
-   sharing a patient, refresh/sign-in, future snapshots, and dates at the horizon.
-   Never run the disposable test fixtures against hosted Supabase.
+Hosted Supabase runs PostgreSQL 17.6 on the Free plan. Deployment uses the
+Supabase dashboard SQL Editor with the existing administrator role. A database
+password is unavailable and cannot be reset. This procedure needs no password or
+direct database connection. No accessible managed backup is available.
 
-No full browser-to-hosted-PostgREST acceptance has been performed. Passing local
-PostgreSQL plus intercepted browser tests does not establish production readiness.
+The hosted migration-history compatibility, schema/constraint, prescription
+helper/RPC, runtime capability, existing-writer, DDL event-trigger, and effective
+browser-role permission audits passed. Explicit column-grant and membership
+review found no incompatible scheduling write access. The recovery exports below
+also passed validation. These are historical review observations, not fresh
+checks in this documentation session or a claim that every archived checklist
+item below has independently supplied evidence.
+
+**Separate security release blocker:** temporary anonymous SELECT policies remain
+on clinical tables. Preserve their captured definitions during this work. SCRUM-64
+does not resolve that blocker and this procedure does not authorize policy or
+permission changes to resolve it. Application release remains blocked pending a
+separately reviewed security change.
+
+### Validated recovery artifacts
+
+Both files were captured through SQL Editor and are stored privately outside Git:
+
+- Application data: `/Users/gerardocamacho/Downloads/Supabase Snippet List Tables and Columns with Data Types (2).csv`
+  - SHA-256: `c36566ee01de48246abffd8c705debf7c90e094c19b47de347e9363410a40101`
+  - 292 CSV records: 284 application records and eight manifests.
+  - Captured `2026-10-21T19:32:42.904876Z`, role `postgres`, timezone UTC.
+- Database definitions: `/Users/gerardocamacho/Downloads/Supabase Snippet List Tables and Columns with Data Types (3).csv`
+  - SHA-256: `aa5556803a5cd4827a4389bc953bd3bae75fde73a5c9a355f47db3f956db2102`
+  - 515 CSV records covering definitions, ACLs, RLS, triggers, and dependencies.
+  - Captured `2026-10-21T19:35:36.541936Z`, role `postgres`, timezone UTC.
+
+Validation passed strict CSV/JSON parsing, counts, all eight recomputed manifest
+fingerprints, original function comparisons, permissions/RLS, constraints,
+indexes, triggers, and coverage for targeted recovery. The captures are about
+174 seconds apart; their contents alone cannot prove a quiet write window or
+identify the project uniquely from the generic database name `postgres`.
+
+These are **targeted recovery exports, not a complete PostgreSQL backup**. They
+support preparing an in-place repair in an otherwise intact project. They do not
+provide project reconstruction, point-in-time recovery, or a demonstrated restore.
+Auth, Storage, other application tables, and later activity are outside their
+coverage. See [SCRUM64_RECOVERY.md](SCRUM64_RECOVERY.md) for dependencies,
+preservation baselines, exclusions, and repair requirements.
+
+Some metadata `object_name` labels are truncated to 63 bytes and two constraint
+labels collide. Recovery must use full identities and definitions from `details`,
+not `object_name` alone. The payloads preserve the affected object identities.
+Future capture-query revisions should make the label column `text` from the first
+UNION branch. Do not change the validated original exports.
+
+### Archived first-deployment checklist — do not execute again
+
+The original checklist is retained as historical procedure and evidence context.
+Deployment has completed; these steps are not pending instructions. Retaining
+them does not assert that every result set is available in this handoff. Do not
+use them to replay the migration. A repair requires the current-state capture and
+separate review in [SCRUM64_RECOVERY.md](SCRUM64_RECOVERY.md).
+
+For multi-statement audit snippets, preserve every SELECT output rather than only
+the final SQL Editor result grid. If earlier grids are unavailable, capture the
+same SELECTs individually through reviewed read-only query copies, recording
+their SQL, times, and settings while writers remain quiet. Separate executions
+do not share one snapshot. This applies to audit capture only; execute the
+migration as one complete transaction.
+
+1. Identify the intended project reference, operator, reviewer, and recovery
+   decision-maker. Record the reviewed implementation commit, planned deployment
+   copy, and artifact checksums in the private deployment record. Keep an
+   independent private copy of the exports and original audit results. Review the
+   recovery procedure and explicitly accept its bounded scope before approval.
+2. Establish a quiet write window covering fresh capture/preflight, deployment,
+   and preservation verification. Account for provider tabs, mobile clients,
+   scripts, jobs, and administrator writers. A frontend maintenance message alone
+   does not stop existing RPC callers. If writes cannot be held, postpone
+   deployment. This requirement does not authorize changing RLS or grants.
+3. Confirm artifact checksums, project provenance, and currentness. Through SQL
+   Editor, obtain fresh read-only comparisons for all eight datasets and their
+   definitions/security state. Use UTC and the recorded fingerprint convention.
+   If records or definitions changed, capture and validate a new version of the
+   package; preserve the originals. Keep the write window quiet after capture.
+4. Run the complete `supabase/audits/scheduling_preflight.sql` through SQL Editor
+   immediately before deployment and save every result set. Require zero collision
+   groups and zero invalid assignment identities. Supplement its four dataset
+   fingerprints with patients, providers, relationships, and follow-ups. Review
+   current function bodies/owners/ACLs, columns, constraints, indexes, RLS,
+   triggers, default grants, and memberships against the validated definitions.
+   Require `jsonb[]` routine storage and deployed prescription APIs. Stop for
+   overlapping SCRUM-43 columns, superseded APIs, unexpected scheduling objects,
+   drift, or incompatible writers. Any clinical collision resolution needs its
+   own approval; it is not migration cleanup.
+5. Review the exact source and proposed one-line execution-copy difference. Only
+   after explicit deployment approval may a separate copy change the single
+   execution gate from false to true. Review and record the final difference,
+   keeping the committed source gate disabled. These documents do not enable the
+   gate or authorize deployment.
+6. In SQL Editor, execute the entire approved migration once, with no partial
+   selection. Preserve `BEGIN`, `COMMIT`, the 5-second lock timeout, and the
+   120-second statement timeout. Save the submitted SQL, time, and result/error.
+   Do not weaken checks, replay historical migrations, or automatically retry.
+   Follow the decision tree below for any failure or uncertain outcome.
+7. Before any acceptance writes, run the complete
+   `supabase/audits/scheduling_verify.sql` through SQL Editor and save all result
+   sets. Complete the supplemental verification below. Verification occurs after
+   `COMMIT`; a failed check cannot roll back that completed transaction.
+8. After verification passes, record this one deployment and its evidence in the
+   team ledger. The migration does not write Supabase migration history; any
+   history reconciliation requires separate review. Do not use migration-directory
+   replay or a blanket push to reconcile it.
+9. Use only the public Supabase URL/key in the application. Verify signed-in
+   provider policy/occupancy reads. Hosted acceptance involving clinical writes
+   requires its own approved scope; do not create patients or run disposable
+   fixtures as part of deployment. Resume writers only after the operator and
+   reviewer accept verification. Keep the separate security release blocker open.
+
+### Original supplemental postdeployment verification requirements
+
+These requirements describe the original deployment window. Acceptance has now
+created later activity: zero receipts and global predeployment fingerprints are
+not current-state expectations. Preserve the original baselines and compare
+original rows by ID while reconciling later changes, assignments, snapshots,
+follow-ups, and receipts. Never delete later activity to reproduce old counts.
+
+The committed verification SQL is necessary but does not cover every requirement:
+
+- Compare all eight datasets against the fresh deployment-window baseline before
+  acceptance writes. The SQL projects away only assignment `patient_id` and
+  snapshot `exercise_id_snapshot` for historical comparisons. Preserve every
+  original field, including IDs, timestamps, status, order, dosage, and notes.
+  Compare fingerprints only under the same generating SQL and session settings;
+  retain older hashes without treating different conventions as equivalent.
+- Require complete, non-null assignment patient identities matching their
+  relationships, zero active patient/date collisions, and all new composite
+  constraints validated. Confirm the new partial unique index is valid/ready
+  with the exact predicate, and original indexes remain intact. Check receipt
+  primary/foreign keys against the migration and confirm the new snapshot UUID
+  column remains nullable with no catalog foreign key.
+- Require historical snapshot catalog IDs to remain NULL, zero receipts before
+  acceptance, and exactly one policy row with 14 days / `America/Los_Angeles`.
+- Verify all five new public RPCs, three replaced RPCs, and eight private helpers
+  exist with expected signatures/bodies and owners. Check public security-definer
+  settings, empty search paths, authenticated execution, and no anonymous
+  execution. Preserve original RPC ACLs, including service-role grants. Confirm
+  prescription/catalog writers and patient read APIs are unchanged.
+- Check all three new immutability triggers, their target tables, enablement,
+  timing/events, and helper bodies. Compare the two existing table triggers and
+  six captured platform event triggers with baseline.
+- Verify existing RLS enabled/forced flags and policies are preserved. Confirm
+  receipt RLS and provider-scoped SELECT, no browser receipt writes, no browser
+  assignment/snapshot INSERT/UPDATE/DELETE/TRUNCATE or column write path, and no
+  browser access to private scheduling schema/policy/helpers. Check effective
+  permissions as well as raw ACLs, column grants, defaults, and memberships.
+- Confirm PostgREST exposes the expected signatures after its schema reload.
+  Missing APIs require inspection; do not resubmit the migration to refresh them.
+
+### Recovery decision tree
+
+| Observed outcome | Required response |
+| --- | --- |
+| Transaction fails before `COMMIT` | Keep writers quiet, save the error, and confirm the original transaction has ended. Verify original definitions and data remain intact. An aborted transaction cannot commit its migration changes; retry requires diagnosis and renewed review. |
+| Commit outcome is unknown | Do not rerun. Inspect execution/session status and the complete deployment markers described in the recovery procedure. A still-running transaction may be invisible to another session. Escalate unresolved or mixed state to the administrator. |
+| Verification fails after `COMMIT`, with no later writes | Preserve current state and investigate the difference. Prepare a separately reviewed forward fix or coordinated reversal; there is no automatic rollback after commit. |
+| Failure follows new scheduling or other application activity | Re-establish the quiet window and export current assignments, snapshots, follow-ups, receipts, policy, and changed records/definitions before repair. Reconcile activity and request identities; prefer a compatible forward fix when it preserves valid records. Reversal needs explicit review of every affected later record. |
+
+Restoring only the original RPCs is unsafe: the original assignment writer omits
+the new required `patient_id`, and the old cancellation/follow-up bodies lack the
+new shared-patient locking. A repair must coordinate functions, schema,
+constraints, triggers, receipts, and callers. Use
+[SCRUM64_RECOVERY.md](SCRUM64_RECOVERY.md); no executable reversal is authorized or
+included here.
+
+Provider-side browser-to-hosted acceptance has passed for the flows listed above.
+The readiness verdict remains READY WITH CONDITIONS, including the separate
+anonymous clinical-read release blocker and the recorded evidence limitations.
 
 ## Test patients — separate follow-up
 
@@ -271,6 +447,11 @@ Leave patient `auth_user_id` NULL; do not create authentication accounts. Add
 patients-only seeder tests and obtain explicit approval before hosted execution.
 The seeder was inspected only and was not copied, changed, or executed here.
 
-Provider scheduling has no dependency on mobile notifications, new patient auth,
-or patient mobile UI work. Existing patient snapshot reads remain compatible;
-mobile acceptance and unrelated stories are outside this implementation.
+## Mobile snapshot consumption — separate follow-up
+
+Patient mobile code was not changed. Provider-side acceptance does not verify
+that the mobile client consumes persisted assignment snapshots. Track mobile
+snapshot loading/display, refresh persistence, and behavior after template edits,
+cancellation, and replacement separately. Do not mark that follow-up complete
+from these provider results. Mobile notifications, new patient authentication,
+and unrelated stories remain outside this implementation.

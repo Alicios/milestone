@@ -114,7 +114,7 @@ export async function uploadProviderAvatar(userId: string, file: File) {
 }
 
 type PatientProfileRow = { id: string; patient_id: string }
-type PatientRow = { id: string; name: string; email?: string | null; phone?: string | null; primary_concern?: string | null; treatment_focus?: string | null; start_of_care?: string | null; care_status?: Patient['careStatus'] | null }
+type PatientRow = { id: string; name: string; email?: string | null; phone?: string | null; primary_concern?: string | null; treatment_focus?: string | null; start_of_care?: string | null; care_status?: Patient['careStatus'] | null; auth_user_id?: string | null }
 type StatusRow = { patient_profile_id: string; day_index: number; status: Patient['statuses'][number] }
 
 export async function loadPatients(providerId: string): Promise<Patient[]> {
@@ -130,7 +130,7 @@ export async function loadPatients(providerId: string): Promise<Patient[]> {
   const patientIds = profileRows.map((profile) => profile.patient_id)
   const profileIds = profileRows.map((profile) => profile.id)
 
-  const extendedPatientQuery = await supabase.from('patients').select('id, name, email, phone, primary_concern, treatment_focus, start_of_care, care_status').in('id', patientIds)
+  const extendedPatientQuery = await supabase.from('patients').select('id, name, email, phone, primary_concern, treatment_focus, start_of_care, care_status, auth_user_id').in('id', patientIds)
   const patientQuery = extendedPatientQuery.error?.code === '42703'
     ? await supabase.from('patients').select('id, name').in('id', patientIds)
     : extendedPatientQuery
@@ -161,22 +161,49 @@ export async function loadPatients(providerId: string): Promise<Patient[]> {
       primaryConcern: patient.primary_concern ?? undefined,
       treatmentFocus: patient.treatment_focus ?? undefined,
       startOfCare: patient.start_of_care ?? undefined,
+      hasAccount: Boolean(patient.auth_user_id),
       statuses: patientStatuses,
     }
   })
 }
 
-export async function createPatient(name: string, phone?: string | null) {
+export async function createPatient(name: string, email: string) {
   if (typeof name !== 'string' || !name.trim()) throw new Error('Patient name is required.')
-  const patientName = name.trim()
-  const { data, error } = await supabase.rpc('create_patient', { patient_name: patientName, patient_phone: phone?.trim() || null })
-  if (error?.code === 'PGRST202' || error?.code === '42883') {
-    const legacyResult = await supabase.rpc('create_patient', { patient_name: patientName })
-    if (legacyResult.error) throw legacyResult.error
-    return legacyResult.data as string
-  }
+  if (typeof email !== 'string' || !email.trim()) throw new Error('Patient email is required.')
+  const { data, error } = await supabase.rpc('create_patient', { patient_name: name.trim(), patient_phone: null, patient_email: email.trim() })
   if (error) throw error
   return data as string
+}
+
+// Thrown by inviteExistingPatient/createPatientAndInvite so callers can tell
+// "the patient record exists, but the invite failed" apart from an outright
+// creation failure (the patientId lets the UI point at a retry, if one exists).
+export class PatientInviteError extends Error {
+  constructor(public readonly patientId: string, message: string) {
+    super(message)
+    this.name = 'PatientInviteError'
+  }
+}
+
+// Calls the Vercel serverless function in api/invite-patient.ts, which holds
+// the service_role key server-side — the browser can never call Supabase's
+// Admin API (inviteUserByEmail) directly.
+export async function inviteExistingPatient(patientId: string, fetchImpl: typeof fetch = fetch) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new PatientInviteError(patientId, 'Your session expired. Sign in again before inviting a patient.')
+  const response = await fetchImpl('/api/invite-patient', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({ patientId }),
+  })
+  const result = await response.json().catch(() => ({}) as { error?: string })
+  if (!response.ok) throw new PatientInviteError(patientId, result.error || 'The invitation could not be sent.')
+}
+
+export async function createPatientAndInvite(name: string, email: string, fetchImpl: typeof fetch = fetch) {
+  const patientId = await createPatient(name, email)
+  await inviteExistingPatient(patientId, fetchImpl)
+  return patientId
 }
 
 export async function dischargePatient(patientId: string) {

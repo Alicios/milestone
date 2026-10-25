@@ -3,11 +3,14 @@ import { Link as RouterLink, useNavigate, useOutletContext, useParams } from 're
 import AddIcon from '@mui/icons-material/Add'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
+import MailOutlineIcon from '@mui/icons-material/MailOutline'
 import PersonRemoveOutlinedIcon from '@mui/icons-material/PersonRemoveOutlined'
 import { Alert, Box, Button, Card, Chip, Divider, Link, MenuItem, Stack, Tab, Tabs, TextField, Typography } from '@mui/material'
 import { CalendarWeekNavigation } from '../components/CalendarWeekNavigation'
 import { withinHorizon } from '../lib/scheduling'
 import { prescriptionSummary } from '../lib/prescriptions'
+import { inviteExistingPatient, PatientInviteError } from '../lib/supabaseData'
+import { errorMessage } from '../lib/errors'
 import type { DashboardOutletContext } from '../components/DashboardLayout'
 import { DischargePatientDialog } from '../components/DischargePatientDialog'
 import { FollowUpDialog } from '../components/FollowUpDialog'
@@ -34,6 +37,21 @@ function PatientOverview({ patient }: { patient: Patient }) {
   const [confirmDischarge, setConfirmDischarge] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [error, setError] = useState('')
+  const [inviting, setInviting] = useState(false)
+  const [inviteMessage, setInviteMessage] = useState<{ text: string; severity: 'success' | 'error' } | null>(null)
+
+  async function invitePatient() {
+    setInviting(true)
+    setInviteMessage(null)
+    try {
+      await inviteExistingPatient(patient.id)
+      setInviteMessage({ text: `Invitation sent to ${patient.email}.`, severity: 'success' })
+    } catch (inviteError) {
+      setInviteMessage({ text: inviteError instanceof PatientInviteError ? inviteError.message : errorMessage(inviteError, 'The invitation could not be sent.'), severity: 'error' })
+    } finally {
+      setInviting(false)
+    }
+  }
   const patientAssignments = assignments[patient.profileId] ?? {}
   const startOfCare = patient.startOfCare
     ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(patient.startOfCare))
@@ -133,6 +151,13 @@ function PatientOverview({ patient }: { patient: Patient }) {
         </Card>
         <Card component="section" aria-labelledby="patient-actions-heading" sx={{ p: { xs: 2.5, sm: 3 } }}>
           <Typography id="patient-actions-heading" component="h2" variant="h6" sx={{ mb: 1 }}>Patient actions</Typography>
+          {patient.hasAccount
+            ? <Typography variant="body2" color="success.main" sx={{ mb: 2 }}>This patient has an account.</Typography>
+            : <Stack spacing={1.5} sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">{patient.email ? 'Invite this patient to set up their account.' : 'Add an email address before inviting this patient.'}</Typography>
+                {inviteMessage && <Alert severity={inviteMessage.severity} onClose={() => setInviteMessage(null)}>{inviteMessage.text}</Alert>}
+                <Button variant="outlined" startIcon={<MailOutlineIcon />} disabled={!patient.email || inviting} onClick={() => void invitePatient()} sx={{ alignSelf: 'flex-start' }}>{inviting ? 'Sending…' : 'Invite to App'}</Button>
+              </Stack>}
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Discharge this patient to hide them from active care while retaining their clinical history.</Typography>
           <Button variant="outlined" color="error" startIcon={<PersonRemoveOutlinedIcon />} onClick={() => setConfirmDischarge(true)}>Discharge Patient</Button>
         </Card>

@@ -48,9 +48,12 @@ auth.users
 
 - A patient identity can be shared by multiple providers.
 - A patient identity optionally links to its own Supabase Auth account
-  (`patients.auth_user_id`), set administratively via the Supabase Admin API
-  as part of a provider-invited account-creation flow. Most patients have no
-  account; no such flow is implemented in this repo yet.
+  (`patients.auth_user_id`), set by `api/invite-patient.ts` (a Vercel
+  serverless function, since only it can hold the `service_role` key): a
+  provider creates a patient with "New Patient" (now collects email instead of
+  phone) or clicks "Invite to App" on an existing patient, which sends a
+  Supabase invite email. The patient sets their own password on
+  `patient-setup.html` when they open it. Most patients have no account yet.
 - Each provider-patient pair has one private relationship profile.
 - Routine templates belong to a provider.
 - Assignments belong to a provider-specific patient profile and preserve
@@ -196,7 +199,7 @@ activity, and discharge state belong to `provider_patient_profiles`.
 | `treatment_focus` | `text`, nullable | Concise summary of the current treatment focus. |
 | `start_of_care` | `date`, nullable | Calendar date when care began; no time or timezone. |
 | `care_status` | `text` | Shared prototype state: `active` or `pending`. Provider-specific discharge uses `discharged_at`. |
-| `auth_user_id` | `uuid`, nullable, unique | Supabase Auth user backing this patient's own login (Mobile_App). Set administratively, not by a client-facing flow; null means the patient has no account yet. |
+| `auth_user_id` | `uuid`, nullable, unique | Supabase Auth user backing this patient's own login (Mobile_App). Set by `api/invite-patient.ts` once the patient accepts their email invitation; null means the patient has no account yet. |
 
 ### `provider_patient_profiles`
 

@@ -11,6 +11,28 @@ import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-au
 import { Accelerometer } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
 
+// UI regressions use a saved assignment fixture rather than a live backend.
+jest.mock('../lib/supabase', () => {
+  const catalog = [
+    {id: 'push', name: 'Push Ups', desc: 'A simple upper-body exercise that strengthens your chest, shoulders, and arms. Keep your body straight and move at a comfortable pace.'},
+    {id: 'sit', name: 'Sit Ups', desc: 'A core-strengthening exercise that works your abdominal muscles. Move slowly and avoid pulling on your neck.'},
+    {id: 'quad', name: 'Quad Stretch', desc: 'A lower-body stretch that helps improve flexibility in the front of your thigh.'},
+    {id: 'leg', name: 'Leg Stretch', desc: 'A gentle stretch for the legs that helps improve mobility and flexibility.'},
+  ];
+  return {isSupabaseConfigured: true, supabase: {from: (table: string) => {
+    const data = table === 'patients' ? {id: 'patient'}
+      : table === 'provider_patient_profiles' ? [{id: 'profile'}]
+      : table === 'routine_assignments' ? {id: 'assignment', routine_id: 'routine', status: 'scheduled'}
+      : table === 'routines' ? {id: 'routine', name: 'Daily routine', exercise_list: catalog.map((exercise, index) => ({exercise_id: exercise.id, sets: index < 2 ? 3 : 1, reps: index < 2 ? 5 : null, duration_seconds: index < 2 ? null : 30}))}
+      : catalog;
+    const query: any = {};
+    ['select', 'eq', 'in', 'order', 'limit'].forEach(method => { query[method] = () => query; });
+    query.single = query.maybeSingle = async () => ({data, error: null});
+    query.then = (resolve: Function, reject: Function) => Promise.resolve({data, error: null}).then(resolve as any, reject as any);
+    return query;
+  }}};
+});
+
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(async () => {}),
   ImpactFeedbackStyle: { Light: 'light' },
@@ -129,7 +151,8 @@ function expectIntroduction(index: number) {
     const upcomingNames = upcoming.findAllByType(Text)
       .map(textOf).filter(value => exerciseNames.includes(value));
     expect(upcomingNames).toEqual(exerciseNames.slice(index + 1));
-    expect(upcoming.findAll(node => node.props.accessibilityRole === 'button')).toHaveLength(0);
+    const actions = upcoming.findAll(node => node.props.accessibilityRole === 'button');
+    expect(actions.every(node => node.props.accessibilityLabel?.endsWith(' information'))).toBe(true);
   } else {
     expect(hasText('Coming up')).toBe(false);
     expect(renderer.root.findAllByProps({testID: 'upcoming-exercises'})).toHaveLength(0);
@@ -357,7 +380,7 @@ test('expands one exercise preview at a time without starting the routine', asyn
   expect(hasText(exerciseOverviews[2])).toBe(true);
   expect(hasText('1 Set')).toBe(true);
   expect(hasText('30 Seconds')).toBe(true);
-  expect(hasText('5 Reps')).toBe(false);
+  expect(hasText('5 Reps')).toBe(true); // Collapsed rows retain their prescription stats.
 
   await press('Quad Stretch information');
   expect(button('Quad Stretch information').props.accessibilityState.expanded).toBe(false);

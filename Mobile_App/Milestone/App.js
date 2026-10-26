@@ -39,6 +39,7 @@ import RotateCcw from 'lucide-react-native/icons/rotate-ccw';
 import Info from 'lucide-react-native/icons/info';
 
 import {isSupabaseConfigured, supabase} from './lib/supabase';
+import {parseExerciseList, normalizeAssignedExercises} from './lib/assignedExercises';
 
 const palette = {
   cream: '#F4EACF',
@@ -226,8 +227,6 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
           .eq('phone', profile.phone)
           .single();
 
-        console.log('Patient lookup:', patient);
-
         if (patientError) {
           throw patientError;
         }
@@ -242,8 +241,6 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
             .select('id, patient_id, provider_id')
             .eq('patient_id', patient.id);
 
-        console.log('Provider-patient profiles:', patientProfiles);
-
         if (patientProfilesError) {
           throw patientProfilesError;
         }
@@ -253,10 +250,12 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
           .filter(Boolean);
 
         if (!patientProfileIds.length) {
-          throw new Error('No provider-patient profile IDs were found.');
+          if (!cancelled) {
+            setRoutine(null);
+            setExercises([]);
+          }
+          return;
         }
-
-        console.log('Patient profile IDs:', patientProfileIds);
 
         const {data: assignment, error: assignmentError} =
           await supabase
@@ -264,19 +263,13 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
             .select('id, routine_id, patient_profile_id, scheduled_date, status')
             .in('patient_profile_id', patientProfileIds)
             .eq('scheduled_date', today)
-            .in('status', ['scheduled', 'in progress'])
+            .eq('status', 'scheduled')
             .order('scheduled_date', {ascending: true})
             .limit(1)
             .maybeSingle();
 
-        console.log('Routine assignment:', assignment);
-
         if (assignmentError) {
           throw assignmentError;
-        }
-
-        if (!assignment?.routine_id) {
-          throw new Error('Assignment has no routine_id.');
         }
 
         if (!assignment) {
@@ -285,6 +278,10 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
             setExercises([]);
           }
           return;
+        }
+
+        if (!assignment.routine_id) {
+          throw new Error('Assignment has no routine_id.');
         }
 
         const {data: routineData, error: routineError} = await supabase
@@ -297,75 +294,22 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
           throw routineError;
         }
 
-        const exerciseList = Array.isArray(routineData.exercise_list)
-          ? routineData.exercise_list
-          : JSON.parse(routineData.exercise_list || '[]');
-
-        const exerciseIds = exerciseList
-          .map((item) => item.exercise_id)
+        const exerciseList = parseExerciseList(routineData.exercise_list);
+        const exerciseIds = exerciseList.map(item => item.exercise_id).filter(Boolean);
+        const exerciseNames = exerciseList
+          .filter(item => !item.exercise_id)
+          .map(item => item.name ?? item.exerciseName ?? item.title)
           .filter(Boolean);
-
-        console.log('Exercise IDs:', exerciseIds);
-
-        if (!exerciseIds.length) {
-          throw new Error('The routine has no valid exercise IDs.');
+        const catalog = [];
+        // Names are supported for legacy routines; never omit an assigned item
+        // merely because its catalog record is missing or no longer readable.
+        for (const [column, values] of [['id', exerciseIds], ['name', exerciseNames]]) {
+          if (!values.length) continue;
+          const {data, error} = await supabase.from('exercises')
+            .select('id, name, desc').in(column, [...new Set(values)]);
+          if (!error) catalog.push(...(data || []));
         }
-
-        const {data: exerciseData, error: exerciseError} = await supabase
-          .from('exercises')
-          .select('id, name, desc')
-          .in('id', exerciseIds);
-
-        if (exerciseError) {
-          throw exerciseError;
-        }
-
-        console.log('Exercise data:', exerciseData);
-
-        const exerciseMap = new Map(
-          exerciseData.map((exercise) => [
-            String(exercise.id),
-            exercise,
-          ])
-        );
-
-        const normalizedExercises = exerciseList
-          .map((item, index) => {
-            const exerciseDetails = exerciseMap.get(
-              String(item.exercise_id)
-            );
-
-            if (!exerciseDetails) {
-              return null;
-            }
-
-            const sets = Number(item.sets ?? 1);
-            const reps = Number(item.reps ?? 1);
-            const durationSeconds =
-              item.timer == null ? null : Number(item.timer);
-
-            const isTimedExercise = durationSeconds !== null;
-
-            return {
-              id: exerciseDetails.id,
-              name: exerciseDetails.name,
-              detail: exerciseDetails.desc,
-              overview: exerciseDetails.desc,
-              accent:
-                exerciseAccents[index % exerciseAccents.length],
-              type: isTimedExercise ? 'countdown' : 'countup',
-              durationSeconds,
-              sets,
-              reps,
-
-              // Timed exercises use their actual duration.
-              // Count-based exercises use an estimate of 60 seconds per set.
-              estimatedSeconds: isTimedExercise
-                ? durationSeconds * sets * reps
-                : 60 * sets,
-            };
-          })
-          .filter(Boolean);
+        const normalizedExercises = normalizeAssignedExercises(exerciseList, catalog, exerciseAccents);
 
         if (!cancelled) {
           setRoutine({
@@ -477,6 +421,11 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   }
 
   function startRoutineFromDock() {
+    if (!exercises.length) {
+      openRoutines();
+      return;
+    }
+
     if (routineStarted && !routineComplete) {
       resumeRoutine();
       return;
@@ -546,14 +495,28 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     );
   }
 
-  if (!exercises.length) {
+  if (!exercises.length && screen !== 'home' && screen !== 'messages') {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>
-            You do not have a routine scheduled for today.
-          </Text>
-        </View>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+        <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
+        <ScrollView
+          style={styles.screenScroll}
+          contentContainerStyle={styles.container}
+        >
+          <View style={styles.topRow}>
+            <Brand />
+            <ProfileAvatar profile={profile} onPress={onOpenProfile} />
+          </View>
+          <View style={styles.messagesEmptyState}>
+            <Text accessibilityRole="header" style={styles.messagesEmptyTitle}>
+              No routines today
+            </Text>
+            <Text style={styles.messagesEmptyText}>
+              You have no exercises assigned for today.
+            </Text>
+          </View>
+        </ScrollView>
+        {renderDock('routines')}
       </SafeAreaView>
     );
   }
@@ -596,7 +559,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
 
               <View style={styles.exerciseInfoPill}>
                 <Text style={styles.exerciseInfoText}>
-                  {activeExercise.reps} Reps
+                  {activeExercise.reps == null ? 'Reps not specified' : `${activeExercise.reps} Reps`}
                 </Text>
               </View>
 
@@ -700,7 +663,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
 
             {exercises.map((exercise) => (
               <View
-                key={exercise.name}
+                key={exercise.id}
                 style={styles.finalSummaryRow}
               >
                 <Text style={styles.summaryLabel}>
@@ -713,7 +676,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
                   {' · '}
                   {exercise.type === 'countdown'
                     ? `${exercise.durationSeconds}s`
-                    : `${exercise.reps} reps`}
+                    : exercise.reps == null ? 'reps not specified' : `${exercise.reps} reps`}
                 </Text>
               </View>
             ))}
@@ -824,7 +787,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Reps per set</Text>
               <Text style={styles.summaryValue}>
-                {activeExercise.reps}
+                {activeExercise.reps ?? 'Not specified'}
               </Text>
             </View>
           </View>
@@ -1193,7 +1156,7 @@ function ExerciseStats({ exercise }) {
       <Text style={styles.statsText}>
         {exercise.type === 'countdown'
           ? `${exercise.durationSeconds} Seconds`
-          : `${exercise.reps} Reps`}
+          : exercise.reps == null ? 'Reps not specified' : `${exercise.reps} Reps`}
       </Text>
     </View>
   );
@@ -1218,7 +1181,9 @@ function HomeDashboard({
   const progressPercent = exercises.length
   ? Math.round((completedExerciseCount / exercises.length) * 100)
   : 0;
-  const progressStatus = routineComplete
+  const progressStatus = !exercises.length
+    ? 'No routine'
+    : routineComplete
     ? 'Complete'
     : routineStarted
       ? 'In progress'
@@ -1256,10 +1221,12 @@ function HomeDashboard({
       <View style={[styles.dashboardCard, styles.dashboardRoutineCard]}>
         <Text style={styles.dashboardEyebrow}>YOUR DAILY PLAN</Text>
         <Text accessibilityRole="header" style={styles.dashboardCardTitle}>
-          Today's routine
+          {exercises.length ? "Today's routine" : 'No routines today'}
         </Text>
         <Text style={styles.dashboardBody}>
-          A little movement, one step at a time.
+          {exercises.length
+            ? 'A little movement, one step at a time.'
+            : 'You have no exercises assigned for today.'}
         </Text>
         <View style={styles.dashboardRoutineStats}>
           <View>

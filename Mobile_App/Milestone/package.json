@@ -36,7 +36,8 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-svg": "15.15.4",
     "react-native-url-polyfill": "^4.0.0",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.2",
+    "expo-notifications": "~57.0.24"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

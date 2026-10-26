@@ -1,5 +1,5 @@
 import { useAppTheme, useThemedStyles } from './AppTheme';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Text from './AppText';
@@ -9,6 +9,8 @@ import ProfileAvatar from './ProfileAvatar';
 import { chooseProfilePhoto } from '../auth/profilePhoto';
 import { callingCode, formatPhoneInput, getDevicePhoneCountry } from '../auth/phoneNumber';
 import { createMockSession, findMockPatient, formatPhone, validateProfile } from '../auth/mockPatient';
+import PatientAccountSignIn from './PatientAccountSignIn';
+import { restorePatientAccountSession } from '../auth/patientAccount';
 
 function Field({ label, error, ...props }) {
   const styles = useThemedStyles(baseStyles);
@@ -26,6 +28,17 @@ export default function PatientSetup({ onComplete }) {
   const styles = useThemedStyles(baseStyles);
   const { colors, barStyle } = useAppTheme();
   const [phone, setPhone] = useState('');
+  const [accountMode, setAccountMode] = useState(false);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
+  useEffect(() => {
+    let active = true;
+    restorePatientAccountSession().then(session => {
+      if (active && session) onCompleteRef.current(session);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
   const [country, setCountry] = useState(getDevicePhoneCountry);
   const [patient, setPatient] = useState(null);
   const [phoneError, setPhoneError] = useState('');
@@ -81,6 +94,8 @@ export default function PatientSetup({ onComplete }) {
     }
   }
 
+  if (accountMode) return <PatientAccountSignIn onCancel={() => setAccountMode(false)} onComplete={onComplete} />;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
@@ -103,7 +118,8 @@ export default function PatientSetup({ onComplete }) {
                   </View>
                   {phoneError ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.error}>{phoneError}</Text> : null}
                 </View>
-                <Pressable accessibilityRole="button" accessibilityLabel="Continue" onPress={lookup} style={styles.primary}><Text style={styles.primaryText}>Continue</Text></Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel="Continue with demo profile" onPress={lookup} style={styles.primary}><Text style={styles.primaryText}>Continue</Text></Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel="Sign in with patient account" onPress={() => setAccountMode(true)} style={styles.back}><Text style={styles.backText}>Already have an account? Sign in</Text></Pressable>
               </>
             ) : (
               <>

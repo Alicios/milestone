@@ -170,3 +170,23 @@ To learn more about React Native, take a look at the following resources:
 - [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
 - [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
 - [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+
+
+## Patient accounts and routine update notifications
+
+Patients invited through the web app can sign in on the first mobile setup screen
+using the email address and password they chose from the invitation link. The
+account stays signed in through Supabase Auth; the demo phone profile remains
+available for local preview and does not register push tokens.
+
+Routine update alerts require an Expo development or production build on a
+physical device, an EAS project ID, and working APNs/FCM credentials configured
+for that EAS project. Add the project's ID as
+\`EXPO_PUBLIC_EAS_PROJECT_ID\` in this app's environment before building.
+Expo Go does not support remote push notifications on Android.
+
+Signed-in patients read their current routine through a patient-scoped Supabase RPC. The local demo profile keeps its existing preview flow.
+
+Patients are asked for notification permission after signing in. A push says
+only that their provider updated a care routine; it does not include the
+patient's name, routine name, exercise names, or prescription details.

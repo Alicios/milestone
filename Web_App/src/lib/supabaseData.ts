@@ -347,6 +347,21 @@ export async function saveRoutine(routineId: string | null, name: string, exerci
   })
   if (error?.code === 'PGRST202') throw new Error('Prescription saving is not available on this backend yet. Your changes have not been saved.')
   if (error) throw error
+  if (routineId) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        const response = await fetch('/api/notify-routine-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
+          body: JSON.stringify({ routineId }),
+        })
+        if (!response.ok) console.error('Routine was saved, but push notifications could not be requested.')
+      }
+    } catch (notificationError) {
+      console.error('Routine was saved, but push notifications could not be requested.', notificationError)
+    }
+  }
   return data as string
 }
 

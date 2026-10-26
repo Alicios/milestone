@@ -276,20 +276,23 @@ test('assignment details distinguish no captured exercises from an unavailable a
   assert.match(detailText(unavailable), /This assignment is no longer available in this week/)
   assert.doesNotMatch(detailText(unavailable), /Captured routine/)
 })
-test('late authentication/provider responses cannot restore a previous account or signed-out session', async () => {
-  const hook = hooks(); let listener; const first = deferred()
+test('late authentication/provider responses cannot restore a previous account or signed-out session', async (t) => {
+  const previousWindow = globalThis.window
+  globalThis.window = { localStorage: new MemoryStorage(), sessionStorage: new MemoryStorage(), addEventListener() {}, removeEventListener() {} }
+  t.after(() => { globalThis.window = previousWindow })
+  const hook = hooks(); let listener; let session = { user: { id: provider }, access_token: 'access-a', refresh_token: 'refresh-a', expires_at: 4102444800 }; const first = deferred()
   const supabase = { auth: {
-    getSession: async () => ({ data: { session: { user: { id: provider } } } }),
+    getSession: async () => ({ data: { session } }),
     onAuthStateChange: (callback) => { listener = callback; return { data: { listener: {}, subscription: { unsubscribe() {} } } } },
   } }
   const { AuthProvider } = loadTs('src/auth/AuthContext.tsx', {
     react: { ...hook.react, createContext: () => ({ Provider: 'Provider' }), useContext() {} },
     'react-router-dom': { useNavigate: () => () => {} }, '../lib/supabase': { supabase, isSupabaseConfigured: true },
     '../lib/supabaseData': { loadProvider: (id) => id === provider ? first.promise : Promise.resolve({ id }) },
-    './mfa': { needsMfaChallenge: async () => false, getVerifiedTotpFactorId: async () => null },
+    './mfa': { AuthenticationCheckError: Error, needsMfaChallenge: async () => false, getVerifiedTotpFactorId: async () => null },
   })
   hook.render(() => AuthProvider({ children: null })); await tick()
-  listener('SIGNED_IN', { user: { id: other } }); await new Promise((resolve) => setTimeout(resolve, 5))
+  session = { user: { id: other }, access_token: 'access-b', refresh_token: 'refresh-b', expires_at: 4102444800 }; listener('SIGNED_IN', session); await new Promise((resolve) => setTimeout(resolve, 5))
   assert.equal(hook.flush().props.value.user.id, other)
   first.resolve({ id: provider }); await tick()
   assert.equal(hook.flush().props.value.user.id, other)

@@ -217,7 +217,7 @@ export function DashboardWorkspace() {
               <Divider />
               <MenuItem component={RouterLink} to="/dashboard/profile" onClick={() => setProfileMenuAnchor(null)} sx={{ fontFamily: 'Georgia, serif' }}>Profile</MenuItem>
               <MenuItem component={RouterLink} to="/dashboard/settings" onClick={() => setProfileMenuAnchor(null)} sx={{ fontFamily: 'Georgia, serif' }}>Settings</MenuItem>
-              <MenuItem onClick={() => { setProfileMenuAnchor(null); logout() }} sx={{ fontFamily: 'Georgia, serif' }}>Logout</MenuItem>
+              <MenuItem onClick={() => { setProfileMenuAnchor(null); void logout() }} sx={{ fontFamily: 'Georgia, serif' }}>Logout</MenuItem>
             </Menu>
             <IconButton aria-label="Open dashboard menu" onClick={() => setMenuOpen((open) => !open)} sx={{ display: { xs: 'flex', md: 'none' }, color: 'white' }}><MenuIcon /></IconButton>
           </Stack>

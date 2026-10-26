@@ -230,7 +230,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
         return;
       }
 
-      if (!profile?.phone) {
+      if (!profile?.phone && !profile?.accountUserId) {
         setRoutineLoading(false);
         return;
       }
@@ -247,59 +247,101 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
           String(now.getDate()).padStart(2, '0'),
         ].join('-');
 
-        const {data: patient, error: patientError} = await supabase
-          .from('patients')
-          .select('id')
-          .eq('phone', profile.phone)
-          .single();
+        let assignment = null;
+        let routineData = null;
 
-        console.log('Patient lookup:', patient);
+        if (profile.accountUserId) {
+          const {data: currentRoutine, error: currentRoutineError} = await supabase.rpc(
+            'get_my_current_routine',
+            {p_scheduled_date: today},
+          );
+          if (currentRoutineError) throw currentRoutineError;
 
-        if (patientError) {
-          throw patientError;
-        }
+          const current = Array.isArray(currentRoutine) ? currentRoutine[0] : null;
+          if (!current) {
+            if (!cancelled) {
+              setRoutine(null);
+              setExercises([]);
+            }
+            return;
+          }
 
-        if (!patient?.id) {
-          throw new Error('Patient lookup returned no UUID.');
-        }
-
-        const {data: patientProfiles, error: patientProfilesError} =
-          await supabase
-            .from('provider_patient_profiles')
-            .select('id, patient_id, provider_id')
-            .eq('patient_id', patient.id);
-
-        console.log('Provider-patient profiles:', patientProfiles);
-
-        if (patientProfilesError) {
-          throw patientProfilesError;
-        }
-
-        const patientProfileIds = patientProfiles
-          .map((patientProfile) => patientProfile.id)
-          .filter(Boolean);
-
-        if (!patientProfileIds.length) {
-          throw new Error('No provider-patient profile IDs were found.');
-        }
-
-        console.log('Patient profile IDs:', patientProfileIds);
-
-        const {data: assignment, error: assignmentError} =
-          await supabase
-            .from('routine_assignments')
-            .select('id, routine_id, patient_profile_id, scheduled_date, status')
-            .in('patient_profile_id', patientProfileIds)
-            .eq('scheduled_date', today)
-            .in('status', ['scheduled', 'in progress'])
-            .order('scheduled_date', {ascending: true})
-            .limit(1)
-            .maybeSingle();
-
-        console.log('Routine assignment:', assignment);
-
-        if (assignmentError) {
-          throw assignmentError;
+          assignment = {
+            id: current.assignment_id,
+            routine_id: current.routine_id,
+            patient_profile_id: current.patient_profile_id,
+            scheduled_date: current.scheduled_date,
+            status: current.status,
+          };
+          routineData = {
+            id: current.routine_id,
+            name: current.routine_name,
+            description: current.description,
+            exercise_list: current.exercise_list,
+          };
+        } else {
+          const {data: patient, error: patientError} = await supabase
+            .from('patients')
+            .select('id')
+            .eq('phone', profile.phone)
+            .single();
+  
+          console.log('Patient lookup:', patient);
+  
+          if (patientError) {
+            throw patientError;
+          }
+  
+          if (!patient?.id) {
+            throw new Error('Patient lookup returned no UUID.');
+          }
+  
+          const {data: patientProfiles, error: patientProfilesError} =
+            await supabase
+              .from('provider_patient_profiles')
+              .select('id, patient_id, provider_id')
+              .eq('patient_id', patient.id);
+  
+          console.log('Provider-patient profiles:', patientProfiles);
+  
+          if (patientProfilesError) {
+            throw patientProfilesError;
+          }
+  
+          const patientProfileIds = patientProfiles
+            .map((patientProfile) => patientProfile.id)
+            .filter(Boolean);
+  
+          if (!patientProfileIds.length) {
+            throw new Error('No provider-patient profile IDs were found.');
+          }
+  
+          console.log('Patient profile IDs:', patientProfileIds);
+  
+          const {data: assignment, error: assignmentError} =
+            await supabase
+              .from('routine_assignments')
+              .select('id, routine_id, patient_profile_id, scheduled_date, status')
+              .in('patient_profile_id', patientProfileIds)
+              .eq('scheduled_date', today)
+              .in('status', ['scheduled', 'in progress'])
+              .order('scheduled_date', {ascending: true})
+              .limit(1)
+              .maybeSingle();
+  
+          console.log('Routine assignment:', assignment);
+  
+          if (assignmentError) {
+            throw assignmentError;
+          }
+  
+          const {data: demoRoutine, error: demoRoutineError} = await supabase
+            .from('routines')
+            .select('id, provider_id, name, description, exercise_list')
+            .eq('id', assignment?.routine_id)
+            .single();
+          if (demoRoutineError) throw demoRoutineError;
+          routineData = demoRoutine;
         }
 
         if (!assignment) {
@@ -311,16 +353,6 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
         }
         if (!assignment.routine_id) {
           throw new Error('Assignment has no routine_id.');
-        }
-
-        const {data: routineData, error: routineError} = await supabase
-          .from('routines')
-          .select('id, provider_id, name, description, exercise_list')
-          .eq('id', assignment.routine_id)
-          .single();
-
-        if (routineError) {
-          throw routineError;
         }
 
         const exerciseList = Array.isArray(routineData.exercise_list)
@@ -337,13 +369,20 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
           throw new Error('The routine has no valid exercise IDs.');
         }
 
-        const {data: exerciseData, error: exerciseError} = await supabase
-          .from('exercises')
-          .select('id, name, desc')
-          .in('id', exerciseIds);
-
-        if (exerciseError) {
-          throw exerciseError;
+        let exerciseData;
+        if (profile.accountUserId) {
+          exerciseData = exerciseList.map(item => ({
+            id: item.exercise_id,
+            name: item.name,
+            desc: item.description,
+          }));
+        } else {
+          const {data, error: exerciseError} = await supabase
+            .from('exercises')
+            .select('id, name, desc')
+            .in('id', exerciseIds);
+          if (exerciseError) throw exerciseError;
+          exerciseData = data;
         }
 
         console.log('Exercise data:', exerciseData);

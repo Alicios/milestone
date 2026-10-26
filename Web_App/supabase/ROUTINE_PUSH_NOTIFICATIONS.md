@@ -1,5 +1,10 @@
 # Patient routine update push notifications
 
+This migration is proposed and has not been deployed. Its disabled approval gate
+must stay in place until the project operator reviews and approves the hosted
+release. It adds a patient-scoped routine-read RPC so signed-in mobile patients
+can refresh the assigned routine without direct access to provider tables.
+
 This feature has three runtime pieces:
 
 1. The patient signs in to the mobile app with the account created from the

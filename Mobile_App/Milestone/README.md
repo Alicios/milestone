@@ -185,6 +185,8 @@ for that EAS project. Add the project's ID as
 \`EXPO_PUBLIC_EAS_PROJECT_ID\` in this app's environment before building.
 Expo Go does not support remote push notifications on Android.
 
+Signed-in patients read their current routine through a patient-scoped Supabase RPC. The local demo profile keeps its existing preview flow.
+
 Patients are asked for notification permission after signing in. A push says
 only that their provider updated a care routine; it does not include the
 patient's name, routine name, exercise names, or prescription details.

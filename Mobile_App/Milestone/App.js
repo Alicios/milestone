@@ -207,6 +207,9 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
         setRoutineRefreshKey(value => value + 1);
       }
     };
+    Notifications.getLastNotificationResponseAsync().then(lastResponse => {
+      if (active && lastResponse?.notification) refreshForRoutineUpdate(lastResponse.notification);
+    }).catch(() => {});
     const received = Notifications.addNotificationReceivedListener(refreshForRoutineUpdate);
     const response = Notifications.addNotificationResponseReceivedListener(response => {
       refreshForRoutineUpdate(response.notification);
@@ -318,7 +321,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   
           console.log('Patient profile IDs:', patientProfileIds);
   
-          const {data: assignment, error: assignmentError} =
+          const {data: demoAssignment, error: assignmentError} =
             await supabase
               .from('routine_assignments')
               .select('id, routine_id, patient_profile_id, scheduled_date, status')
@@ -334,14 +337,17 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
           if (assignmentError) {
             throw assignmentError;
           }
+          assignment = demoAssignment;
   
-          const {data: demoRoutine, error: demoRoutineError} = await supabase
-            .from('routines')
-            .select('id, provider_id, name, description, exercise_list')
-            .eq('id', assignment?.routine_id)
-            .single();
-          if (demoRoutineError) throw demoRoutineError;
-          routineData = demoRoutine;
+          if (assignment?.routine_id) {
+            const {data: demoRoutine, error: demoRoutineError} = await supabase
+              .from('routines')
+              .select('id, provider_id, name, description, exercise_list')
+              .eq('id', assignment.routine_id)
+              .single();
+            if (demoRoutineError) throw demoRoutineError;
+            routineData = demoRoutine;
+          }
         }
 
         if (!assignment) {

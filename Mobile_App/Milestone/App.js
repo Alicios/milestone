@@ -39,6 +39,8 @@ import RotateCcw from 'lucide-react-native/icons/rotate-ccw';
 import Info from 'lucide-react-native/icons/info';
 
 import {isSupabaseConfigured, supabase} from './lib/supabase';
+import * as Notifications from 'expo-notifications';
+import {registerPatientPushNotifications} from './auth/pushNotifications';
 
 const palette = {
   cream: '#F4EACF',
@@ -119,6 +121,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   const [routine, setRoutine] = useState(null);
   const [routineLoading, setRoutineLoading] = useState(true);
   const [routineError, setRoutineError] = useState(null);
+  const [routineRefreshKey, setRoutineRefreshKey] = useState(0);
 
   const activeExercise = exercises[currentExerciseIndex];
 
@@ -190,6 +193,30 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   useEffect(() => {
     if (!isUnlocked) setIsRunning(false);
   }, [isUnlocked]);
+
+  useEffect(() => {
+    const accountUserId = profile?.accountUserId;
+    let active = true;
+    if (accountUserId) {
+      registerPatientPushNotifications(accountUserId).catch(error => {
+        if (active) console.warn('Push notification registration failed:', error?.message || error);
+      });
+    }
+    const refreshForRoutineUpdate = notification => {
+      if (notification?.request?.content?.data?.type === 'routine_update') {
+        setRoutineRefreshKey(value => value + 1);
+      }
+    };
+    const received = Notifications.addNotificationReceivedListener(refreshForRoutineUpdate);
+    const response = Notifications.addNotificationResponseReceivedListener(response => {
+      refreshForRoutineUpdate(response.notification);
+    });
+    return () => {
+      active = false;
+      received.remove();
+      response.remove();
+    };
+  }, [profile?.accountUserId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -275,16 +302,15 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
           throw assignmentError;
         }
 
-        if (!assignment?.routine_id) {
-          throw new Error('Assignment has no routine_id.');
-        }
-
         if (!assignment) {
           if (!cancelled) {
             setRoutine(null);
             setExercises([]);
           }
           return;
+        }
+        if (!assignment.routine_id) {
+          throw new Error('Assignment has no routine_id.');
         }
 
         const {data: routineData, error: routineError} = await supabase
@@ -398,7 +424,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     return () => {
       cancelled = true;
     };
-  }, [profile?.phone]);
+  }, [profile?.phone, routineRefreshKey]);
 
   function showRoutineScreen(nextScreen) {
     setRoutineScreen(nextScreen);

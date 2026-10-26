@@ -117,3 +117,20 @@ src/
 └── theme.ts       Material UI theme configuration
 public/            Static images and other public assets
 ```
+
+
+## Routine update push notifications
+
+The provider routine editor requests a push notification after a saved routine
+edit. The server verifies the provider and routine, resolves active assigned
+patients with authenticated mobile accounts, and sends a generic alert to their
+registered Expo push tokens. Patient accounts without push permission or a
+registered token are skipped.
+
+Apply the additive migration
+\`supabase/migrations/20261026000100_patient_routine_push_tokens.sql\` through
+the project's reviewed database release process before enabling the feature.
+The existing Vercel API environment needs \`VITE_SUPABASE_URL\` and
+\`SUPABASE_SERVICE_ROLE_KEY\`; the service-role key stays server-side. Mobile
+builds need \`EXPO_PUBLIC_EAS_PROJECT_ID\` and APNs/FCM credentials configured
+for the EAS project. See the Mobile App README for setup notes.

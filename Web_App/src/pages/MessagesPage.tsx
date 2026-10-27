@@ -55,9 +55,10 @@ export function MessagesPage() {
   const [pageVisible, setPageVisible] = useState(document.visibilityState === 'visible')
   const [error, setError] = useState('')
   const requestId = useRef(0)
-  const selected = conversations.find((conversation) => conversation.id === selectedId) ?? conversations[0]
+  const inboxConversations = useMemo(() => conversations.filter((conversation) => conversation.messages.length > 0), [conversations])
+  const selected = inboxConversations.find((conversation) => conversation.id === selectedId) ?? inboxConversations[0]
   const composeRecipient = conversations.find((conversation) => conversation.id === composeRecipientId) ?? conversations[0]
-  const visibleConversations = useMemo(() => conversations.filter((conversation) => conversation.name.toLowerCase().includes(query.toLowerCase()) && (filter === 'all' || conversation.unread > 0)), [conversations, filter, query])
+  const visibleConversations = useMemo(() => inboxConversations.filter((conversation) => conversation.name.toLowerCase().includes(query.toLowerCase()) && (filter === 'all' || conversation.unread > 0)), [inboxConversations, filter, query])
 
   const refresh = useCallback(async () => {
     if (!user) return
@@ -66,7 +67,7 @@ export function MessagesPage() {
       const rows = await loadMessageConversations(user.id)
       if (currentRequest !== requestId.current) return
       setConversations(rows)
-      setSelectedId((current) => rows.some((row) => row.id === current) ? current : rows[0]?.id ?? '')
+      setSelectedId((current) => rows.some((row) => row.id === current && row.messages.length > 0) ? current : rows.find((row) => row.messages.length > 0)?.id ?? '')
       setComposeRecipientId((current) => rows.some((row) => row.id === current) ? current : rows[0]?.id ?? '')
       setError('')
     } catch (loadError) {
@@ -112,8 +113,9 @@ export function MessagesPage() {
   }
 
   function startCompose() {
-    if (!selected) return
-    setComposeRecipientId(selected.id)
+    const recipient = selected ?? composeRecipient
+    if (!recipient) return
+    setComposeRecipientId(recipient.id)
     setDraft('')
     setIsComposing(true)
     setShowConversation(true)
@@ -147,10 +149,6 @@ export function MessagesPage() {
     }
   }
 
-  if (!selected) return <Box className="messages-page" sx={{ width: '100%', height: { xs: 'calc(100dvh - 88px)', sm: 'calc(100dvh - 96px)' }, minHeight: 520, bgcolor: 'background.paper', border: `1px solid ${border}`, p: 3 }}>
-    {error ? <Alert severity="error">{error}</Alert> : <Typography color="text.secondary">{loading ? 'Loading messages…' : 'No linked patients are available for messaging.'}</Typography>}
-  </Box>
-
   const listVisible = { xs: showConversation ? 'none' : 'flex', md: 'flex' } as const
   const conversationVisible = { xs: showConversation ? 'flex' : 'none', md: 'flex' } as const
 
@@ -158,7 +156,7 @@ export function MessagesPage() {
     <Box component="aside" aria-label="Message conversations" sx={{ display: listVisible, minWidth: 0, minHeight: 0, flexDirection: 'column', borderRight: { md: `1px solid ${border}` }, bgcolor: listBackground, overflow: 'hidden' }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} sx={{ p: 1.5, borderBottom: `1px solid ${border}` }}>
         <Typography fontWeight={700} color="text.primary">Inbox</Typography>
-        <Button onClick={startCompose} variant="contained" size="small" sx={{ bgcolor: orange, color: 'white', borderRadius: 1.5, px: 1.5, '&:hover': { bgcolor: '#d15a17' } }}>Compose</Button>
+        <Button onClick={startCompose} disabled={loading || conversations.length === 0} variant="contained" size="small" sx={{ bgcolor: orange, color: 'white', borderRadius: 1.5, px: 1.5, '&:hover': { bgcolor: '#d15a17' } }}>Compose</Button>
       </Stack>
       {error && <Alert severity="error" sx={{ m: 1 }}>{error}</Alert>}
       <Box sx={{ p: 1.25, borderBottom: `1px solid ${border}` }}><OutlinedInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search mail" aria-label="Search messages" fullWidth size="small" startAdornment={<InputAdornment position="start"><SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} /></InputAdornment>} sx={{ bgcolor: 'background.paper', borderRadius: 1.5, '& fieldset': { borderColor: border } }} /></Box>
@@ -166,27 +164,30 @@ export function MessagesPage() {
         <Button onClick={() => setFilter('all')} size="small" sx={{ minWidth: 0, px: 1.25, borderRadius: 1, color: filter === 'all' ? 'text.primary' : 'text.secondary', bgcolor: filter === 'all' ? (theme.palette.mode === 'dark' ? '#214b52' : '#e8f3f1') : 'transparent' }}>All mail</Button>
         <Button onClick={() => setFilter('unread')} size="small" sx={{ minWidth: 0, px: 1.25, borderRadius: 1, color: filter === 'unread' ? 'text.primary' : 'text.secondary', bgcolor: filter === 'unread' ? (theme.palette.mode === 'dark' ? '#214b52' : '#e8f3f1') : 'transparent' }}>Unread</Button>
       </Stack>
-      <Stack spacing={.25} sx={{ p: .75, overflowY: 'auto', flexGrow: 1 }}>{visibleConversations.map((conversation) => <ConversationRow key={conversation.id} conversation={conversation} selected={conversation.id === selectedId && !isComposing} onClick={() => selectConversation(conversation.id)} />)}{visibleConversations.length === 0 && <Typography color="text.secondary" fontSize=".9rem" textAlign="center" sx={{ p: 3 }}>No messages found</Typography>}</Stack>
+      <Stack spacing={.25} sx={{ p: .75, overflowY: 'auto', flexGrow: 1 }}>{visibleConversations.map((conversation) => <ConversationRow key={conversation.id} conversation={conversation} selected={conversation.id === selectedId && !isComposing} onClick={() => selectConversation(conversation.id)} />)}{visibleConversations.length === 0 && <Typography color="text.secondary" fontSize=".9rem" textAlign="center" sx={{ p: 3 }}>{loading ? 'Loading messages...' : inboxConversations.length === 0 ? 'No conversations yet' : 'No messages found'}</Typography>}</Stack>
     </Box>
 
-    <Box component="section" aria-label={isComposing ? 'Compose message' : `Conversation with ${selected.name}`} sx={{ display: conversationVisible, minWidth: 0, minHeight: 0, overflow: 'hidden', flexDirection: 'column', bgcolor: 'background.paper' }}>
+    {!isComposing && !selected ? <Box component="section" aria-label="Message workspace" sx={{ display: conversationVisible, minWidth: 0, minHeight: 0, alignItems: 'center', justifyContent: 'center', textAlign: 'center', p: 3, bgcolor: threadBackground, flexDirection: 'column', gap: 1 }}>
+      <Typography fontWeight={700} color="text.primary">No messages yet</Typography>
+      <Typography color="text.secondary">{conversations.length > 0 ? 'Choose Compose to start a conversation with a patient.' : 'Your patient conversations will appear here.'}</Typography>
+    </Box> : <Box component="section" aria-label={isComposing ? 'Compose message' : `Conversation with ${selected?.name}`} sx={{ display: conversationVisible, minWidth: 0, minHeight: 0, overflow: 'hidden', flexDirection: 'column', bgcolor: 'background.paper' }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} sx={{ minHeight: 64, px: { xs: 1.5, sm: 2.5 }, borderBottom: `1px solid ${border}` }}>
         <Stack direction="row" alignItems="center" gap={1.25} minWidth={0}>
           <IconButton onClick={() => setShowConversation(false)} aria-label="Back to messages" sx={{ display: { xs: 'flex', md: 'none' } }}><ArrowBackIcon /></IconButton>
-          {isComposing ? <Typography fontWeight={700} fontSize="1.1rem">New message</Typography> : <><Box sx={{ width: 40, height: 40, flexShrink: 0, bgcolor: aqua, color: '#18323d', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{selected.initials}</Box><Box minWidth={0}><Typography fontWeight={700} noWrap>{selected.name}</Typography><Typography color="text.secondary" fontSize=".75rem">Patient conversation</Typography></Box></>}
+          {isComposing ? <Typography fontWeight={700} fontSize="1.1rem">New message</Typography> : selected && <><Box sx={{ width: 40, height: 40, flexShrink: 0, bgcolor: aqua, color: '#18323d', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{selected.initials}</Box><Box minWidth={0}><Typography fontWeight={700} noWrap>{selected.name}</Typography><Typography color="text.secondary" fontSize=".75rem">Patient conversation</Typography></Box></>}
         </Stack>
-        {!isComposing && <IconButton onClick={() => void toggleStar()} aria-label={selected.starred ? 'Unstar conversation' : 'Star conversation'} color={selected.starred ? 'warning' : 'default'}>{selected.starred ? <StarIcon /> : <StarBorderIcon />}</IconButton>}
+        {!isComposing && selected && <IconButton onClick={() => void toggleStar()} aria-label={selected.starred ? 'Unstar conversation' : 'Star conversation'} color={selected.starred ? 'warning' : 'default'}>{selected.starred ? <StarIcon /> : <StarBorderIcon />}</IconButton>}
       </Stack>
 
       {isComposing && <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} gap={1.5} sx={{ px: { xs: 1.5, sm: 2.5 }, py: 1.5, borderBottom: `1px solid ${border}` }}>
-        <FormControl size="small" sx={{ minWidth: { sm: 260 } }}><InputLabel id="compose-recipient-label">To</InputLabel><Select labelId="compose-recipient-label" value={composeRecipient?.id ?? selected.id} label="To" onChange={(event) => setComposeRecipientId(event.target.value)}>{conversations.map((conversation) => <MenuItem key={conversation.id} value={conversation.id}>{conversation.name}</MenuItem>)}</Select></FormControl>
+        <FormControl size="small" sx={{ minWidth: { sm: 260 } }}><InputLabel id="compose-recipient-label">To</InputLabel><Select labelId="compose-recipient-label" value={composeRecipient?.id ?? ''} label="To" onChange={(event) => setComposeRecipientId(event.target.value)}>{conversations.map((conversation) => <MenuItem key={conversation.id} value={conversation.id}>{conversation.name}</MenuItem>)}</Select></FormControl>
         <Typography color="text.secondary" fontSize=".85rem">Patient message</Typography>
       </Stack>}
 
-      {!isComposing && <Box sx={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', p: { xs: 1.5, sm: 3 }, bgcolor: threadBackground }}><Stack spacing={2}>{selected.messages.map((message) => <Box key={message.id} sx={{ alignSelf: message.from === 'provider' ? 'flex-end' : 'flex-start', maxWidth: { xs: '92%', sm: '72%' } }}><Typography color="text.secondary" fontSize=".72rem" sx={{ mb: .5, textAlign: message.from === 'provider' ? 'right' : 'left' }}>{message.from === 'provider' ? 'You' : selected.name} · {formatMessageTime(message.createdAt, true)}</Typography><Box sx={{ bgcolor: message.from === 'provider' ? providerBubble : patientBubble, border: `1px solid ${border}`, borderRadius: 2, px: 2, py: 1.25, boxShadow: '0 1px 2px rgba(24, 50, 61, .04)' }}><Typography fontSize=".95rem" lineHeight={1.55}>{message.text}</Typography></Box></Box>)}{selected.messages.length === 0 && <Typography color="text.secondary">No messages yet. Send the first one below.</Typography>}</Stack></Box>}
-      {isComposing && <Box sx={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', bgcolor: threadBackground, p: { xs: 1.5, sm: 3 } }}><Typography color="text.secondary" fontSize=".9rem">Write a new message to {composeRecipient?.name ?? selected.name}.</Typography></Box>}
+      {!isComposing && selected && <Box sx={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', p: { xs: 1.5, sm: 3 }, bgcolor: threadBackground }}><Stack spacing={2}>{selected.messages.map((message) => <Box key={message.id} sx={{ alignSelf: message.from === 'provider' ? 'flex-end' : 'flex-start', maxWidth: { xs: '92%', sm: '72%' } }}><Typography color="text.secondary" fontSize=".72rem" sx={{ mb: .5, textAlign: message.from === 'provider' ? 'right' : 'left' }}>{message.from === 'provider' ? 'You' : selected.name} · {formatMessageTime(message.createdAt, true)}</Typography><Box sx={{ bgcolor: message.from === 'provider' ? providerBubble : patientBubble, border: `1px solid ${border}`, borderRadius: 2, px: 2, py: 1.25, boxShadow: '0 1px 2px rgba(24, 50, 61, .04)' }}><Typography fontSize=".95rem" lineHeight={1.55}>{message.text}</Typography></Box></Box>)}{selected.messages.length === 0 && <Typography color="text.secondary">No messages yet. Send the first one below.</Typography>}</Stack></Box>}
+      {isComposing && <Box sx={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', bgcolor: threadBackground, p: { xs: 1.5, sm: 3 } }}><Typography color="text.secondary" fontSize=".9rem">Write a new message to {composeRecipient?.name ?? 'your patient'}.</Typography></Box>}
 
       <Box component="form" onSubmit={(event) => { event.preventDefault(); void sendMessage() }} sx={{ flexShrink: 0, p: { xs: 1, sm: 1.5 }, borderTop: `1px solid ${border}`, bgcolor: 'background.paper' }}><Stack direction="row" spacing={1} alignItems="center"><OutlinedInput value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={isComposing ? 'Write a new message…' : 'Reply to this conversation…'} aria-label={isComposing ? 'Write a new message' : 'Write a reply'} fullWidth size="small" inputProps={{ maxLength: 4000 }} sx={{ bgcolor: threadBackground, borderRadius: 1.5, '& fieldset': { borderColor: border } }} /><IconButton type="submit" disabled={!draft.trim() || sending} aria-label="Send message" sx={{ bgcolor: teal, color: 'white', borderRadius: 1.5, '&:hover': { bgcolor: '#3e8792' } }}><SendIcon fontSize="small" /></IconButton></Stack></Box>
-    </Box>
+    </Box>}
   </Box>
 }

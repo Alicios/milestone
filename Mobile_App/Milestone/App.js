@@ -374,6 +374,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
         onHome={goHome}
         onRoutines={openRoutines}
         onMessages={openMessages}
+        hasUnreadMessages={messaging.unread > 0}
         onStartRoutine={startRoutineFromDock}
         routineActionLabel={routineActionLabel}
         enabled={isUnlocked}
@@ -1218,6 +1219,7 @@ function BottomDock({
   onHome,
   onRoutines,
   onMessages,
+  hasUnreadMessages,
   onStartRoutine,
   routineActionLabel,
   enabled,
@@ -1252,6 +1254,7 @@ function BottomDock({
                 key={item.id}
                 accessibilityRole="button"
                 accessibilityLabel={item.label}
+                accessibilityHint={item.id === 'messages' && hasUnreadMessages ? 'Unread messages' : undefined}
                 aria-selected={isActive}
                 accessibilityState={{ selected: isActive }}
                 onPressIn={item.id === 'home' ? () => { homeWasHeld.current = false; } : undefined}
@@ -1272,12 +1275,17 @@ function BottomDock({
                 }}
                 style={styles.dockItem}
               >
-                <Icon
-                  accessible={false}
-                  size={22}
-                  color={isActive ? activePalette.tealDark : activePalette.ink}
-                  strokeWidth={isActive ? 2.5 : 2}
-                />
+                <View style={styles.dockIcon}>
+                  <Icon
+                    accessible={false}
+                    size={22}
+                    color={isActive ? activePalette.tealDark : activePalette.ink}
+                    strokeWidth={isActive ? 2.5 : 2}
+                  />
+                  {item.id === 'messages' && hasUnreadMessages && (
+                    <View testID="messages-unread-dot" accessible={false} pointerEvents="none" style={styles.dockUnreadDot} />
+                  )}
+                </View>
                 <Text
                   style={[
                     styles.dockLabel,
@@ -1398,6 +1406,20 @@ const baseStyles = StyleSheet.create({
     marginTop: 1,
     textAlign: 'center',
     flexShrink: 1,
+  },
+  dockIcon: {
+    width: 22,
+    height: 22,
+    position: 'relative',
+  },
+  dockUnreadDot: {
+    position: 'absolute',
+    top: -2,
+    right: -3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgb(229, 57, 53)',
   },
   dockActiveText: {
     color: palette.tealDark,

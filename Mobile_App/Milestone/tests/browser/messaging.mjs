@@ -102,8 +102,10 @@ try {
     await webPage.goto('http://127.0.0.1:4192/dashboard/messages');
     await webPage.waitForTimeout(500);
     await webPage.screenshot({ path: `.messaging-work/screenshots/provider-initial-${width}.png`, fullPage: true });
-    await webPage.getByRole('button', { name: /Browser Patient/ }).click();
-    await webPage.locator('input[placeholder^="Reply to this conversation"]').fill('Message from provider');
+    await expect(webPage.getByRole('button', { name: /Browser Patient/ })).toHaveCount(0);
+    await expect(webPage.getByText('No conversations yet', { exact: true })).toBeVisible();
+    await webPage.getByRole('button', { name: 'Compose', exact: true }).click();
+    await webPage.locator('input[placeholder^="Write a new message"]').fill('Message from provider');
     await webPage.getByRole('button', { name: 'Send message', exact: true }).click();
     await expect(webPage.locator('section').getByText('Message from provider', { exact: true })).toBeVisible();
     await mobilePage.reload();

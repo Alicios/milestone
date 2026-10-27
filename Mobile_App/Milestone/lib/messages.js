@@ -21,6 +21,7 @@ async function rows(name, args) {
 export async function loadPatientConversations() {
   return (await rows('get_my_message_inbox')).map(row => ({
     id: row.patient_profile_id, name: row.provider_name, title: row.provider_professional_title,
+    avatarUrl: row.provider_avatar_url || null,
     preview: row.last_body || 'No messages yet', lastMessageAt: row.last_message_at,
     unread: Number(row.unread_count),
   }));

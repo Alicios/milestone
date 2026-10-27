@@ -13,8 +13,8 @@ test('paginates persisted history beyond the API row limit', async () => {
   expect(range.mock.calls).toEqual([[0, 499], [500, 999]]);
 });
 test('shows real inbox summaries, empty conversations, and unread counts', async () => {
-  supabase.rpc.mockReturnValue({ range: jest.fn(async () => ({ data: [{ patient_profile_id: 'relationship', provider_name: 'Provider', provider_professional_title: 'PT', unread_count: '2', last_body: null, last_message_at: null }] })) });
-  expect(await loadPatientConversations()).toEqual([{ id: 'relationship', name: 'Provider', title: 'PT', unread: 2, preview: 'No messages yet', lastMessageAt: null }]);
+  supabase.rpc.mockReturnValue({ range: jest.fn(async () => ({ data: [{ patient_profile_id: 'relationship', provider_name: 'Provider', provider_professional_title: 'PT', provider_avatar_url: 'https://example.com/provider.jpg', unread_count: '2', last_body: null, last_message_at: null }] })) });
+  expect(await loadPatientConversations()).toEqual([{ id: 'relationship', name: 'Provider', title: 'PT', avatarUrl: 'https://example.com/provider.jpg', unread: 2, preview: 'No messages yet', lastMessageAt: null }]);
 });
 test('sends a trimmed patient message, rejects empty/oversized text, and reports API failures', async () => {
   supabase.rpc.mockResolvedValue({ data: 'message-id', error: null });

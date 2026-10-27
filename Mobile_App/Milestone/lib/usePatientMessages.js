@@ -90,7 +90,10 @@ export default function usePatientMessages({ enabled, patientId, visible }) {
     } finally { pendingSend.current = false; setSending(false); }
   }
 
-  function select(id) { generation.current += 1; setMessages([]); setLoading(true); setSelectedId(id); }
+  function select(id) {
+    if (id === selectedId) return;
+    generation.current += 1; setMessages([]); setLoading(true); setSelectedId(id);
+  }
   return { conversations, selected, messages, loading, error, sending, refresh, select, send,
     unread: conversations.reduce((total, row) => total + row.unread, 0) };
 }

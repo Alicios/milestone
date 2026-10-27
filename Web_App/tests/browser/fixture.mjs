@@ -26,11 +26,13 @@ export async function setup(context, options = {}) {
     lostResponse: false, rejectBatch: null, failReload: false, failReceipt: false, cancelledResponseLost: false,
     foreignDates: [], holdRead: null, ...options,
   }
+  const initialSession = options.initialSession === undefined ? session : options.initialSession
   await context.addInitScript(({ sessionKey, session }) => {
     if (!localStorage.getItem('fixture.initialized')) {
-      localStorage.setItem(sessionKey, JSON.stringify(session)); localStorage.setItem('fixture.initialized', 'yes')
+      if (session) localStorage.setItem(sessionKey, JSON.stringify(session))
+      localStorage.setItem('fixture.initialized', 'yes')
     }
-  }, { sessionKey, session })
+  }, { sessionKey, session: initialSession })
   await context.routeWebSocket('wss://**', (socket) => socket.close())
   await context.route('**/*', async (route) => {
     const url = new URL(route.request().url())

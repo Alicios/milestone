@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "tsc -b --pretty false",
     "preview": "vite preview",
+    "test:auth": "node --test tests/authentication*.test.mjs",
     "test:routines": "node --test tests/catalogRoutines.test.mjs",
     "test:scheduling": "node --test tests/scheduling.test.mjs",
     "test:scheduling:db": "python3 supabase/tests/scheduling_integration.py",

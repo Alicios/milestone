@@ -1,8 +1,9 @@
 # SCRUM-47 Phase 1: authentication hardening
 
 Phase 1 implements application authentication failure handling and regression
-coverage. SCRUM-47 remains incomplete: this work does not change or verify hosted
-RLS, grants, database functions, token validation, or session configuration.
+coverage. This work does not change or verify hosted RLS, grants, database
+functions, token validation, or session configuration. Separate database
+authorization findings remain unresolved.
 
 ## Behavior
 
@@ -20,8 +21,19 @@ RLS, grants, database functions, token validation, or session configuration.
   completion requires AAL2 and a matching current SDK session. Session replacement
   during MFA invalidates its generation and blocks publication. New interactive
   authentication waits until the old request and local cleanup finish.
-- The SDK may save an MFA response before returning it. A response arriving after
-  invalidation is quarantined: protected UI stays blocked, denial markers are
+- Password login and registration bind their returned session to the SDK's
+  preceding SIGNED_IN event. Conflicting events, SIGNED_OUT, logout, and changed
+  sessions invalidate the operation. Late responses stay quarantined until SDK
+  local sign-out and a session-removal check settle. Only that operation's final
+  cleanup can release its interactive guard; callbacks cannot release it.
+- Ambiguous concurrent sign-ins fail closed and require fresh authentication.
+  Both the stale credentials and a concurrently selected account may be signed
+  out locally; the application does not attempt to restore a guessed session.
+  Cleanup does not clear logout markers. A failed or unverifiable credential
+  removal leaves access blocked and reports that the browser session could not
+  be cleared. If denial persistence also fails, the reload warning remains.
+- The SDK may save a login, registration, or MFA response before returning it.
+  A response arriving after invalidation is quarantined: protected UI stays blocked, denial markers are
   saved, and SDK local sign-out is attempted. The application does not claim to
   prevent the SDK's transient internal write or revoke previously issued JWTs.
 - Verified sessions have an expiry timer. Expiration removes protected UI before
@@ -74,13 +86,14 @@ from assertions that reproduced defects to assertions that require denial.
 The permanent suite has no dependency on that temporary directory.
 
 - `node --test --test-timeout=20000 --test-reporter=spec tests/authentication*.test.mjs tests/scheduling.test.mjs tests/catalogRoutines.test.mjs tests/patientCreation.test.mjs tests/approveAccessRequest.test.mjs`
-  — 141 passed, including all 54 authentication unit checks.
-- `npm run test:scheduling:browser` — 32 passed, including all 15 authentication
+  — 154 passed, including all 67 authentication unit checks.
+- `npm run test:scheduling:browser` — 36 passed, including all 19 authentication
   browser checks plus scheduling, routines, and prescriptions.
 - `npm run lint` — TypeScript passed.
 - `npm run build` — TypeScript and production build passed. Vite reported its
-  existing chunk-size warning. Tracked build output was restored to its pre-build
-  contents so generated output is not part of the change.
+  existing chunk-size warning. Browser, compiler, and build validation used an
+  isolated source copy without environment credentials; tracked build output
+  in the integration worktree was not modified.
 - `git diff --check` — passed; repeated after the final documentation update.
 
 Permanent authentication coverage includes the same-user AAL1 replacement race,
@@ -92,10 +105,20 @@ unremovable markers, and the explicit limitation when both stores fail. Expiry
 and resume tests cover retryable HTTP 503 failures with no SDK event, successful
 refresh, old-deadline cancellation, and preservation of unexpired authorization.
 
+The credential-operation follow-up adds 13 permanent SDK regressions covering
+delayed login/registration after a newer password sign-in or SIGNED_OUT, account
+replacement during provider loading, delayed cleanup, newer logout markers,
+stale callbacks and reload, partial SDK failures, and verified/failed credential
+removal. The original two verification-only password-login reproductions also
+pass against the fix. Real-SDK MFA tests wait for challenge readiness rather than
+a fixed 10 ms delay before submitting a code.
+
 Browser tests verify unsaved profile values and the actual input DOM node survive
 both duplicate SIGNED_IN and same-account TOKEN_REFRESHED events. They also cover
 both MFA races, fallback-marker reload protection, total persistence failure,
 expiry timers, tab resumption, and the original login/MFA/logout flows.
+Four additional browser cases cover delayed login and registration after account
+switching or SIGNED_OUT, including SDK storage removal and denied reload access.
 All external HTTP is mocked or aborted and WebSockets are blocked. These tests do
 not establish real JWT signature enforcement or hosted API/RLS denial. No database
 tests or migrations were executed.
@@ -117,7 +140,8 @@ reads the SDK's stored session and compares its credentials before publishing.
 - `src/auth/useRedirectIfAuthenticated.ts`, `src/components/ProtectedRoute.tsx`:
   consistent protected access and redirect conditions.
 - `src/pages/LoginPage.tsx`, `src/components/DashboardLayout.tsx`: logout/error UI.
-- `tests/authentication.test.mjs`, `tests/authenticationRegression.test.mjs`:
+- `tests/authentication.test.mjs`, `tests/authenticationRegression.test.mjs`,
+  `tests/authenticationCredentialRaces.test.mjs`:
   permanent authentication unit and SDK regression coverage.
 - `tests/helpers/auth.mjs`, `tests/helpers/authSdk.mjs`: isolated auth fixtures.
 - `tests/browser/authentication.spec.mjs`, `tests/browser/fixture.mjs`:
@@ -125,11 +149,13 @@ reads the SDK's stored session and compares its credentials before publishing.
 - `tests/scheduling.test.mjs`: session fixtures updated for the stronger checks.
 - `SCRUM47_AUTHENTICATION.md`: behavior, limitations, scope, and validation record.
 
-Final diff review found no unrelated source changes or database/migration changes.
-Tracked production build artifacts match their pre-build contents. Phase 1 is
-ready for final review and a local commit; all changes remain uncommitted.
+The credential-operation follow-up changes only authentication code, regression
+tests, and this document. Tracked production build artifacts are unchanged.
+The follow-up is uncommitted and awaits review; the preceding Phase 1 commit is
+unchanged. The branch comparison/base issue from final verification remains
+outside this fix; no merge or rebase was performed.
 The persistence and SDK-write limitations above remain explicit. Hosted security
-validation belongs to the remaining SCRUM-47 work, which has not been started.
+and database authorization remediation require separate authorization.
 
 ## Remaining work
 

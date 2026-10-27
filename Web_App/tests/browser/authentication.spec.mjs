@@ -24,7 +24,17 @@ async function authFixture(context, options = {}) {
       if (refreshing && state.beforeRefresh) await state.beforeRefresh()
       if (refreshing && state.refreshFailure) return reply({ code: 'refresh_token_not_found', message: 'Synthetic refresh failure' }, state.refreshStatus ?? 400)
       if (!refreshing && state.passwordFailure) return reply({ code: 'invalid_credentials', message: 'Invalid login credentials' }, 400)
+      if (!refreshing && state.holdCredentials) {
+        const response = state.current
+        await state.holdCredentials()
+        return reply(response)
+      }
       return reply(state.current)
+    }
+    if (url.pathname.endsWith('/signup')) {
+      const response = state.current
+      if (state.holdCredentials) await state.holdCredentials()
+      return reply(response)
     }
     if (url.pathname.endsWith('/logout')) {
       const scope = url.searchParams.get('scope'); state.logoutScopes.push(scope)
@@ -251,3 +261,44 @@ for (const succeeds of [true, false]) test(`SDK refresh ${succeeds ? 'success re
   }
   expect(state.refreshes).toBeGreaterThan(0)
 })
+
+for (const registration of [false, true]) for (const replacement of [false, true]) {
+  test(`delayed ${registration ? 'registration' : 'password login'} after ${replacement ? 'account switching' : 'SIGNED_OUT'} cannot restore UI or stored credentials`, async ({ context, page }) => {
+    let release; const held = new Promise((resolve) => { release = resolve })
+    let started; const waiting = new Promise((resolve) => { started = resolve })
+    const state = await authFixture(context, { holdCredentials: async () => { started(); await held } })
+    await context.route('**/rest/v1/medical_practices*', (route) => route.fulfill({
+      contentType: 'application/json', body: JSON.stringify([{ id: 'synthetic-practice', name: 'Synthetic Practice' }]),
+    }))
+    await page.goto(registration ? '/register' : '/login')
+    if (registration) {
+      await page.getByLabel('Full name').fill('Synthetic Provider')
+      await page.getByLabel('Work email').fill('provider@example.invalid')
+      await page.getByRole('combobox', { name: 'Medical practice' }).click()
+      await page.getByRole('option', { name: 'Synthetic Practice' }).click()
+      await page.getByRole('textbox', { name: 'Password', exact: true }).fill('synthetic-password')
+      await page.getByRole('textbox', { name: 'Confirm password', exact: true }).fill('synthetic-password')
+      await page.getByRole('button', { name: 'Create account', exact: true }).click()
+    } else await signIn(page)
+    await waiting
+    if (replacement) {
+      const id = '00000000-0000-0000-0000-000000000002'
+      const other = { ...session, user: { ...session.user, id, email: 'other@example.invalid' }, refresh_token: 'newer-b-refresh',
+        access_token: [tokenFor().split('.')[0], Buffer.from(JSON.stringify({ sub: id, exp: 4102444800, aal: 'aal1', role: 'authenticated' })).toString('base64url'), 'newer-b'].join('.') }
+      state.current = other
+      await page.evaluate(async (other) => {
+        const { supabase } = await import('/src/lib/supabase.ts')
+        await supabase.auth.setSession({ access_token: other.access_token, refresh_token: other.refresh_token })
+      }, other)
+    } else await page.evaluate(async () => {
+      const { supabase } = await import('/src/lib/supabase.ts')
+      await supabase.auth.signOut({ scope: 'local' })
+    })
+    release()
+    await expect(page.getByRole('alert').first()).toContainText('Authentication changed')
+    await expect(page.getByRole('button', { name: 'Open profile menu' })).toHaveCount(0)
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), sessionKey)).toBeNull()
+    expect(await page.evaluate((key) => localStorage.getItem(key), logoutKey)).toBe('failed')
+    await page.reload(); await page.goto('/dashboard'); await expect(page).toHaveURL(/\/login$/)
+  })
+}

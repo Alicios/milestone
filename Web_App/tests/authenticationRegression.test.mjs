@@ -11,6 +11,11 @@ test.afterEach(() => { globalThis.window = previousWindow; globalThis.document =
 const allowed = (h) => assert.equal(protectedResult(h.value()).type, 'Outlet')
 const drain = async (t) => { for (let i = 0; i < 12; i++) { t.mock.timers.tick(0); await setImmediate() } }
 const noWrites = () => { throw new Error('Synthetic storage failure') }
+const mfaReady = async (h) => {
+  const deadline = Date.now() + 2000
+  while (!h.value().mfaChallengePending && Date.now() < deadline) await setImmediate()
+  assert.equal(h.value().mfaChallengePending, true, 'Restoration must finish before submitting an MFA code')
+}
 
 test('MFA success uses the SDK expiry when the verification response has no expires_at', async (t) => {
   const initial = sdkSession({ mfa: true })
@@ -22,7 +27,7 @@ test('MFA success uses the SDK expiry when the verification response has no expi
     if (path.endsWith('/user')) return Response.json(initial.user)
     throw new Error(`Unexpected mocked endpoint ${path}`)
   })
-  const h = connectSdk(t, sdk); await settle(); denied(h)
+  const h = connectSdk(t, sdk); await mfaReady(h); denied(h)
   await h.value().verifyMfaLogin('123456'); allowed(h)
   const active = (await sdk.getSession()).data.session
   assert.equal(active.access_token, upgraded.access_token)
@@ -43,7 +48,7 @@ test('MFA rejects a same-user AAL1 replacement during provider loading (real SDK
   })
   const provider = deferred(); const started = deferred()
   const h = connectSdk(t, sdk, { loadProvider: () => { started.resolve(); return provider.promise } })
-  await settle()
+  await mfaReady(h)
   const pending = h.value().verifyMfaLogin('123456')
   const rejection = assert.rejects(pending, /Authentication changed/)
   await started.promise
@@ -67,7 +72,7 @@ test('late SDK MFA response cannot republish the account replaced while verify w
     if (path.endsWith('/logout')) return Response.json({})
     throw new Error(`Unexpected mocked endpoint ${path}`)
   })
-  const h = connectSdk(t, sdk); await settle()
+  const h = connectSdk(t, sdk); await mfaReady(h)
   const pending = h.value().verifyMfaLogin('123456'); const rejection = assert.rejects(pending, /Authentication changed/)
   await started.promise
   apiUser = other.user

@@ -33,6 +33,7 @@ export interface RegisterDetails {
 }
 
 type MfaOperation = { request: number; expected: Session; verifying: boolean; verifiedEvent: Session | null; invalidated: boolean }
+type CredentialOperation = { request: number; signedIn: Session | null; responseChecked: boolean; invalidated: boolean }
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 const sessionError = 'Your session could not be verified. Please sign in again.'
 
@@ -44,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null)
   const mfaSession = useRef<Session | null>(null)
   const mfaOperation = useRef<MfaOperation | null>(null)
+  const credentialOperation = useRef<CredentialOperation | null>(null)
   const verified = useRef<{ session: Session; provider: User } | null>(null)
   const expiryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const navigate = useNavigate()
@@ -80,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     assertCurrent(request)
     if (error || !sessionUnexpired(data.session) || !sameSession(data.session, expected)) {
       if (mfaOperation.current) invalidateMfa(mfaOperation.current)
+      if (credentialOperation.current) invalidateCredentials(credentialOperation.current)
       throw new AuthenticationCheckError(sessionError)
     }
   }
@@ -94,6 +97,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLogoutState('failed')
     setAuthError(durable ? 'Authentication changed during MFA verification. Please sign in again.' : persistenceError)
     // Keep the interactive guard until the SDK request AND local cleanup settle.
+  }
+
+  function invalidateCredentials(operation: CredentialOperation) {
+    if (operation.invalidated) return
+    operation.invalidated = true
+    ++authGeneration.current; blocked.current = true
+    clearUser(); setLoading(false)
+    const durable = saveLogoutState('failed')
+    setLogoutState('failed')
+    setAuthError(durable ? 'Authentication changed. Please sign in again.' : persistenceError)
+    // The SDK can still save its response. Keep the guard until it settles and
+    // local cleanup is verified; no new login may race that cleanup.
+  }
+
+  function checkCredentialResponse(session: Session | null, request: number) {
+    assertCurrent(request)
+    const operation = credentialOperation.current
+    if (!operation || operation.request !== request) throw new AuthenticationCheckError(sessionError)
+    // The SDK emits SIGNED_IN before returning. One matching candidate is ours;
+    // an unrelated event cannot be accepted just because it arrived first.
+    if ((session || operation.signedIn) && !sameSession(session, operation.signedIn)) {
+      invalidateCredentials(operation)
+      assertCurrent(request)
+    }
+    operation.responseChecked = true
+  }
+
+  async function discardCredentialResponse() {
+    try { await supabase.auth.signOut({ scope: 'local' }) } catch { /* Verify removal below, including thrown storage errors. */ }
+    try {
+      const { data, error } = await supabase.auth.getSession()
+      if (!error && !data.session) return
+    } catch { /* Unverifiable removal must not be reported as successful. */ }
+    const durable = saveLogoutState('failed')
+    setLogoutState('failed')
+    const message = 'Authentication changed. The browser session could not be cleared. Protected access is blocked. Retry sign-out.'
+    setAuthError(durable ? message : `${message} ${persistenceError}`)
   }
 
   async function resolveSession(session: Session, request: number, fresh = false, requireVerifiedMfa = false): Promise<LoginResult> {
@@ -175,15 +215,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (!sameSession(operation.expected, session) || event === 'SIGNED_OUT') invalidateMfa(operation)
         return
       }
+      const credentials = credentialOperation.current
+      if (credentials) {
+        if (credentials.invalidated) return
+        if (event === 'INITIAL_SESSION') return
+        if (event === 'SIGNED_IN' && session) {
+          if (!credentials.signedIn) { credentials.signedIn = session; return }
+          if (sameSession(credentials.signedIn, session)) return
+        }
+        invalidateCredentials(credentials)
+        return
+      }
       if (logoutPending.current) return
-      if (interactive.current !== null && event !== 'SIGNED_OUT') return
       if (blocked.current || readLogoutState() !== null) return
       const previous = verified.current
       if (event === 'SIGNED_IN' && previous && sameSession(previous.session, session)
         && sessionUnexpired(previous.session)
         && JSON.stringify(previous.session.user.factors) === JSON.stringify(session?.user.factors)) return
       const request = ++authGeneration.current
-      interactive.current = null
       if (!session) { clearUser(); setLoading(false); return }
       const preserve = event === 'TOKEN_REFRESHED' && previous?.provider.id === session.user.id
         && sessionUnexpired(previous.session)
@@ -197,6 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const state = readLogoutState()
       if (state === null) return
       if (mfaOperation.current) invalidateMfa(mfaOperation.current)
+      if (credentialOperation.current) invalidateCredentials(credentialOperation.current)
       ++authGeneration.current; blocked.current = true
       clearUser(); setLoading(false); setLogoutState(state)
     }
@@ -225,12 +275,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     interactive.current = request; blocked.current = false
     stopExpiryTimer(); verified.current = null; setUser(null); setAuthError(''); setLoading(true)
     if (!keepMfa) { setMfaFactorId(null); mfaSession.current = null }
+    const credentials: CredentialOperation | null = keepMfa ? null
+      : { request, signedIn: null, responseChecked: false, invalidated: false }
     try {
       if (!isSupabaseConfigured) throw new AuthenticationCheckError('Sign-in is unavailable because authentication is not configured.')
+      if (credentials) credentialOperation.current = credentials
       return await operation(request)
     } catch (error) {
+      // A thrown SDK/storage error may follow a partial session write.
+      if (credentials && credentialOperation.current === credentials && !credentials.responseChecked) invalidateCredentials(credentials)
       throw fail(request, error, fallback)
     } finally {
+      if (credentials && credentialOperation.current === credentials) {
+        try {
+          if (!current(request)) {
+            invalidateCredentials(credentials)
+            await discardCredentialResponse()
+          }
+        } finally {
+          if (credentialOperation.current === credentials) credentialOperation.current = null
+        }
+      }
       if (interactive.current === request) interactive.current = null
       if (current(request)) setLoading(false)
     }
@@ -239,6 +304,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function logout(): Promise<void> {
     if (logoutPending.current) return logoutPending.current
     if (mfaOperation.current) invalidateMfa(mfaOperation.current)
+    if (credentialOperation.current) invalidateCredentials(credentialOperation.current)
     ++authGeneration.current; blocked.current = true
     clearUser(); setAuthError(''); setLoading(false)
     setLogoutState('pending')
@@ -266,7 +332,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mfaChallengePending: mfaFactorId !== null,
     login: (email, password) => authenticate(async (request) => {
       const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-      assertCurrent(request)
+      checkCredentialResponse(data.session, request)
       if (error || !data.user || !data.session) throw new AuthenticationCheckError('Unable to sign in. Check your email and password and try again.')
       return resolveSession(data.session, request, true)
     }, 'Unable to sign in. Please try again.'),
@@ -317,7 +383,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         options: { data: { name: name.trim(), medical_practice_id: medicalPracticeId,
           professional_title: 'Physical Therapist', role: 'Physical Therapist' } },
       })
-      assertCurrent(request)
+      checkCredentialResponse(data.session, request)
       if (error) throw new AuthenticationCheckError('Unable to create your account. Please try again.')
       if (!data.user || !data.session) throw new AuthenticationCheckError('Account created. Confirm your email before signing in.')
       await resolveSession(data.session, request, true)

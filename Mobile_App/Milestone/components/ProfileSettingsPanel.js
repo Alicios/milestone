@@ -7,6 +7,7 @@ import ProfileAvatar from './ProfileAvatar';
 import { useAppTheme, useThemedStyles } from './AppTheme';
 import { usePatientSession } from '../auth/PatientSession';
 import { chooseProfilePhoto } from '../auth/profilePhoto';
+import { formatPhone } from '../auth/profileValidation';
 
 function Field({ label, error, ...props }) {
   const styles = useThemedStyles(baseStyles);
@@ -55,6 +56,9 @@ function SettingsTab({ visible }) {
   }
 
   return <>
+    <Text accessibilityRole="header" style={styles.sectionTitle}>Account</Text>
+    <Action label="Sign Out" secondary onPress={() => signOut()} />
+
     <Text accessibilityRole="header" style={styles.sectionTitle}>Security</Text>
     <View style={styles.switchRow}><Text style={styles.switchLabel}>Protect this app with a PIN</Text><Switch accessibilityLabel="Protect this app with a PIN" value={pinEnabled} trackColor={{ true: colors.primary, false: colors.border }} onValueChange={value => { cancelPin(); setPinMessage(''); setPinAction(value ? 'enable' : 'disable'); }} /></View>
     <Text style={styles.hint}>Ask for your PIN when you reopen or lock Milestone.</Text>
@@ -225,7 +229,7 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
             {profileWarning ? <Text accessibilityRole="alert" style={styles.error}>{profileWarning}</Text> : null}
             <Action label={profileRefreshing ? 'Refreshing patient details…' : 'Refresh patient details'} secondary disabled={profileRefreshing} onPress={refreshProfile} />
             <Field label="Full name" value={profile.fullName || 'Not provided'} editable={false} />
-            <Field label="Phone number" value={profile.phone || 'Not provided'} editable={false} />
+            <Field label="Phone number" value={profile.phone ? formatPhone(profile.phone) : 'Not provided'} editable={false} />
             <Field label="Email address" value={profile.email || 'Not provided'} editable={false} />
             <Field label="Primary concern" value={profile.primaryConcern || 'Not provided'} editable={false} multiline />
             <Field label="Treatment focus" value={profile.treatmentFocus || 'Not provided'} editable={false} multiline />

@@ -9,6 +9,8 @@ export interface Patient {
   treatmentFocus?: string
   startOfCare?: string
   hasAccount: boolean
+  pendingOtpCode?: string
+  pendingOtpExpiresAt?: string
   statuses: Array<'missed' | 'complete' | 'modified' | 'none' | 'routine'>
 }
 

@@ -1,15 +1,17 @@
-// Vercel serverless function. Replaces scripts/invite-patient.mjs: the
-// privileged Supabase Admin API call (inviteUserByEmail) can only run with the
-// service_role key, which must never reach the browser bundle, so this
-// endpoint is the server-side boundary the "New Patient" form calls instead.
+// Vercel serverless function. Generates a patient a one-time passcode (OTP)
+// via Supabase Admin's generateLink — the patient enters it directly in
+// Mobile_App to sign in, no password ever exists. generateLink returns the
+// raw code synchronously and never sends an email itself (unlike
+// signInWithOtp), so this has no Custom SMTP / sending-domain dependency: the
+// code is stored on the patient row for the provider's web app to display
+// and relay to the patient directly. This still needs service_role both for
+// the admin API call and for the ownership checks below (is the caller
+// really a provider who owns this patient?), which bypass RLS.
 //
 // Required Vercel project environment variables (Project Settings -> Environment
 // Variables, NOT .env.local, which only configures local dev):
-//   SUPABASE_SERVICE_ROLE_KEY   - Project Settings -> API -> service_role secret
-//   VITE_SUPABASE_URL           - same value already used by the client build
-//   PATIENT_INVITE_REDIRECT_URL - where the invite email's link should land
-//                                 (see patient-setup.html); required for the
-//                                 invite to be useful, not required to send it
+//   SUPABASE_SERVICE_ROLE_KEY - Project Settings -> API -> service_role secret
+//   VITE_SUPABASE_URL         - same value already used by the client build
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
 
@@ -31,14 +33,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const authHeader = req.headers.authorization ?? ''
   const accessToken = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : ''
-  if (!accessToken) return res.status(401).json({ error: 'Sign in before inviting a patient.' })
+  if (!accessToken) return res.status(401).json({ error: 'Sign in before sending a patient a code.' })
 
   let client
   try {
     client = adminClient()
   } catch (configError) {
     console.error(configError)
-    return res.status(500).json({ error: 'Server is not configured for patient invitations.' })
+    return res.status(500).json({ error: 'Server is not configured to send patient codes.' })
   }
 
   // getUser(token) validates the caller's own access token against GoTrue; it
@@ -49,11 +51,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { data: provider, error: providerError } = await client.from('providers').select('id').eq('id', providerId).maybeSingle()
   if (providerError) { console.error(providerError); return res.status(500).json({ error: 'Could not verify your account.' }) }
-  if (!provider) return res.status(403).json({ error: 'Only providers can invite patients.' })
+  if (!provider) return res.status(403).json({ error: 'Only providers can send patient codes.' })
 
   // Ownership check: this provider must actually have a relationship with this
-  // patient. Without this, any signed-in provider could invite any patient by
-  // guessing/enumerating patient IDs.
+  // patient. Without this, any signed-in provider could message any patient
+  // by guessing/enumerating patient IDs.
   const { data: relationship, error: relationshipError } = await client
     .from('provider_patient_profiles')
     .select('id')
@@ -65,28 +67,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { data: patient, error: patientError } = await client
     .from('patients')
-    .select('id, name, email, auth_user_id')
+    .select('id, name, email')
     .eq('id', patientId)
     .maybeSingle()
   if (patientError) { console.error(patientError); return res.status(500).json({ error: 'Failed to look up the patient.' }) }
   if (!patient) return res.status(404).json({ error: 'No patient was found for that ID.' })
-  if (patient.auth_user_id) return res.status(409).json({ error: 'This patient already has an account.' })
   if (!patient.email) return res.status(400).json({ error: 'This patient has no email on file.' })
 
-  const { data: created, error: inviteError } = await client.auth.admin.inviteUserByEmail(patient.email, {
-    data: { name: patient.name, patient_id: patient.id },
-    redirectTo: process.env.PATIENT_INVITE_REDIRECT_URL || undefined,
+  // Safe to call whether or not this patient already has an account: for a
+  // brand-new email this creates the Auth user (handle_new_user() links it
+  // back to patients.auth_user_id via the patient_id tag below); for an
+  // existing one, this is just a fresh code — e.g. a new device, or their
+  // previous code expired. Either way, no email is sent; the raw code comes
+  // back in the response for this endpoint's caller (the provider's browser)
+  // to display and relay to the patient.
+  const { data: linkData, error: linkError } = await client.auth.admin.generateLink({
+    type: 'magiclink',
+    email: patient.email,
+    options: { data: { name: patient.name, patient_id: patient.id } },
   })
-  if (inviteError || !created.user) {
-    console.error(inviteError)
-    return res.status(502).json({ error: 'The invitation could not be confirmed. Review the Auth user state before retrying.' })
-  }
-
-  const { error: linkError } = await client.from('patients').update({ auth_user_id: created.user.id }).eq('id', patient.id)
-  if (linkError) {
+  const otp = linkData?.properties?.email_otp
+  if (linkError || !otp) {
     console.error(linkError)
-    return res.status(502).json({ error: 'The invitation was sent, but could not be linked to the patient record. Reconcile the link before retrying; do not invite this patient again.' })
+    return res.status(502).json({ error: 'The code could not be generated. Try again.' })
   }
 
-  return res.status(200).json({ email: patient.email })
+  // Client-side expiry estimate only; keep in sync with the Supabase
+  // Dashboard's Authentication -> Sign In / Providers -> Email -> OTP expiry
+  // setting (default 3600s). Supabase enforces the real expiry independently
+  // when the patient calls verifyOtp.
+  const OTP_TTL_SECONDS = 3600
+  const expiresAt = new Date(Date.now() + OTP_TTL_SECONDS * 1000).toISOString()
+
+  const { error: storeError } = await client
+    .from('patients')
+    .update({ pending_otp_code: otp, pending_otp_expires_at: expiresAt })
+    .eq('id', patient.id)
+  if (storeError) {
+    console.error(storeError)
+    return res.status(500).json({ error: 'The code was generated but could not be saved. Try again.' })
+  }
+
+  return res.status(200).json({ email: patient.email, otp, expiresAt })
 }

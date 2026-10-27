@@ -122,8 +122,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   const [routine, setRoutine] = useState(null);
   const [routineLoading, setRoutineLoading] = useState(true);
   const [routineError, setRoutineError] = useState(null);
-  const databasePatientId = profile?.databasePatientId;
-  const patientLookupPhone = databasePatientId ? null : profile?.phone;
+  const databasePatientId = profile?.id;
 
   const activeExercise = exercises[currentExerciseIndex];
 
@@ -209,7 +208,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
         return;
       }
 
-      if (!databasePatientId && !patientLookupPhone) {
+      if (!databasePatientId) {
         setRoutineLoading(false);
         return;
       }
@@ -253,7 +252,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     return () => {
       cancelled = true;
     };
-  }, [databasePatientId, patientLookupPhone]);
+  }, [databasePatientId]);
 
   function showRoutineScreen(nextScreen) {
     setRoutineScreen(nextScreen);

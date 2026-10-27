@@ -114,7 +114,7 @@ export async function uploadProviderAvatar(userId: string, file: File) {
 }
 
 type PatientProfileRow = { id: string; patient_id: string }
-export type PatientRow = { id: string; name: string; email?: string | null; phone?: string | null; primary_concern?: string | null; treatment_focus?: string | null; start_of_care?: string | null; care_status?: Patient['careStatus'] | null; auth_user_id?: string | null }
+export type PatientRow = { id: string; name: string; email?: string | null; phone?: string | null; primary_concern?: string | null; treatment_focus?: string | null; start_of_care?: string | null; care_status?: Patient['careStatus'] | null; auth_user_id?: string | null; pending_otp_code?: string | null; pending_otp_expires_at?: string | null }
 type StatusRow = { patient_profile_id: string; day_index: number; status: Patient['statuses'][number] }
 
 export async function loadPatients(providerId: string): Promise<Patient[]> {
@@ -130,7 +130,7 @@ export async function loadPatients(providerId: string): Promise<Patient[]> {
   const patientIds = profileRows.map((profile) => profile.patient_id)
   const profileIds = profileRows.map((profile) => profile.id)
 
-  const extendedPatientQuery = await supabase.from('patients').select('id, name, email, phone, primary_concern, treatment_focus, start_of_care, care_status, auth_user_id').in('id', patientIds)
+  const extendedPatientQuery = await supabase.from('patients').select('id, name, email, phone, primary_concern, treatment_focus, start_of_care, care_status, auth_user_id, pending_otp_code, pending_otp_expires_at').in('id', patientIds)
   const patientQuery = extendedPatientQuery.error?.code === '42703'
     ? await supabase.from('patients').select('id, name').in('id', patientIds)
     : extendedPatientQuery
@@ -162,6 +162,8 @@ export async function loadPatients(providerId: string): Promise<Patient[]> {
       treatmentFocus: patient.treatment_focus ?? undefined,
       startOfCare: patient.start_of_care ?? undefined,
       hasAccount: Boolean(patient.auth_user_id),
+      pendingOtpCode: patient.pending_otp_code ?? undefined,
+      pendingOtpExpiresAt: patient.pending_otp_expires_at ?? undefined,
       statuses: patientStatuses,
     }
   })
@@ -223,10 +225,13 @@ export class PatientInviteError extends Error {
   }
 }
 
+export type PatientLoginCode = { email: string; otp: string; expiresAt: string }
+
 // Calls the Vercel serverless function in api/invite-patient.ts, which holds
 // the service_role key server-side — the browser can never call Supabase's
-// Admin API (inviteUserByEmail) directly.
-export async function inviteExistingPatient(patientId: string, fetchImpl: typeof fetch = fetch) {
+// Admin API (generateLink) directly. Returns the raw one-time code: no email
+// is sent, so the provider must relay it to the patient directly.
+export async function inviteExistingPatient(patientId: string, fetchImpl: typeof fetch = fetch): Promise<PatientLoginCode> {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new PatientInviteError(patientId, 'Your session expired. Sign in again before inviting a patient.')
   const response = await fetchImpl('/api/invite-patient', {
@@ -234,14 +239,15 @@ export async function inviteExistingPatient(patientId: string, fetchImpl: typeof
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
     body: JSON.stringify({ patientId }),
   })
-  const result = await response.json().catch(() => ({}) as { error?: string })
-  if (!response.ok) throw new PatientInviteError(patientId, result.error || 'The invitation could not be sent.')
+  const result = await response.json().catch(() => ({}) as { error?: string; email?: string; otp?: string; expiresAt?: string })
+  if (!response.ok || !result.otp) throw new PatientInviteError(patientId, result.error || 'The code could not be generated.')
+  return { email: result.email ?? '', otp: result.otp, expiresAt: result.expiresAt ?? '' }
 }
 
 export async function createPatientAndInvite(name: string, email: string, fetchImpl: typeof fetch = fetch) {
   const patientId = await createPatient(name, email)
-  await inviteExistingPatient(patientId, fetchImpl)
-  return patientId
+  const code = await inviteExistingPatient(patientId, fetchImpl)
+  return { patientId, code }
 }
 
 export async function dischargePatient(patientId: string) {

@@ -6,10 +6,10 @@ import { useAuth } from './AuthContext'
  * them on a public page (e.g. right after a Supabase email-confirmation redirect
  * lands them on "/"). */
 export function useRedirectIfAuthenticated(target = '/dashboard') {
-  const { user, loading } = useAuth()
+  const { user, loading, authError, mfaChallengePending, logoutState } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (!loading && user) navigate(target, { replace: true })
-  }, [loading, user, navigate, target])
+    if (!loading && user && !authError && !mfaChallengePending && !logoutState) navigate(target, { replace: true })
+  }, [loading, user, authError, mfaChallengePending, logoutState, navigate, target])
 }

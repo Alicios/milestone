@@ -35,7 +35,7 @@ function getRandomIndex(length: number, excludedIndex?: number) {
 
 export function LoginPage() {
   useRedirectIfAuthenticated()
-  const { login, verifyMfaLogin, cancelMfaLogin, mfaChallengePending } = useAuth()
+  const { login, verifyMfaLogin, cancelMfaLogin, mfaChallengePending, authError, logoutState, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState('lebron.james@milestone.example')
@@ -120,20 +120,24 @@ export function LoginPage() {
               <Typography variant="h4" mb={1}>{mfaChallengePending ? 'Enter your code' : 'Welcome back'}</Typography>
               <Typography color="text.secondary">{mfaChallengePending ? 'Open your authenticator app and enter the 6-digit code.' : 'Sign in to your physical therapy workspace.'}</Typography>
             </Box>
+            {authError && <Alert severity="error" sx={{ mb: 2 }}>{authError}</Alert>}
+            {logoutState === 'pending' && <Alert severity="info" sx={{ mb: 2 }}>Signing out… Protected access is blocked.</Alert>}
+            {logoutState === 'local' && <Alert severity="warning" sx={{ mb: 2 }}>Signed out of this browser. Global sign-out failed; other sessions may remain active.</Alert>}
+            {logoutState === 'failed' && <Alert severity="error" sx={{ mb: 2 }} action={<Button type="button" onClick={() => void logout()}>Retry sign-out</Button>}>Sign-out failed. Protected access is blocked, but your session may still exist. Retry sign-out.</Alert>}
             {mfaChallengePending ? (
               <Stack spacing={3}>
-                {mfaError && <Alert severity="error">{mfaError}</Alert>}
+                {mfaError && mfaError !== authError && <Alert severity="error">{mfaError}</Alert>}
                 <TextField label="6-digit code" value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6))} autoComplete="one-time-code" autoFocus required slotProps={{ htmlInput: { inputMode: 'numeric', pattern: '[0-9]*', maxLength: 6 } }} />
                 <Button type="submit" variant="contained" size="large" disabled={verifying}>{verifying ? <CircularProgress size={24} color="inherit" /> : 'Verify'}</Button>
                 <Button type="button" size="small" onClick={handleCancelMfa} disabled={verifying}>Use a different account</Button>
               </Stack>
             ) : (
               <Stack spacing={3}>
-                {error && <Alert severity="error">{error}</Alert>}
+                {error && error !== authError && <Alert severity="error">{error}</Alert>}
                 <TextField label="Work email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
                 <TextField label="Password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required InputProps={{ endAdornment: <InputAdornment position="end"><IconButton aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((visible) => !visible)} edge="end">{showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}</IconButton></InputAdornment> }} />
                 <Box display="flex" justifyContent="flex-end"><Button size="small">Forgot password?</Button></Box>
-                <Button type="submit" variant="contained" size="large" disabled={loading}>{loading ? <CircularProgress size={24} color="inherit" /> : 'Sign in'}</Button>
+                <Button type="submit" variant="contained" size="large" disabled={loading || logoutState === 'pending'}>{loading ? <CircularProgress size={24} color="inherit" /> : 'Sign in'}</Button>
                 <Typography textAlign="center" variant="body2" color="text.secondary">Need an account? <Button component={RouterLink} to="/register" size="small">Create account</Button></Typography>
               </Stack>
             )}

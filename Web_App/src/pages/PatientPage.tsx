@@ -3,7 +3,7 @@ import { Link as RouterLink, useNavigate, useOutletContext, useParams } from 're
 import AddIcon from '@mui/icons-material/Add'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
-import MailOutlineIcon from '@mui/icons-material/MailOutline'
+import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined'
 import PersonRemoveOutlinedIcon from '@mui/icons-material/PersonRemoveOutlined'
 import { Alert, Box, Button, Card, Chip, Divider, Link, MenuItem, Stack, Tab, Tabs, TextField, Typography } from '@mui/material'
 import { CalendarWeekNavigation } from '../components/CalendarWeekNavigation'
@@ -41,15 +41,20 @@ function PatientOverview({ patient }: { patient: Patient }) {
   const [error, setError] = useState('')
   const [inviting, setInviting] = useState(false)
   const [inviteMessage, setInviteMessage] = useState<{ text: string; severity: 'success' | 'error' } | null>(null)
+  const [otp, setOtp] = useState(patient.pendingOtpCode ?? '')
+
+  const otpExpired = Boolean(patient.pendingOtpExpiresAt) && new Date(patient.pendingOtpExpiresAt as string).getTime() <= Date.now()
+  const displayedOtp = otp || (!otpExpired ? patient.pendingOtpCode ?? '' : '')
 
   async function invitePatient() {
     setInviting(true)
     setInviteMessage(null)
     try {
-      await inviteExistingPatient(patient.id)
-      setInviteMessage({ text: `Invitation sent to ${patient.email}.`, severity: 'success' })
+      const code = await inviteExistingPatient(patient.id)
+      setOtp(code.otp)
+      setInviteMessage({ text: 'Login code generated below.', severity: 'success' })
     } catch (inviteError) {
-      setInviteMessage({ text: inviteError instanceof PatientInviteError ? inviteError.message : errorMessage(inviteError, 'The invitation could not be sent.'), severity: 'error' })
+      setInviteMessage({ text: inviteError instanceof PatientInviteError ? inviteError.message : errorMessage(inviteError, 'The code could not be generated.'), severity: 'error' })
     } finally {
       setInviting(false)
     }
@@ -157,13 +162,21 @@ function PatientOverview({ patient }: { patient: Patient }) {
         </Card>
         <Card component="section" aria-labelledby="patient-actions-heading" sx={{ p: { xs: 2.5, sm: 3 } }}>
           <Typography id="patient-actions-heading" component="h2" variant="h6" sx={{ mb: 1 }}>Patient actions</Typography>
-          {patient.hasAccount
-            ? <Typography variant="body2" color="success.main" sx={{ mb: 2 }}>This patient has an account.</Typography>
-            : <Stack spacing={1.5} sx={{ mb: 2 }}>
-                <Typography variant="body2" color="text.secondary">{patient.email ? 'Invite this patient to set up their account.' : 'Add an email address before inviting this patient.'}</Typography>
-                {inviteMessage && <Alert severity={inviteMessage.severity} onClose={() => setInviteMessage(null)}>{inviteMessage.text}</Alert>}
-                <Button variant="outlined" startIcon={<MailOutlineIcon />} disabled={!patient.email || inviting} onClick={() => void invitePatient()} sx={{ alignSelf: 'flex-start' }}>{inviting ? 'Sending…' : 'Invite to App'}</Button>
-              </Stack>}
+          <Stack spacing={1.5} sx={{ mb: 2 }}>
+            {patient.hasAccount && <Typography variant="body2" color="success.main">This patient has an account.</Typography>}
+            <Typography variant="body2" color="text.secondary">
+              {!patient.email ? 'Add an email address before generating a login code.' : patient.hasAccount ? 'Generate a new login code for this patient, e.g. for a new device.' : 'Generate this patient a login code to set up their account.'}
+            </Typography>
+            {inviteMessage && <Alert severity={inviteMessage.severity} onClose={() => setInviteMessage(null)}>{inviteMessage.text}</Alert>}
+            {displayedOtp && <Card variant="outlined" sx={{ p: 2, alignSelf: 'flex-start' }}>
+              <Typography variant="body2" color="text.secondary">Give this code to the patient:</Typography>
+              <Typography sx={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '4px' }}>{displayedOtp}</Typography>
+              <Typography variant="body2" color="text.secondary">They'll enter it in the Milestone app. It clears here once they verify, or expires in about an hour.</Typography>
+            </Card>}
+            <Button variant="outlined" startIcon={<VpnKeyOutlinedIcon />} disabled={!patient.email || inviting} onClick={() => void invitePatient()} sx={{ alignSelf: 'flex-start' }}>
+              {inviting ? 'Generating…' : patient.hasAccount ? 'Send New Login Code' : 'Invite to App'}
+            </Button>
+          </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Discharge this patient to hide them from active care while retaining their clinical history.</Typography>
           <Button variant="outlined" color="error" startIcon={<PersonRemoveOutlinedIcon />} onClick={() => setConfirmDischarge(true)}>Discharge Patient</Button>
         </Card>

@@ -48,12 +48,25 @@ auth.users
 
 - A patient identity can be shared by multiple providers.
 - A patient identity optionally links to its own Supabase Auth account
-  (`patients.auth_user_id`), set by `api/invite-patient.ts` (a Vercel
-  serverless function, since only it can hold the `service_role` key): a
-  provider creates a patient with "New Patient" (now collects email instead of
-  phone) or clicks "Invite to App" on an existing patient, which sends a
-  Supabase invite email. The patient sets their own password on
-  `patient-setup.html` when they open it. Most patients have no account yet.
+  (`patients.auth_user_id`). A provider creates a patient with "New Patient"
+  (collects email, not phone) or clicks "Invite to App"/"Send New Login Code"
+  on an existing patient, which calls `api/invite-patient.ts` (a Vercel
+  serverless function, since only it can hold the `service_role` key) to
+  generate a one-time passcode via `supabase.auth.admin.generateLink()`.
+  Unlike `signInWithOtp`, `generateLink` never sends an email itself — it
+  returns the raw code (`properties.email_otp`) synchronously, which the
+  function stores on `patients.pending_otp_code`/`pending_otp_expires_at` for
+  the provider's browser to display and relay to the patient directly (no
+  Custom SMTP / sending-domain dependency). The patient enters the code
+  directly in Mobile_App (`supabase.auth.verifyOtp`) to sign in — there is no
+  password and no web landing page. On success, Mobile_App calls
+  `clear_my_pending_otp()` so the code can't be read back from the web app
+  afterward. The actual link to `patients.auth_user_id` happens in
+  `handle_new_user()` (the trigger on `auth.users`), matched by the
+  `patient_id` tag `generateLink` sets in the new user's metadata — not in
+  the serverless function itself, since that user-creation path doesn't
+  return the new id synchronously the way the admin create-user API does.
+  Most patients have no account yet.
 - Each provider-patient pair has one private relationship profile.
 - Routine templates belong to a provider.
 - Assignments belong to a provider-specific patient profile and preserve
@@ -199,7 +212,9 @@ activity, and discharge state belong to `provider_patient_profiles`.
 | `treatment_focus` | `text`, nullable | Concise summary of the current treatment focus. |
 | `start_of_care` | `date`, nullable | Calendar date when care began; no time or timezone. |
 | `care_status` | `text` | Shared prototype state: `active` or `pending`. Provider-specific discharge uses `discharged_at`. |
-| `auth_user_id` | `uuid`, nullable, unique | Supabase Auth user backing this patient's own login (Mobile_App). Set by `api/invite-patient.ts` once the patient accepts their email invitation; null means the patient has no account yet. |
+| `auth_user_id` | `uuid`, nullable, unique | Supabase Auth user backing this patient's own login (Mobile_App), authenticated via a one-time passcode rather than a password. Set by the `handle_new_user()` trigger when a patient's first generated code creates their Auth user; null means the patient has no account yet. |
+| `pending_otp_code` | `text`, nullable | Most recent one-time login code from `admin.generateLink()`, shown to the provider to relay to the patient. Cleared by `clear_my_pending_otp()` once the patient verifies on their device. |
+| `pending_otp_expires_at` | `timestamptz`, nullable | Client-side expiry estimate for `pending_otp_code`, so the web UI can hide a stale code. Supabase Auth enforces the real expiry independently. |
 
 ### `provider_patient_profiles`
 
@@ -336,6 +351,7 @@ functions sidesteps that entirely.
 | `get_my_messages(patient_profile_id)` | Conversation history for one of the caller's own relationships. |
 | `send_my_message(patient_profile_id, body)` | The only patient write in this round: inserts a `sender_kind = 'patient'` message. |
 | `get_my_message_thread_state(patient_profile_id)` / `mark_my_messages_read(patient_profile_id)` / `set_my_message_thread_starred(patient_profile_id, starred)` | Read-cursor and starred state for the caller's own conversation. |
+| `clear_my_pending_otp()` | Patient write: clears the caller's own `pending_otp_code`/`pending_otp_expires_at` after a successful `verifyOtp`, called from Mobile_App. |
 
 `message_thread_state` needs a row with `participant_user_id = auth.uid()`
 before any of the three functions above can act on it. Two triggers create

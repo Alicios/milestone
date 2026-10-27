@@ -89,9 +89,10 @@ test('inviteExistingPatient requires an active session and never calls fetch wit
   assert.equal(fetchCalls.length, 0)
 })
 
-test('inviteExistingPatient posts the patient id with a bearer token', async () => {
-  const { inviteExistingPatient, fetchImpl, fetchCalls } = dataHarness({ fetchResponses: [jsonResponse(200, { email: 'patient@example.com' })] })
-  await inviteExistingPatient('patient-id', fetchImpl)
+test('inviteExistingPatient posts the patient id with a bearer token and returns the generated code', async () => {
+  const { inviteExistingPatient, fetchImpl, fetchCalls } = dataHarness({ fetchResponses: [jsonResponse(200, { email: 'patient@example.com', otp: '123456', expiresAt: '2026-01-01T00:00:00.000Z' })] })
+  const code = await inviteExistingPatient('patient-id', fetchImpl)
+  assert.deepEqual(code, { email: 'patient@example.com', otp: '123456', expiresAt: '2026-01-01T00:00:00.000Z' })
   assert.equal(fetchCalls.length, 1)
   assert.equal(fetchCalls[0].url, '/api/invite-patient')
   assert.equal(fetchCalls[0].options.method, 'POST')
@@ -109,15 +110,22 @@ test('inviteExistingPatient surfaces the server error message on a non-2xx respo
 
 test('inviteExistingPatient falls back to a generic message when the response has no error field', async () => {
   const { inviteExistingPatient, PatientInviteError, fetchImpl } = dataHarness({ fetchResponses: [jsonResponse(500, {})] })
-  await assert.rejects(inviteExistingPatient('patient-id', fetchImpl), (error) => error instanceof PatientInviteError && error.message === 'The invitation could not be sent.')
+  await assert.rejects(inviteExistingPatient('patient-id', fetchImpl), (error) => error instanceof PatientInviteError && error.message === 'The code could not be generated.')
 })
 
-test('createPatientAndInvite creates the patient, then invites them, returning the patient id', async () => {
+test('inviteExistingPatient rejects a 2xx response missing an otp', async () => {
+  const { inviteExistingPatient, PatientInviteError, fetchImpl } = dataHarness({ fetchResponses: [jsonResponse(200, { email: 'patient@example.com' })] })
+  await assert.rejects(inviteExistingPatient('patient-id', fetchImpl), (error) => error instanceof PatientInviteError && error.message === 'The code could not be generated.')
+})
+
+test('createPatientAndInvite creates the patient, then invites them, returning the patient id and code', async () => {
   const { createPatientAndInvite, fetchImpl, calls, fetchCalls } = dataHarness({
     rpcResponses: [{ data: 'patient-id' }],
-    fetchResponses: [jsonResponse(200, { email: 'patient@example.com' })],
+    fetchResponses: [jsonResponse(200, { email: 'patient@example.com', otp: '123456', expiresAt: '2026-01-01T00:00:00.000Z' })],
   })
-  assert.equal(await createPatientAndInvite('Patient', 'patient@example.com', fetchImpl), 'patient-id')
+  const result = await createPatientAndInvite('Patient', 'patient@example.com', fetchImpl)
+  assert.equal(result.patientId, 'patient-id')
+  assert.equal(result.code.otp, '123456')
   assert.equal(calls.length, 1)
   assert.equal(fetchCalls.length, 1)
 })
@@ -182,9 +190,11 @@ function pageHarness({ createPatientAndInvite, PatientInviteError }) {
   }
 }
 
+const samplePatientLoginCode = { email: 'patient@example.com', otp: '123456', expiresAt: '2026-01-01T00:00:00.000Z' }
+
 test('patient form requires both a name and an email before the submit button enables', () => {
   const { PatientInviteError } = dataHarness()
-  const page = pageHarness({ createPatientAndInvite: async () => 'patient-id', PatientInviteError })
+  const page = pageHarness({ createPatientAndInvite: async () => ({ patientId: 'patient-id', code: samplePatientLoginCode }), PatientInviteError })
   assert.equal(page.button().disabled, true)
   assert.equal(page.field('Patient name').required, true)
   assert.equal(page.field('Patient email').required, true)
@@ -197,7 +207,7 @@ test('patient form requires both a name and an email before the submit button en
 test('an invalid email is rejected client-side before calling createPatientAndInvite', async () => {
   const { PatientInviteError } = dataHarness()
   let called = false
-  const page = pageHarness({ createPatientAndInvite: async () => { called = true; return 'patient-id' }, PatientInviteError })
+  const page = pageHarness({ createPatientAndInvite: async () => { called = true; return { patientId: 'patient-id', code: samplePatientLoginCode } }, PatientInviteError })
   page.change('Patient name', 'Patient')
   page.change('Patient email', 'not-an-email')
   await page.submit()
@@ -205,27 +215,28 @@ test('an invalid email is rejected client-side before calling createPatientAndIn
   assert.match(page.field('Patient email').helperText, /valid email/)
 })
 
-test('a successful submission shows the invited confirmation screen', async () => {
+test('a successful submission shows the invited confirmation screen with the generated code', async () => {
   const { PatientInviteError } = dataHarness()
-  const page = pageHarness({ createPatientAndInvite: async () => 'patient-id', PatientInviteError })
+  const page = pageHarness({ createPatientAndInvite: async () => ({ patientId: 'patient-id', code: samplePatientLoginCode }), PatientInviteError })
   page.change('Patient name', 'Patient')
   page.change('Patient email', 'patient@example.com')
   await page.submit()
   assert.match(page.text(), /Pending account created/)
-  assert.match(page.text(), /sent to\s+patient@example\.com/)
+  assert.match(page.text(), /Give this code to\s+Patient/)
+  assert.match(page.text(), /123456/)
 })
 
-test('a PatientInviteError still shows the patient as saved, with an invite-failed message', async () => {
+test('a PatientInviteError still shows the patient as saved, with a code-not-generated message', async () => {
   const { PatientInviteError } = dataHarness()
   const page = pageHarness({
-    createPatientAndInvite: async () => { throw new PatientInviteError('patient-id', 'The invitation could not be sent.') },
+    createPatientAndInvite: async () => { throw new PatientInviteError('patient-id', 'The code could not be generated.') },
     PatientInviteError,
   })
   page.change('Patient name', 'Patient')
   page.change('Patient email', 'patient@example.com')
   await page.submit()
-  assert.match(page.text(), /Patient saved, invite not sent/)
-  assert.match(page.text(), /could not be sent/)
+  assert.match(page.text(), /Patient saved, code not generated/)
+  assert.match(page.text(), /could not be generated/)
 })
 
 test('a creation failure (not an invite failure) shows the generic save error with no success screen', async () => {
@@ -255,7 +266,7 @@ test('a Supabase rejection during creation shows the error and allows a successf
   const error = { code: '42501', message: 'Sign in before creating a patient' }
   const { createPatientAndInvite, PatientInviteError, fetchImpl } = dataHarness({
     rpcResponses: [{ error }, { data: 'patient-id' }],
-    fetchResponses: [jsonResponse(200, { email: 'patient@example.com' })],
+    fetchResponses: [jsonResponse(200, samplePatientLoginCode)],
   })
   const page = pageHarness({ createPatientAndInvite: (name, email) => createPatientAndInvite(name, email, fetchImpl), PatientInviteError })
   page.change('Patient name', 'Patient')
@@ -265,4 +276,5 @@ test('a Supabase rejection during creation shows the error and allows a successf
   assert.equal(page.button().disabled, false)
   await page.submit()
   assert.match(page.text(), /Pending account created/)
+  assert.match(page.text(), /123456/)
 })

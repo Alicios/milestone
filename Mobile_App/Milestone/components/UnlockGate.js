@@ -2,24 +2,20 @@ import React, { useCallback, useContext, useEffect, useRef, useState } from 'rea
 import { AccessibilityInfo, ActivityIndicator, AppState, findNodeHandle, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { unlockWithSecret } from '../auth/deviceUnlock';
 import UnlockScreen from './UnlockScreen';
+import SignInScreen from './SignInScreen';
 import PatientSetup from './PatientSetup';
 import Text from './AppText';
 import { PatientSessionContext, PatientSessionProvider, usePatientSession } from '../auth/PatientSession';
 import { useAppTheme, useThemedStyles } from './AppTheme';
 import ProfileSettingsPanel from './ProfileSettingsPanel';
 
-export default function UnlockGate({ children, rememberPatient }) {
+export default function UnlockGate({ children }) {
   const context = useContext(PatientSessionContext);
-  return context ? <AccountGate>{children}</AccountGate> : <PatientSessionProvider rememberPatient={rememberPatient}><AccountGate>{children}</AccountGate></PatientSessionProvider>;
-}
-
-function AccountGate({ children }) {
-  const { session } = usePatientSession();
-  return <SessionGate key={session?.profile.id || 'signed-out'}>{children}</SessionGate>;
+  return context ? <SessionGate>{children}</SessionGate> : <PatientSessionProvider><SessionGate>{children}</SessionGate></PatientSessionProvider>;
 }
 
 function SessionGate({ children }) {
-  const { session, loading, storageWarning, profileWarning, profileRefreshing, refreshProfile, authError, signIn } = usePatientSession();
+  const { authUser, loading, profileError, needsLocalSetup, session, storageWarning, profileWarning, profileRefreshing, refreshProfile, completeLocalProfile, signOut } = usePatientSession();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const [panelOpen, setPanelOpen] = useState(false);
@@ -92,8 +88,27 @@ function SessionGate({ children }) {
     }
   }
 
-  if (loading) return <View style={styles.loading}><ActivityIndicator color={colors.primary} accessibilityLabel="Loading patient setup" /></View>;
-  if (!session) return <PatientSetup onSignIn={signIn} authError={authError} />;
+  function finishLocalSetup(nextExtras) {
+    completeLocalProfile(nextExtras);
+    setHasOpened(true);
+    setUnlocked(true);
+  }
+
+  if (loading) return <View style={styles.loading}><ActivityIndicator color={colors.primary} accessibilityLabel="Loading your account" /></View>;
+  if (!authUser) return <SignInScreen />;
+  if (profileError) {
+    return (
+      <View style={styles.loading}>
+        <Text accessibilityRole="alert" style={styles.warning}>{profileError}</Text>
+        <Text accessibilityRole="button" accessibilityLabel="Sign out and try again" onPress={() => signOut()} style={styles.retryLink}>
+          Sign out and try again
+        </Text>
+      </View>
+    );
+  }
+  if (needsLocalSetup) {
+    return <PatientSetup patient={{ fullName: session?.profile.fullName, phone: session?.profile.phone }} onComplete={finishLocalSetup} />;
+  }
 
   return (
     <View style={styles.content}>
@@ -127,6 +142,7 @@ function SessionGate({ children }) {
 const baseStyles = StyleSheet.create({
   content: { flex: 1 },
   hidden: { display: 'none' },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4EACF' },
-  warning: { backgroundColor: '#F4EACF', color: '#A83E14', padding: 16, fontSize: 13 },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4EACF', padding: 24, gap: 16 },
+  warning: { backgroundColor: '#F4EACF', color: '#A83E14', padding: 16, fontSize: 13, textAlign: 'center' },
+  retryLink: { color: '#357F83', fontSize: 14, fontWeight: '700' },
 });

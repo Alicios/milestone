@@ -8,6 +8,8 @@ export const REMEMBER_MOCK_PATIENT = false;
 
 export const MOCK_PATIENT = {
   id: 'frank-murgolo',
+  // Stable binding for the existing development patient, independent of contact edits.
+  databasePatientId: 'a818d1ae-01d6-4e22-8e59-b45c25ed218e',
   fullName: 'Frank Murgolo',
   phone: '0000000000',
   countryCallingCode: '1',
@@ -69,7 +71,8 @@ export function createMockSession(patient, details) {
 export function isValidMockSession(session) {
   const profile = session?.profile;
   return Boolean(profile && profile.id === MOCK_PATIENT.id &&
-    profile.fullName === MOCK_PATIENT.fullName && profile.phone === MOCK_PATIENT.phone &&
+    typeof profile.fullName === 'string' && Boolean(profile.fullName.trim()) && typeof profile.phone === 'string' &&
+    (profile.databasePatientId === undefined || profile.databasePatientId === MOCK_PATIENT.databasePatientId) &&
     (profile.countryCallingCode === undefined || profile.countryCallingCode === MOCK_PATIENT.countryCallingCode) &&
     typeof profile.email === 'string' && typeof profile.preferredName === 'string' &&
     typeof profile.dateOfBirth === 'string' &&

@@ -38,7 +38,7 @@ function transport(responses = {}, rpcResult = { data: 'routine-id' }) {
       const operations = []
       calls.push({ table, operations })
       const chain = {}
-      for (const method of ['select', 'eq', 'order', 'in', 'gte', 'lte', 'neq']) chain[method] = (...args) => { operations.push([method, ...args]); return chain }
+      for (const method of ['select', 'eq', 'order', 'in', 'gte', 'lte', 'neq', 'is']) chain[method] = (...args) => { operations.push([method, ...args]); return chain }
       chain.then = (resolve, reject) => Promise.resolve(typeof responses[table] === 'function' ? responses[table](operations) : responses[table] ?? { data: [] }).then(resolve, reject)
       return chain
     },
@@ -126,13 +126,13 @@ function hooks() {
     mount() { mounted = true; effects.splice(0).forEach((effect) => effect()) },
   }
 }
-const mui = Object.fromEntries(['Alert', 'Autocomplete', 'Box', 'Button', 'IconButton', 'InputAdornment', 'OutlinedInput', 'Stack', 'TextField', 'Typography', 'AppBar', 'Avatar', 'Container', 'Divider', 'Menu', 'MenuItem', 'Toolbar'].map((name) => [name, name]))
+const mui = Object.fromEntries(['Alert', 'Autocomplete', 'Box', 'Button', 'IconButton', 'InputAdornment', 'OutlinedInput', 'Stack', 'TextField', 'Typography', 'AppBar', 'Avatar', 'Container', 'Divider', 'Menu', 'MenuItem', 'Toolbar', 'Dialog', 'DialogActions', 'DialogContent', 'DialogContentText', 'DialogTitle'].map((name) => [name, name]))
 mui.useTheme = () => ({ palette: { mode: 'light', divider: '#ddd', background: { paper: '#fff' }, text: { primary: '#000' } } })
-function pageHarness({ routines = [], saveRoutine = async () => {}, loadExercises = async () => catalog } = {}) {
+function pageHarness({ routines = [], saveRoutine = async () => {}, deleteRoutine = async () => {}, loadExercises = async () => catalog } = {}) {
   const hook = hooks()
   const page = loadTs('../src/pages/RoutinesPage.tsx', {
     react: hook.react, '@mui/material': mui,
-    'react-router-dom': { useOutletContext: () => ({ routines, saveRoutine }) },
+    'react-router-dom': { useOutletContext: () => ({ routines, saveRoutine, deleteRoutine }) },
     '../components/RoutineDemo': { RoutineDemo: 'RoutineDemo' },
     '../lib/exerciseData': { loadExercises }, '../lib/errors': errors, '../lib/prescriptions': prescriptions,
   })
@@ -440,4 +440,59 @@ test('pre-deployment snapshot reads fall back only for missing columns, not auth
     }
     assert.equal(t.calls.filter(c => c.table === 'routine_assignment_exercises').length, code === '42703' ? 2 : 1)
   }
+})
+
+test('deletion uses the ownership-checked delete RPC and propagates failures', async () => {
+  const t = transport()
+  await dataModule(t).deleteRoutine('routine-id')
+  assert.deepEqual(t.calls, [{ rpc: 'delete_routine', args: { p_routine_id: 'routine-id' } }])
+  const failure = { code: 'P0002', message: 'Routine not found' }
+  await assert.rejects(dataModule(transport({}, { error: failure })).deleteRoutine('foreign-id'), e => e === failure)
+})
+
+test('routine retrieval works with the live schema without archive columns', async () => {
+  const t = transport()
+  await dataModule(t).loadRoutines('provider-a')
+  assert.ok(!t.calls[0].operations.some(op => op.includes('archived_at')))
+  assert.ok(t.calls[0].operations.some(op => op[0] === 'eq' && op[1] === 'provider_id' && op[2] === 'provider-a'))
+})
+
+test('routine deletion requires confirmation, blocks duplicate requests, and returns to the list', async () => {
+  const calls = []; let finish
+  const h = pageHarness({ routines: [{ id: 'r', name: 'Stored', exercises: [] }], deleteRoutine: id => {
+    calls.push(id); return new Promise(resolve => { finish = resolve })
+  } })
+  await tick()
+  h.button('Edit Routine').onClick()
+  h.render().find(node => node.props?.routine?.id === 'r').props.onClick()
+  h.render().filter(node => node.type === 'Button' && text(node) === 'Delete Routine').at(-1).props.onClick()
+  assert.equal(calls.length, 0)
+  assert.equal(h.render().find(node => node.type === 'Dialog').props.open, true)
+  h.button('Keep Routine').onClick()
+  assert.equal(h.render().find(node => node.type === 'Dialog').props.open, false)
+  h.render().filter(node => node.type === 'Button' && text(node) === 'Delete Routine').at(-1).props.onClick()
+  const confirm = h.render().filter(node => node.type === 'Button' && text(node) === 'Delete Routine').at(0)
+  confirm.props.onClick(); confirm.props.onClick()
+  assert.deepEqual(calls, ['r'])
+  assert.ok(h.render().filter(node => node.type === 'Button' && text(node) === 'Deleting…').every(node => node.props.disabled))
+  finish(); await tick()
+  assert.ok(h.button('New Routine'))
+})
+
+test('failed deletion retains the editor and shows the error in the confirmation', async () => {
+  const h = pageHarness({ routines: [{ id: 'r', name: 'Stored', exercises: [] }], deleteRoutine: async () => { throw { message: 'Access denied' } } })
+  await tick(); h.button('Edit Routine').onClick()
+  h.render().find(node => node.props?.routine?.id === 'r').props.onClick()
+  h.render().filter(node => node.type === 'Button' && text(node) === 'Delete Routine').at(-1).props.onClick()
+  h.render().filter(node => node.type === 'Button' && text(node) === 'Delete Routine').at(0).props.onClick()
+  await tick()
+  assert.equal(h.render().find(node => node.type === 'Dialog').props.open, true)
+  assert.match(text(h.render()), /Access denied/)
+  assert.ok(h.button('Finish Editing'))
+})
+
+test('deletion of assigned routines explains the history protection', async () => {
+  const t = transport({}, { error: { code: '23503', message: 'Foreign key violation' } })
+  await assert.rejects(dataModule(t).deleteRoutine('assigned-id'), /patient assignments and cannot be deleted/)
+  assert.equal(t.calls.length, 1)
 })

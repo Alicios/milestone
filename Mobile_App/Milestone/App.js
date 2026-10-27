@@ -120,6 +120,8 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   const [routine, setRoutine] = useState(null);
   const [routineLoading, setRoutineLoading] = useState(true);
   const [routineError, setRoutineError] = useState(null);
+  const databasePatientId = profile?.databasePatientId;
+  const patientLookupPhone = databasePatientId ? null : profile?.phone;
 
   const activeExercise = exercises[currentExerciseIndex];
 
@@ -204,7 +206,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
         return;
       }
 
-      if (!profile?.phone) {
+      if (!databasePatientId && !patientLookupPhone) {
         setRoutineLoading(false);
         return;
       }
@@ -221,11 +223,13 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
           String(now.getDate()).padStart(2, '0'),
         ].join('-');
 
-        const {data: patient, error: patientError} = await supabase
+        let patientQuery = supabase
           .from('patients')
-          .select('id')
-          .eq('phone', profile.phone)
-          .single();
+          .select('id');
+        patientQuery = databasePatientId
+          ? patientQuery.eq('id', databasePatientId)
+          : patientQuery.eq('phone', patientLookupPhone);
+        const {data: patient, error: patientError} = await patientQuery.single();
 
         if (patientError) {
           throw patientError;
@@ -342,7 +346,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     return () => {
       cancelled = true;
     };
-  }, [profile?.phone]);
+  }, [databasePatientId, patientLookupPhone]);
 
   function showRoutineScreen(nextScreen) {
     setRoutineScreen(nextScreen);

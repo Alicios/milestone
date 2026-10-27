@@ -114,7 +114,7 @@ export async function uploadProviderAvatar(userId: string, file: File) {
 }
 
 type PatientProfileRow = { id: string; patient_id: string }
-type PatientRow = { id: string; name: string; email?: string | null; phone?: string | null; primary_concern?: string | null; treatment_focus?: string | null; start_of_care?: string | null; care_status?: Patient['careStatus'] | null; auth_user_id?: string | null }
+export type PatientRow = { id: string; name: string; email?: string | null; phone?: string | null; primary_concern?: string | null; treatment_focus?: string | null; start_of_care?: string | null; care_status?: Patient['careStatus'] | null; auth_user_id?: string | null }
 type StatusRow = { patient_profile_id: string; day_index: number; status: Patient['statuses'][number] }
 
 export async function loadPatients(providerId: string): Promise<Patient[]> {
@@ -165,6 +165,44 @@ export async function loadPatients(providerId: string): Promise<Patient[]> {
       statuses: patientStatuses,
     }
   })
+}
+
+export interface PatientDetailsInput {
+  name: string
+  email: string
+  phone: string
+  primaryConcern: string
+  treatmentFocus: string
+  startOfCare: string
+  careStatus: 'active' | 'pending'
+}
+
+export function validatePatientDetails(input: PatientDetailsInput) {
+  const errors: Partial<Record<keyof PatientDetailsInput, string>> = {}
+  if (!input.name.trim() || input.name.trim().length > 200) errors.name = 'Enter a name of 1 to 200 characters.'
+  if (input.email.trim() && (input.email.trim().length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim()))) errors.email = 'Enter a valid email address.'
+  const phone = input.phone.trim()
+  if (phone && (phone.length > 64 || !/^\+?[0-9 ().-]+$/.test(phone) || !/^[0-9]{7,15}$/.test(phone.replace(/\D/g, '')))) errors.phone = 'Enter a phone number with 7 to 15 digits.'
+  if (input.primaryConcern.trim().length > 4000) errors.primaryConcern = 'Use 4000 characters or fewer.'
+  if (input.treatmentFocus.trim().length > 4000) errors.treatmentFocus = 'Use 4000 characters or fewer.'
+  if (input.startOfCare && (!/^\d{4}-\d{2}-\d{2}$/.test(input.startOfCare) || !Number.isFinite(Date.parse(input.startOfCare)) || new Date(input.startOfCare).toISOString().slice(0, 10) !== input.startOfCare)) errors.startOfCare = 'Enter a valid date.'
+  if (!['active', 'pending'].includes(input.careStatus)) errors.careStatus = 'Choose Active or Pending.'
+  return errors
+}
+
+export async function updatePatientDetails(patientId: string, input: PatientDetailsInput): Promise<PatientRow> {
+  const errors = validatePatientDetails(input)
+  if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
+  const optional = (value: string) => value.trim() || null
+  const { data, error } = await supabase.rpc('update_patient_details', {
+    p_patient_id: patientId, p_name: input.name.trim(), p_email: optional(input.email),
+    p_phone: optional(input.phone), p_primary_concern: optional(input.primaryConcern),
+    p_treatment_focus: optional(input.treatmentFocus), p_start_of_care: optional(input.startOfCare), p_care_status: input.careStatus,
+  }).single()
+  if (error) throw error
+  const saved = data as PatientRow | null
+  if (!saved?.id) throw new Error('The saved patient could not be loaded. Refresh the patient page before retrying.')
+  return saved
 }
 
 export async function createPatient(name: string, email: string) {
@@ -327,6 +365,12 @@ export async function loadRoutines(providerId: string): Promise<Routine[]> {
         notes: typeof record?.notes === 'string' ? record.notes : null }
     }),
   }))
+}
+
+export async function deleteRoutine(routineId: string) {
+  const { error } = await supabase.rpc('delete_routine', { p_routine_id: routineId })
+  if (error?.code === '23503') throw new Error('This routine has patient assignments and cannot be deleted. Their history must be preserved.')
+  if (error) throw error
 }
 
 export async function saveRoutine(routineId: string | null, name: string, exercises: RoutineExerciseInput[]) {

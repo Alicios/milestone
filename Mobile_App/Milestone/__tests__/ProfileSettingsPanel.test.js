@@ -7,6 +7,9 @@ import { createMockSession, MOCK_PATIENT } from '../auth/mockPatient';
 import { loadMockSession, saveMockSession } from '../auth/mockPatientStorage';
 import { usePatientSession } from '../auth/PatientSession';
 import { chooseProfilePhoto } from '../auth/profilePhoto';
+import { fetchSharedPatientProfile } from '../lib/patientProfile';
+
+jest.mock('../lib/patientProfile', () => ({ fetchSharedPatientProfile: jest.fn() }));
 
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('../auth/mockPatientStorage', () => ({ loadMockSession: jest.fn(), saveMockSession: jest.fn() }));
@@ -42,6 +45,7 @@ async function open(saved = original()) {
 }
 beforeEach(() => {
   jest.clearAllMocks();
+  fetchSharedPatientProfile.mockResolvedValue({ databasePatientId: MOCK_PATIENT.databasePatientId, fullName: 'Frank Murgolo', phone: '0000000000', email: 'provider-saved@example.com', primaryConcern: 'Ankle stiffness', treatmentFocus: 'Balance', startOfCare: '2026-09-14', careStatus: 'active' });
   saveMockSession.mockResolvedValue(true);
   chooseProfilePhoto.mockResolvedValue(null);
   jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
@@ -50,19 +54,35 @@ beforeEach(() => {
 });
 afterEach(async () => { if (renderer) await ReactTestRenderer.act(async () => renderer.unmount()); jest.restoreAllMocks(); });
 
-test('preserves drafts across tabs, validates email, updates profile, and keeps routine progress', async () => {
+test('keeps database fields read-only and preserves local drafts and routine progress', async () => {
   await open(); await press('Advance routine');
-  await fill('Preferred name', 'Frankie'); await fill('Email address', 'bad');
+  await fill('Preferred name', 'Frankie');
   await press('Settings'); await press('Profile');
   expect(element('Preferred name', 'onChangeText').props.value).toBe('Frankie');
-  await press('Save profile'); expect(hasText('valid email')).toBe(true);
-  await fill('Email address', 'frankie@example.com'); await press('Save profile');
+  const email = renderer.root.findAll(node => node.props.accessibilityLabel === 'Email address' && node.props.value)[0];
+  expect(email.props.editable).toBe(false);
+  expect(email.props.onChangeText).toBeUndefined();
+  await press('Save profile');
   expect(sessionApi.session.profile.preferredName).toBe('Frankie');
-  expect(sessionApi.session.profile.email).toBe('frankie@example.com');
+  expect(sessionApi.session.profile.email).toBe('provider-saved@example.com');
   expect(hasText('Progress: 1')).toBe(true);
   await press('Close profile and settings');
   await press('Open profile and settings');
   expect(element('Profile').props.accessibilityState.selected).toBe(true);
+});
+
+test('refreshes provider changes without overwriting local drafts and retries failures', async () => {
+  await open(); await fill('Preferred name', 'Unsaved local draft');
+  fetchSharedPatientProfile.mockRejectedValueOnce(new Error('offline'));
+  await press('Refresh patient details');
+  expect(hasText('last loaded details')).toBe(true);
+  expect(sessionApi.session.profile.email).toBe('provider-saved@example.com');
+  fetchSharedPatientProfile.mockResolvedValue({ databasePatientId: MOCK_PATIENT.databasePatientId, fullName: 'Updated Frank', phone: '', email: 'updated@example.com', careStatus: 'pending' });
+  await press('Refresh patient details');
+  expect(sessionApi.session.profile.email).toBe('updated@example.com');
+  expect(sessionApi.session.profile.phone).toBe('');
+  expect(element('Preferred name', 'onChangeText').props.value).toBe('Unsaved local draft');
+  expect(sessionApi.profileWarning).toBe('');
 });
 test('confirms discarding unsaved profile changes', async () => {
   await open(); await fill('Preferred name', 'Unsaved');
@@ -116,11 +136,12 @@ test('retains profile/photo drafts behind the lock when choosing a photo backgro
 });
 test('serializes persistence and merges rapid profile/settings changes', async () => {
   await open(); const finish = [];
+  saveMockSession.mockClear();
   saveMockSession.mockImplementation(() => new Promise(resolve => finish.push(resolve)));
   await ReactTestRenderer.act(async () => {
     sessionApi.updateProfile({ preferredName: 'First' });
     sessionApi.updatePreferences({ appearance: 'dark' });
-    sessionApi.updateProfile({ email: 'new@example.com' });
+    sessionApi.updateProfile({ photoUri: 'data:image/jpeg;base64,YWJj', email: 'ignored@example.com' });
   });
   expect(saveMockSession).toHaveBeenCalledTimes(1);
   await ReactTestRenderer.act(async () => finish.shift()(true));
@@ -128,5 +149,5 @@ test('serializes persistence and merges rapid profile/settings changes', async (
   await ReactTestRenderer.act(async () => finish.shift()(false));
   expect(hasText('could not be saved')).toBe(true);
   await ReactTestRenderer.act(async () => finish.shift()(true));
-  expect(saveMockSession.mock.calls[2][0]).toEqual(expect.objectContaining({ profile: expect.objectContaining({ preferredName: 'First', email: 'new@example.com' }), preferences: expect.objectContaining({ appearance: 'dark' }) }));
+  expect(saveMockSession.mock.calls[2][0]).toEqual(expect.objectContaining({ profile: expect.objectContaining({ preferredName: 'First', email: 'provider-saved@example.com', photoUri: 'data:image/jpeg;base64,YWJj' }), preferences: expect.objectContaining({ appearance: 'dark' }) }));
 });

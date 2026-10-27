@@ -3,8 +3,9 @@ import { useOutletContext } from 'react-router-dom'
 import AddIcon from '@mui/icons-material/Add'
 import CloseIcon from '@mui/icons-material/Close'
 import EditIcon from '@mui/icons-material/Edit'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import SearchIcon from '@mui/icons-material/Search'
-import { Alert, Autocomplete, Box, Button, IconButton, InputAdornment, OutlinedInput, Stack, TextField, Typography, useTheme } from '@mui/material'
+import { Alert, Autocomplete, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, InputAdornment, OutlinedInput, Stack, TextField, Typography, useTheme } from '@mui/material'
 import type { DashboardOutletContext } from '../components/DashboardLayout'
 import type { CatalogExercise, Routine } from '../types'
 import { loadExercises } from '../lib/exerciseData'
@@ -126,11 +127,14 @@ export function SavedRoutinesPage() {
   const border = theme.palette.divider
   const surface = theme.palette.background.paper
   const text = theme.palette.text.primary
-  const { routines, saveRoutine } = useOutletContext<DashboardOutletContext>()
+  const { routines, saveRoutine, deleteRoutine } = useOutletContext<DashboardOutletContext>()
   const [mode, setMode] = useState<'list' | 'new' | 'edit-pick' | 'edit'>('list')
   const [query, setQuery] = useState('')
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
   const [error, setError] = useState('')
@@ -200,6 +204,26 @@ export function SavedRoutinesPage() {
     setMode('edit')
   }
 
+  async function deleteEditingRoutine() {
+    if (!editingId || savingRef.current) return
+    savingRef.current = true
+    setSaving(true)
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      await deleteRoutine(editingId)
+      setConfirmDelete(false)
+      setEditingId(null)
+      setMode('list')
+    } catch (deleteFailure) {
+      setDeleteError(errorMessage(deleteFailure, 'The routine could not be deleted.'))
+    } finally {
+      savingRef.current = false
+      setSaving(false)
+      setDeleting(false)
+    }
+  }
+
   async function finishEditing() {
     if (!editingId || !editName.trim() || !validSelection(editExercises) || savingRef.current) return
     savingRef.current = true
@@ -246,6 +270,20 @@ export function SavedRoutinesPage() {
   if (mode === 'edit' && editingRoutine) {
     return (
       <Box maxWidth={480} mx="auto">
+        <Dialog open={confirmDelete} onClose={saving ? undefined : () => setConfirmDelete(false)} fullWidth maxWidth="xs"
+          aria-labelledby="delete-routine-title" aria-describedby="delete-routine-description">
+          <DialogTitle id="delete-routine-title">Delete routine?</DialogTitle>
+          <DialogContent>
+            {deleteError && <Alert severity="error">{deleteError}</Alert>}
+            <DialogContentText id="delete-routine-description" sx={{ overflowWrap: 'anywhere' }}>
+              Delete <strong>{editingRoutine.name}</strong> from your saved routines? This permanently removes the saved routine. Routines already assigned to patients cannot be deleted, so their history stays available.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button autoFocus disabled={saving} onClick={() => setConfirmDelete(false)}>Keep Routine</Button>
+            <Button color="error" disabled={saving} onClick={() => void deleteEditingRoutine()}>{deleting ? 'Deleting…' : 'Delete Routine'}</Button>
+          </DialogActions>
+        </Dialog>
         <Typography variant="h4" sx={{ ...fontSx, mb: 3, textAlign: 'center' }}>Edit Routine</Typography>
         <Box sx={{ border: `4px solid ${border}`, borderRadius: '30px', bgcolor: surface, color: text, p: 3 }}>
           <Stack spacing={2.5}>
@@ -259,9 +297,11 @@ export function SavedRoutinesPage() {
             />
             {catalogStatus}
             <ExerciseEditor catalog={catalog} disabled={saving || catalogLoading || Boolean(catalogError)} exercises={editExercises} onChange={setEditExercises} />
+            <Button color="error" variant="outlined" startIcon={<DeleteOutlineIcon />} disabled={saving}
+              onClick={() => { setDeleteError(''); setConfirmDelete(true) }}>Delete Routine</Button>
             <Stack direction="row" spacing={1.5} justifyContent="flex-end" mt={2}>
               <Button disabled={saving} onClick={() => setMode('list')}>Cancel</Button>
-              <Button disabled={!editName.trim() || !validSelection(editExercises) || saving} onClick={() => void finishEditing()} sx={{ ...fontSx, bgcolor: orange, color: 'white', border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#d15a17' } }}>{saving ? 'Saving…' : 'Finish Editing'}</Button>
+              <Button disabled={!editName.trim() || !validSelection(editExercises) || saving} onClick={() => void finishEditing()} sx={{ ...fontSx, bgcolor: orange, color: 'white', border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#d15a17' } }}>{deleting ? 'Deleting…' : saving ? 'Saving…' : 'Finish Editing'}</Button>
             </Stack>
           </Stack>
         </Box>

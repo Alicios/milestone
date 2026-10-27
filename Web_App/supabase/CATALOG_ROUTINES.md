@@ -13,7 +13,8 @@ and verified by the project operator:
 Catalog creation and browser-refresh persistence were confirmed in the provider
 UI. The prescription deployment passed all 21 hosted verification checks; all
 seven preservation counts/hashes and the existing-security hash matched preflight.
-No existing application records were modified. The 248 catalog exercises and
+At migration deployment, no existing application records were modified. The 248
+catalog exercises and
 UUIDs were preserved. These are operator-confirmed hosted results; they are
 separate from synthetic local tests and the remaining browser checks below.
 
@@ -217,3 +218,17 @@ Database deployment does not publish the frontend. Frontend release and browser
 acceptance use the existing approved hosting/test workflow. After prescribed
 routines exist, prefer a reviewed forward fix or writer containment; never restore
 an unguarded older writer or overwrite newer data with a stale recovery export.
+
+## Hosted routine record update log
+
+### 2026-10-26 — Lebron James provider routines
+
+- In Supabase project `lwldkhrsngwtuhztlmul`, converted the first `Cardio` entry to the current prescription-object format. The existing catalog UUID resolves to `Toe Spreading`; sets (3) and reps (10) were preserved, with `duration_seconds` and `notes` null.
+- Preserved the routine name and exercise order. No schema, migration, application-code, assignment, or patient-snapshot changes were made.
+- Left the other seven entries unchanged for review:
+  - `Cardio`: `Seated Lateral Scooting` has legacy `timer: 30`.
+  - `Database Test`: `test` has no catalog match.
+  - `Jumping Jacks`: `Tip toe` has no exact catalog match.
+  - `Lower Body`: `Leg Stretch` and `Calf Stretch` have no exact catalog matches.
+  - `Upper Body`: `Arm Stretch` and `Shoulder Stretch` have no exact catalog matches. `Cross-Body Shoulder Stretch` was not substituted.
+- Hosted readback confirmed the converted entry matches the catalog and uses supported fields. Focused patient routine tests passed 4/4 fixture-based tests.

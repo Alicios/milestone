@@ -12,6 +12,7 @@ import { prescriptionSummary } from '../lib/prescriptions'
 import { inviteExistingPatient, PatientInviteError } from '../lib/supabaseData'
 import { errorMessage } from '../lib/errors'
 import type { DashboardOutletContext } from '../components/DashboardLayout'
+import { PatientDetailsDialog } from '../components/PatientDetailsDialog'
 import { DischargePatientDialog } from '../components/DischargePatientDialog'
 import { FollowUpDialog } from '../components/FollowUpDialog'
 import { PatientAvatar } from '../components/PatientAvatar'
@@ -34,6 +35,7 @@ function PatientOverview({ patient }: { patient: Patient }) {
   const [selectedDay, setSelectedDay] = useState(0)
   const [removal, setRemoval] = useState<RoutineAssignment | null>(null)
   const [followUpAssignment, setFollowUpAssignment] = useState<RoutineAssignment | null>(null)
+  const [editingDetails, setEditingDetails] = useState(false)
   const [confirmDischarge, setConfirmDischarge] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [error, setError] = useState('')
@@ -63,6 +65,7 @@ function PatientOverview({ patient }: { patient: Patient }) {
   }, [])
 
   return <>
+    {editingDetails && <PatientDetailsDialog patient={patient} onClose={() => setEditingDetails(false)} onSaved={() => { setEditingDetails(false); setFeedback('Patient details saved.'); setInviteMessage(null) }} />}
     <Card sx={{ p: { xs: 2.5, sm: 3 }, mb: 3 }}>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} justifyContent="space-between">
         <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} alignItems="center" minWidth={0}>
@@ -74,7 +77,10 @@ function PatientOverview({ patient }: { patient: Patient }) {
         </Stack>
         <Chip label={patient.careStatus === 'active' ? 'Active patient' : 'Pending patient'} color={patient.careStatus === 'active' ? 'success' : 'default'} variant="outlined" sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }} />
       </Stack>
-      <Typography color="text.secondary" sx={{ mt: 1.5 }}>Start of care: {startOfCare || 'Not provided'}</Typography>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ mt: 1.5 }}>
+        <Typography color="text.secondary">Start of care: {startOfCare || 'Not provided'}</Typography>
+        <Button variant="outlined" onClick={() => setEditingDetails(true)}>Edit patient details</Button>
+      </Stack>
     </Card>
 
     <Tabs value="overview" aria-label="Patient sections" sx={{ borderBottom: 1, borderColor: 'divider', mb: 1 }}>

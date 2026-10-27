@@ -118,7 +118,7 @@ export default function PatientSetup({ onComplete }) {
                 </View>
                 <Field label="Full name" value={patient.fullName} editable={false} />
                 <Field label="Phone number" value={`+${patient.countryCallingCode ?? '1'} ${formatPhone(patient.phone)}`} editable={false} />
-                <Field label="Email address (optional)" accessibilityLabel="Email address" value={details.email} editable={!busy} onChangeText={value => change('email', value)} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} autoComplete="email" placeholder="you@example.com" error={errors.email} />
+                <Text style={styles.subtitle}>Your provider manages your name, email, phone, and care details. These load from your patient record after setup.</Text>
                 <Field label="Preferred name (optional)" value={details.preferredName} editable={!busy} onChangeText={value => change('preferredName', value)} autoCapitalize="words" maxLength={60} placeholder="What should we call you?" />
                 <Field label="Date of birth (optional)" value={details.dateOfBirth} editable={!busy} onChangeText={value => change('dateOfBirth', value)} keyboardType="numbers-and-punctuation" placeholder="MM/DD/YYYY" maxLength={10} error={errors.dateOfBirth} />
                 <View style={styles.pinOption}>

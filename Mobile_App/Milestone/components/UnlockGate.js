@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, ActivityIndicator, AppState, findNodeHandle, Platform, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, AppState, findNodeHandle, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { unlockWithSecret } from '../auth/deviceUnlock';
 import UnlockScreen from './UnlockScreen';
 import PatientSetup from './PatientSetup';
@@ -14,7 +14,7 @@ export default function UnlockGate({ children, rememberPatient }) {
 }
 
 function SessionGate({ children }) {
-  const { session, loading, storageWarning, completeSetup: saveSetup } = usePatientSession();
+  const { session, loading, storageWarning, profileWarning, profileRefreshing, refreshProfile, completeSetup: saveSetup } = usePatientSession();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const [panelOpen, setPanelOpen] = useState(false);
@@ -99,6 +99,7 @@ function SessionGate({ children }) {
   return (
     <View style={styles.content}>
       {storageWarning && unlocked ? <Text accessibilityRole="alert" style={styles.warning}>{storageWarning}</Text> : null}
+      {profileWarning && unlocked ? <View><Text accessibilityRole="alert" style={styles.warning}>{profileWarning}</Text><Pressable accessibilityRole="button" accessibilityLabel="Retry patient details" disabled={profileRefreshing} onPress={refreshProfile}><Text style={styles.warning}>{profileRefreshing ? 'Refreshing…' : 'Retry patient details'}</Text></Pressable></View> : null}
       {hasOpened && (
         <View style={unlocked ? styles.content : styles.hidden} importantForAccessibility={unlocked ? 'auto' : 'no-hide-descendants'}>
           {children({ unlocked, onLock: pinEnabled ? lock : undefined, profile: session.profile, onOpenProfile: target => { avatarButton.current = target; setPanelOpen(true); } })}

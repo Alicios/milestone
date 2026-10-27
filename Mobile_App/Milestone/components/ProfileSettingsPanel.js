@@ -7,7 +7,6 @@ import ProfileAvatar from './ProfileAvatar';
 import { useAppTheme, useThemedStyles } from './AppTheme';
 import { usePatientSession } from '../auth/PatientSession';
 import { chooseProfilePhoto } from '../auth/profilePhoto';
-import { formatPhone } from '../auth/mockPatient';
 
 function Field({ label, error, ...props }) {
   const styles = useThemedStyles(baseStyles);
@@ -84,13 +83,13 @@ function SettingsTab({ visible }) {
 }
 
 export default function ProfileSettingsPanel({ visible, onClose }) {
-  const { session, storageWarning, updateProfile } = usePatientSession();
+  const { session, storageWarning, profileWarning, profileRefreshing, refreshProfile, updateProfile } = usePatientSession();
   const profile = session.profile;
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState('profile');
-  const [draft, setDraft] = useState(() => ({ email: profile.email, preferredName: profile.preferredName, photoUri: profile.photoUri || null }));
+  const [draft, setDraft] = useState(() => ({ preferredName: profile.preferredName, photoUri: profile.photoUri || null }));
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -104,7 +103,9 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
   const closing = useRef(false);
   const dismissRef = useRef(null);
   const mouseStart = useRef(null);
-  const dirty = draft.email !== profile.email || draft.preferredName !== profile.preferredName || draft.photoUri !== (profile.photoUri || null);
+  const dirty = draft.preferredName !== profile.preferredName || draft.photoUri !== (profile.photoUri || null);
+
+  useEffect(() => { if (visible) void refreshProfile(); }, [visible, refreshProfile]);
 
   useEffect(() => {
     mounted.current = true;
@@ -196,7 +197,7 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
 
   function edit(key, value) { setDraft(previous => ({ ...previous, [key]: value })); setError(''); setMessage(''); }
   function save() {
-    try { updateProfile(draft); setDraft(previous => ({ ...previous, email: previous.email.trim(), preferredName: previous.preferredName.trim() })); setError(''); setMessage('Profile saved.'); }
+    try { updateProfile(draft); setDraft(previous => ({ ...previous, preferredName: previous.preferredName.trim() })); setError(''); setMessage('Profile saved.'); }
     catch (failure) { setError(failure.message); }
   }
 
@@ -211,10 +212,17 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
           {storageWarning ? <Text accessibilityRole="alert" style={styles.error}>{storageWarning}</Text> : null}
           <View style={tab !== 'profile' && styles.hidden} importantForAccessibility={tab === 'profile' ? 'auto' : 'no-hide-descendants'}>
             <View style={styles.photoSection}><ProfileAvatar profile={{ ...profile, ...draft }} size={88} /><Action label={draft.photoUri ? 'Change profile photo' : 'Add profile photo'} secondary disabled={photoBusy} onPress={pickPhoto} />{draft.photoUri && <Action label="Remove profile photo" secondary disabled={photoBusy} onPress={() => edit('photoUri', null)} />}{photoBusy && <Text style={styles.hint}>Preparing photo…</Text>}</View>
-            <Field label="Full name" value={profile.fullName} editable={false} />
-            <Field label="Phone number" value={`+${profile.countryCallingCode || '1'} ${formatPhone(profile.phone)}`} editable={false} />
+            <Text style={styles.hint}>Your provider manages these patient details in Milestone.</Text>
+            {profileWarning ? <Text accessibilityRole="alert" style={styles.error}>{profileWarning}</Text> : null}
+            <Action label={profileRefreshing ? 'Refreshing patient details…' : 'Refresh patient details'} secondary disabled={profileRefreshing} onPress={refreshProfile} />
+            <Field label="Full name" value={profile.fullName || 'Not provided'} editable={false} />
+            <Field label="Phone number" value={profile.phone || 'Not provided'} editable={false} />
+            <Field label="Email address" value={profile.email || 'Not provided'} editable={false} />
+            <Field label="Primary concern" value={profile.primaryConcern || 'Not provided'} editable={false} multiline />
+            <Field label="Treatment focus" value={profile.treatmentFocus || 'Not provided'} editable={false} multiline />
+            <Field label="Start of care" value={profile.startOfCare || 'Not provided'} editable={false} />
+            <Field label="Care status" value={profile.careStatus === 'active' ? 'Active' : profile.careStatus === 'pending' ? 'Pending' : 'Not provided'} editable={false} />
             <Field label="Preferred name" value={draft.preferredName} onChangeText={value => edit('preferredName', value)} maxLength={60} autoCapitalize="words" />
-            <Field label="Email address (optional)" accessibilityLabel="Email address" value={draft.email} onChangeText={value => edit('email', value)} keyboardType="email-address" autoComplete="email" autoCorrect={false} autoCapitalize="none" />
             {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}{message ? <Text accessibilityRole="alert" style={styles.hint}>{message}</Text> : null}
             <Action label="Save profile" disabled={photoBusy} onPress={save} /><Action label="Cancel" secondary disabled={photoBusy} onPress={requestDismiss} />
           </View>

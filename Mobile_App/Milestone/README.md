@@ -2,7 +2,17 @@ This is a new [**React Native**](https://reactnative.dev) project, bootstrapped 
 
 ## Mock patient setup
 
-On a fresh launch, enter `(000) 000-0000` to find Frank Murgolo, then complete his profile. Email, preferred name, date of birth (`MM/DD/YYYY`), and a patient-chosen four-digit PIN are optional. An email address is validated only when provided. There is no database connection or SMS verification.
+On a fresh launch, enter `(000) 000-0000` to find Frank Murgolo, then complete his local setup. Preferred name, date of birth (`MM/DD/YYYY`), photo, and a patient-chosen four-digit PIN are optional. Patient setup does not perform SMS verification; shared patient details and assigned routines are read from Supabase.
+
+### Database routines
+
+Configure `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the ignored `.env` file using the existing Supabase project URL and public API key. Never put a service-role key in the mobile app. After changing these values, restart Expo with `npx expo start --clear`.
+
+Frank's development session is bound to his existing database UUID, so provider changes to his name or phone do not break profile or routine loading. The app loads the patient's provider-patient profiles and reads the first `scheduled` routine assignment for the device's local date. It loads that routine's `exercise_list` and exercise catalog descriptions from the database, preserving prescribed sets, repetitions, and durations. Cancelled assignments are excluded. With no assignment, Home and navigation remain available and Routines displays `No routines today`.
+
+Routines load when the patient dashboard mounts or the database patient identity changes. Reload the app to see subsequent routine changes. The current flow reads the routine definition rather than assignment exercise snapshots, displays one routine per day, and does not save exercise completion to the database.
+
+Frank's local setup is a development flow, not Supabase authentication. Database reads currently depend on the project's temporary anonymous read policies; patient authentication and patient-scoped access are required before production use.
 
 The phone calling-code selector defaults to the device's country/region setting via Expo Localization, with US as the fallback when no supported region is available. It does not request location access. Tap the code to search and change countries. Numbers format while typing; Frank's mock profile uses `+1` and `(000) 000-0000`.
 
@@ -14,7 +24,9 @@ When PIN protection is enabled, the dashboard lock button and backgrounding lock
 
 ### Profile and Settings panel
 
-Tap the avatar on the dashboard or routine page to open the sliding bottom panel. Profile lets patients save changes to their photo, preferred name, and email; name and phone remain read-only. Unsaved profile drafts survive tab switches and PIN locking. Closing a modified draft asks whether to discard it.
+Tap the avatar on the dashboard or routine page to open the sliding bottom panel. Shared name, email, phone, primary concern, treatment focus, start of care, and care status are read-only and managed through **Edit patient details** on the provider web patient overview. They refresh after setup, whenever the profile opens, on returning to the foreground, or with **Refresh patient details**. Failed refreshes retain the last loaded values and offer retry. Blank database fields display `Not provided`.
+
+Patients can still save local changes to their photo and preferred name. Unsaved local drafts survive database refreshes, tab switches, and PIN locking. Closing a modified draft asks whether to discard it. Photo, preferred name, birth date, PIN, and preferences are not shared database fields.
 
 Settings offers PIN protection (the current PIN is required to change or disable it), Light/Dark/Follow device appearance, and mock exercise reminders. Appearance applies throughout the app and defaults to Follow device; dark colors match the web app. Reminders default to off, all weekdays selected, at `09:00` in device-local time. They only preview preferences and never schedule notifications or request notification access.
 

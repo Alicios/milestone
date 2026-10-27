@@ -10,6 +10,9 @@ import {
   cancelRoutineFollowUp as cancelFollowUpInDatabase,
   completeRoutineFollowUp as completeFollowUpInDatabase,
   dischargePatient as dischargePatientFromDatabase,
+  deleteRoutine as deleteRoutineInDatabase,
+  updatePatientDetails as updatePatientDetailsInDatabase,
+  type PatientDetailsInput,
   loadPatients,
   loadRoutines,
   saveRoutine as saveRoutineInDatabase,
@@ -42,6 +45,8 @@ export interface DashboardOutletContext {
   cancelFollowUp: (assignmentId: string) => Promise<void>
   completeFollowUp: (assignmentId: string) => Promise<void>
   saveRoutine: (routineId: string | null, name: string, exercises: RoutineExerciseInput[]) => Promise<void>
+  deleteRoutine: (routineId: string) => Promise<void>
+  updatePatientDetails: (patientId: string, input: PatientDetailsInput) => Promise<void>
   dischargePatient: (patientId: string) => Promise<void>
 }
 
@@ -189,6 +194,25 @@ export function DashboardWorkspace() {
     }
   }
 
+  const deleteRoutine = async (routineId: string) => {
+    if (!user) throw new Error('Sign in before deleting a routine.')
+    await deleteRoutineInDatabase(routineId)
+    if (activeProvider.current !== user.id) return
+    setRoutines((current) => current.filter((routine) => routine.id !== routineId))
+  }
+
+  const updatePatientDetails = (patientId: string, input: PatientDetailsInput) => mutations.current.run(`patient:${patientId}`, async () => {
+    const providerId = user?.id
+    if (!providerId) throw new Error('Sign in before editing a patient.')
+    const saved = await updatePatientDetailsInDatabase(patientId, input)
+    if (activeProvider.current !== providerId) return
+    setPatients(current => current.map(patient => patient.id !== saved.id ? patient : {
+      ...patient, name: saved.name, email: saved.email ?? undefined, phone: saved.phone ?? undefined,
+      primaryConcern: saved.primary_concern ?? undefined, treatmentFocus: saved.treatment_focus ?? undefined,
+      startOfCare: saved.start_of_care ?? undefined, careStatus: saved.care_status ?? patient.careStatus,
+    }))
+  })
+
   const dischargePatient = async (patientId: string) => {
     await dischargePatientFromDatabase(patientId)
     if (activeProvider.current !== user?.id) return
@@ -242,7 +266,7 @@ export function DashboardWorkspace() {
         <Stack direction="row" spacing={1}><Button disabled={operations.busy.includes(operation.requestId)} onClick={() => void operations.recover(operation)}>Check receipt</Button><Button disabled={operations.busy.includes(operation.requestId)} onClick={() => void operations.recover(operation, true)}>Retry same confirmed request</Button></Stack>
       </Alert>)}
       {routineReloadError && <Alert severity="warning" sx={{ mb: 2 }} action={<Button color="inherit" disabled={routinesReloading} onClick={() => void reloadRoutines()}>{routinesReloading ? 'Loading…' : 'Retry loading routines'}</Button>}>{routineReloadError}</Alert>}
-      <Outlet context={{ patients, routines, assignments, weekDates, openSchedule, policy, occupied, setWeek, assignmentsLoading: calendar.loading, assignmentsError: calendar.error, retryAssignments, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, dischargePatient } satisfies DashboardOutletContext} />
+      <Outlet context={{ patients, routines, assignments, weekDates, openSchedule, policy, occupied, setWeek, assignmentsLoading: calendar.loading, assignmentsError: calendar.error, retryAssignments, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, deleteRoutine, updatePatientDetails, dischargePatient } satisfies DashboardOutletContext} />
       {target && policy && <ScheduleRoutineDialog key={`${target.patient.profileId}/${target.singleDate ?? weekDates[0]}`} patientName={target.patient.name} patientProfileId={target.patient.profileId} routines={routines} weekStart={weekDates[0]} singleDate={target.singleDate} policy={policy} onCancel={() => setTarget(null)} onConfirm={async (entries) => {
         calendar.invalidate()
         try {

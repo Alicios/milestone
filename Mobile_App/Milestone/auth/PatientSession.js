@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { REMEMBER_MOCK_PATIENT, validateProfile } from './mockPatient';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { AppState, Platform } from 'react-native';
+import { fetchSharedPatientProfile } from '../lib/patientProfile';
+import { MOCK_PATIENT, REMEMBER_MOCK_PATIENT, validateProfile } from './mockPatient';
 import { loadMockSession, saveMockSession } from './mockPatientStorage';
 import { defaultPreferences, normalizePreferences, validReminder } from './preferences';
 import { AppThemeProvider } from '../components/AppTheme';
@@ -10,6 +12,9 @@ export function PatientSessionProvider({ children, rememberPatient = REMEMBER_MO
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(rememberPatient);
   const [storageWarning, setStorageWarning] = useState('');
+  const [profileWarning, setProfileWarning] = useState('');
+  const [profileRefreshing, setProfileRefreshing] = useState(false);
+  const refreshPending = useRef(false);
   const current = useRef(null);
   const writes = useRef(Promise.resolve());
   const mounted = useRef(true);
@@ -20,7 +25,7 @@ export function PatientSessionProvider({ children, rememberPatient = REMEMBER_MO
     if (rememberPatient) {
       loadMockSession().catch(() => null).then(saved => {
         if (!active) return;
-        const restored = saved ? { ...saved, preferences: normalizePreferences(saved.preferences) } : null;
+        const restored = saved ? { ...saved, profile: { ...saved.profile, databasePatientId: saved.profile.databasePatientId || MOCK_PATIENT.databasePatientId }, preferences: normalizePreferences(saved.preferences) } : null;
         current.current = restored;
         setSession(restored);
         setLoading(false);
@@ -29,7 +34,7 @@ export function PatientSessionProvider({ children, rememberPatient = REMEMBER_MO
     return () => { active = false; mounted.current = false; };
   }, [rememberPatient]);
 
-  function commit(next) {
+  const commit = useCallback((next) => {
     current.current = next;
     setSession(next);
     if (!rememberPatient) return;
@@ -38,7 +43,42 @@ export function PatientSessionProvider({ children, rememberPatient = REMEMBER_MO
       try { saved = await saveMockSession(next); } catch { /* Continue in memory. */ }
       if (mounted.current) setStorageWarning(saved ? '' : 'Your setup or changes could not be saved on this device. You can continue, but they may be lost after restarting.');
     });
-  }
+  }, [rememberPatient]);
+
+  const refreshProfile = useCallback(async () => {
+    const previous = current.current;
+    if (!previous || refreshPending.current) return;
+    refreshPending.current = true;
+    setProfileRefreshing(true);
+    try {
+      const shared = await fetchSharedPatientProfile(previous.profile);
+      if (!mounted.current || current.current?.profile.id !== previous.profile.id) return;
+      // Merge into the latest session so refresh cannot undo local settings or photos.
+      if (Object.keys(shared).some(key => current.current.profile[key] !== shared[key])) {
+        commit({ ...current.current, profile: { ...current.current.profile, ...shared } });
+      }
+      setProfileWarning('');
+    } catch {
+      if (mounted.current) setProfileWarning('Patient details could not be refreshed. Your last loaded details are still shown.');
+    } finally {
+      refreshPending.current = false;
+      if (mounted.current) setProfileRefreshing(false);
+    }
+  }, [commit]);
+
+  useEffect(() => { if (session?.profile.id) void refreshProfile(); }, [session?.profile.id, refreshProfile]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') void refreshProfile();
+    });
+    const onVisible = () => { if (document.visibilityState === 'visible') void refreshProfile(); };
+    if (Platform.OS === 'web') document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      subscription.remove();
+      if (Platform.OS === 'web') document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [refreshProfile]);
 
   function completeSetup(next) {
     commit({ ...next, preferences: normalizePreferences(next.preferences) });
@@ -49,7 +89,6 @@ export function PatientSessionProvider({ children, rememberPatient = REMEMBER_MO
     if (!previous) throw new Error('Complete patient setup first.');
     const profile = {
       ...previous.profile,
-      email: (patch.email ?? previous.profile.email).trim(),
       preferredName: (patch.preferredName ?? previous.profile.preferredName).trim(),
       photoUri: patch.photoUri === undefined ? previous.profile.photoUri : patch.photoUri,
     };
@@ -75,7 +114,7 @@ export function PatientSessionProvider({ children, rememberPatient = REMEMBER_MO
     commit({ ...previous, pin: newPin });
   }
 
-  return <PatientSessionContext.Provider value={{ session, loading, storageWarning, preferences: session?.preferences || defaultPreferences(), completeSetup, updateProfile, updatePreferences, changePin }}><AppThemeProvider preference={session?.preferences.appearance || 'system'}>{children}</AppThemeProvider></PatientSessionContext.Provider>;
+  return <PatientSessionContext.Provider value={{ session, loading, storageWarning, profileWarning, profileRefreshing, refreshProfile, preferences: session?.preferences || defaultPreferences(), completeSetup, updateProfile, updatePreferences, changePin }}><AppThemeProvider preference={session?.preferences.appearance || 'system'}>{children}</AppThemeProvider></PatientSessionContext.Provider>;
 }
 
 export function usePatientSession() {

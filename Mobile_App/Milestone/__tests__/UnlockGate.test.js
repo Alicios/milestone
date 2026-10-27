@@ -6,6 +6,7 @@ import { createMockSession, MOCK_PATIENT } from '../auth/mockPatient';
 import { loadMockSession, saveMockSession } from '../auth/mockPatientStorage';
 import { getLocales } from 'expo-localization';
 import { chooseProfilePhoto } from '../auth/profilePhoto';
+jest.mock('../lib/patientProfile', () => ({ fetchSharedPatientProfile: jest.fn(async () => ({ databasePatientId: 'a818d1ae-01d6-4e22-8e59-b45c25ed218e', fullName: 'Frank Murgolo', phone: '0000000000', email: '' })) }));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('../auth/mockPatientStorage', () => ({ loadMockSession: jest.fn(), saveMockSession: jest.fn() }));
 jest.mock('expo-localization', () => ({ getLocales: jest.fn(() => [{ regionCode: 'US' }]) }));
@@ -32,7 +33,6 @@ async function open(rememberPatient = false) {
 async function profileStep() { await fill('Phone number', '(000) 000-0000'); await press('Continue'); }
 async function setup(pin = false) {
   await profileStep();
-  await fill('Email address', 'frank@example.com');
   await fill('Preferred name (optional)', 'Frankie');
   if (pin) {
     await ReactTestRenderer.act(async () => renderer.root.findByType(Switch).props.onValueChange(true));
@@ -55,7 +55,7 @@ test('validates phone and profile, prefills identity, and supports back navigati
   await profileStep();
   const name = renderer.root.findAllByType(TextInput).find(node => node.props.accessibilityLabel === 'Full name');
   expect(name.props.value).toBe('Frank Murgolo'); expect(name.props.editable).toBe(false);
-  await fill('Email address', 'invalid'); await press('Finish setup'); expect(textIncludes('valid email')).toBe(true);
+  expect(renderer.root.findAllByType(TextInput).some(node => node.props.accessibilityLabel === 'Email address')).toBe(false);
   await press('Back to phone number'); expect(button('Continue')).toBeDefined();
 });
 test('completes signup with no email address', async () => {
@@ -98,7 +98,7 @@ test.each([null, '6789'])('restores a saved session with PIN %s', async pin => {
 });
 test('failed persistence allows entry with a visible warning', async () => {
   saveMockSession.mockResolvedValue(false); await open(true); await setup();
-  expect(saveMockSession).toHaveBeenCalledWith(savedSession); expect(textIncludes('could not be saved')).toBe(true); expect(textIncludes('Patient profile home')).toBe(true);
+  expect(saveMockSession).toHaveBeenCalledWith({ ...savedSession, profile: { ...savedSession.profile, email: '' } }); expect(textIncludes('could not be saved')).toBe(true); expect(textIncludes('Patient profile home')).toBe(true);
 });
 test('previews, changes and removes a photo, and saves the chosen photo with the profile', async () => {
   const photoUri = 'data:image/jpeg;base64,YWJj';
@@ -114,6 +114,6 @@ test('previews, changes and removes a photo, and saves the chosen photo with the
   await press('Remove profile photo'); expect(hasPhoto()).toBe(false);
   expect(button('Add profile photo')).toBeDefined();
   chooseProfilePhoto.mockResolvedValue(photoUri);
-  await press('Add profile photo'); await fill('Email address', 'frank@example.com'); await press('Finish setup');
+  await press('Add profile photo'); await press('Finish setup');
   expect(saveMockSession).toHaveBeenCalledWith(expect.objectContaining({ profile: expect.objectContaining({ photoUri }) }));
 });

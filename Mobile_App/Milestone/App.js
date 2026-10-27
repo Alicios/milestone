@@ -29,6 +29,9 @@ import Text, { AppFontsContext } from './components/AppText';
 import Brand from './components/Brand';
 import ProfileAvatar from './components/ProfileAvatar';
 import UnlockGate from './components/UnlockGate';
+import MessagesScreen from './components/MessagesScreen';
+import usePatientMessages from './lib/usePatientMessages';
+import { loadPatientRoutine } from './lib/patientRoutine';
 import EasterEggSelector from './components/EasterEggSelector';
 import LockKeyhole from 'lucide-react-native/icons/lock-keyhole';
 import ClipboardClock from 'lucide-react-native/icons/clipboard-clock';
@@ -38,8 +41,7 @@ import Play from 'lucide-react-native/icons/play';
 import RotateCcw from 'lucide-react-native/icons/rotate-ccw';
 import Info from 'lucide-react-native/icons/info';
 
-import {isSupabaseConfigured, supabase} from './lib/supabase';
-import {parseExerciseList, normalizeAssignedExercises} from './lib/assignedExercises';
+import {isSupabaseConfigured} from './lib/supabase';
 
 const palette = {
   cream: '#F4EACF',
@@ -134,6 +136,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
 
 
   const [screen, setScreen] = useState('home');
+  const messaging = usePatientMessages({ enabled: isUnlocked, patientId: databasePatientId, visible: screen === 'messages' });
   const [routineScreen, setRoutineScreen] = useState('exerciseIntro');
   const [expandedExerciseIndex, setExpandedExerciseIndex] = useState(null);
   const [expandedUpcomingExerciseIndex, setExpandedUpcomingExerciseIndex] = useState(null);
@@ -186,7 +189,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     }, 10);
 
     return () => clearInterval(timer);
-  }, [isRunning, activeExercise?.type, isUnlocked]);
+  }, [isRunning, activeExercise, isUnlocked]);
 
   //console.log('Loaded patient profile:', profile); <--testing
 
@@ -223,106 +226,10 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
           String(now.getDate()).padStart(2, '0'),
         ].join('-');
 
-        let patientQuery = supabase
-          .from('patients')
-          .select('id');
-        patientQuery = databasePatientId
-          ? patientQuery.eq('id', databasePatientId)
-          : patientQuery.eq('phone', patientLookupPhone);
-        const {data: patient, error: patientError} = await patientQuery.single();
-
-        if (patientError) {
-          throw patientError;
-        }
-
-        if (!patient?.id) {
-          throw new Error('Patient lookup returned no UUID.');
-        }
-
-        const {data: patientProfiles, error: patientProfilesError} =
-          await supabase
-            .from('provider_patient_profiles')
-            .select('id, patient_id, provider_id')
-            .eq('patient_id', patient.id);
-
-        if (patientProfilesError) {
-          throw patientProfilesError;
-        }
-
-        const patientProfileIds = patientProfiles
-          .map((patientProfile) => patientProfile.id)
-          .filter(Boolean);
-
-        if (!patientProfileIds.length) {
-          if (!cancelled) {
-            setRoutine(null);
-            setExercises([]);
-          }
-          return;
-        }
-
-        const {data: assignment, error: assignmentError} =
-          await supabase
-            .from('routine_assignments')
-            .select('id, routine_id, patient_profile_id, scheduled_date, status')
-            .in('patient_profile_id', patientProfileIds)
-            .eq('scheduled_date', today)
-            .eq('status', 'scheduled')
-            .order('scheduled_date', {ascending: true})
-            .limit(1)
-            .maybeSingle();
-
-        if (assignmentError) {
-          throw assignmentError;
-        }
-
-        if (!assignment) {
-          if (!cancelled) {
-            setRoutine(null);
-            setExercises([]);
-          }
-          return;
-        }
-
-        if (!assignment.routine_id) {
-          throw new Error('Assignment has no routine_id.');
-        }
-
-        const {data: routineData, error: routineError} = await supabase
-          .from('routines')
-          .select('id, provider_id, name, description, exercise_list')
-          .eq('id', assignment.routine_id)
-          .single();
-
-        if (routineError) {
-          throw routineError;
-        }
-
-        const exerciseList = parseExerciseList(routineData.exercise_list);
-        const exerciseIds = exerciseList.map(item => item.exercise_id).filter(Boolean);
-        const exerciseNames = exerciseList
-          .filter(item => !item.exercise_id)
-          .map(item => item.name ?? item.exerciseName ?? item.title)
-          .filter(Boolean);
-        const catalog = [];
-        // Names are supported for legacy routines; never omit an assigned item
-        // merely because its catalog record is missing or no longer readable.
-        for (const [column, values] of [['id', exerciseIds], ['name', exerciseNames]]) {
-          if (!values.length) continue;
-          const {data, error} = await supabase.from('exercises')
-            .select('id, name, desc').in(column, [...new Set(values)]);
-          if (!error) catalog.push(...(data || []));
-        }
-        const normalizedExercises = normalizeAssignedExercises(exerciseList, catalog, exerciseAccents);
-
+        const result = await loadPatientRoutine(today, exerciseAccents);
         if (!cancelled) {
-          setRoutine({
-            ...routineData,
-            assignmentId: assignment.id,
-            scheduledDate: assignment.scheduled_date,
-            status: assignment.status,
-          });
-          setExercises(normalizedExercises);
+          setRoutine(result.routine);
+          setExercises(result.exercises);
           setCurrentExerciseIndex(0);
           setCurrentSet(1);
         }
@@ -475,7 +382,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     );
   }
 
-  if (routineLoading) {
+  if (routineLoading && screen !== 'home' && screen !== 'messages') {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
@@ -483,11 +390,12 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
             Loading your routine...
           </Text>
         </View>
+        {renderDock('routines')}
       </SafeAreaView>
     );
   }
 
-  if (routineError) {
+  if (routineError && screen !== 'home' && screen !== 'messages') {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
@@ -495,6 +403,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
             {routineError}
           </Text>
         </View>
+        {renderDock('routines')}
       </SafeAreaView>
     );
   }
@@ -629,21 +538,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   if (screen === 'messages') {
     return (
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-        <ScrollView
-          style={styles.screenScroll}
-          contentContainerStyle={styles.messagesScreen}
-        >
-          <View style={styles.topRow}>
-            <Brand />
-          </View>
-          <Text style={styles.messagesTitle}>Messages</Text>
-          <View style={styles.messagesEmptyState}>
-            <Text style={styles.messagesEmptyTitle}>You're all caught up</Text>
-            <Text style={styles.messagesEmptyText}>
-              Messages from your care team will appear here.
-            </Text>
-          </View>
-        </ScrollView>
+        <MessagesScreen messaging={messaging} />
         {renderDock('messages')}
       </SafeAreaView>
     );
@@ -752,6 +647,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
           onViewRoutine={openRoutines}
           onViewSummary={viewSummary}
           onMessages={openMessages}
+          messaging={messaging}
         />
         {renderDock('home')}
       </SafeAreaView>
@@ -1178,10 +1074,11 @@ function HomeDashboard({
   onMessages,
   exercises,
   routineMinutes,
+  messaging,
 }) {
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
-  const displayName = profile?.preferredName || profile?.fullName?.split(' ')[0] || 'Frank';
+  const displayName = profile?.preferredName || profile?.fullName?.split(' ')[0] || 'there';
   const progressPercent = exercises.length
   ? Math.round((completedExerciseCount / exercises.length) * 100)
   : 0;
@@ -1299,9 +1196,9 @@ function HomeDashboard({
         <Text accessibilityRole="header" style={styles.dashboardCardTitle}>
           Messages
         </Text>
-        <Text style={styles.dashboardMessageTitle}>No new messages</Text>
+        <Text style={styles.dashboardMessageTitle}>{messaging.loading ? 'Loading messages...' : messaging.error ? 'Messages unavailable' : messaging.unread ? `${messaging.unread} unread message${messaging.unread === 1 ? '' : 's'}` : 'No new messages'}</Text>
         <Text style={styles.dashboardBody}>
-          Messages from your care team will appear here.
+          {messaging.error ? 'Open Messages to retry.' : messaging.conversations[0]?.preview || 'Start a conversation with your care team.'}
         </Text>
         <Pressable
           accessibilityRole="button"

@@ -10,11 +10,16 @@ import ProfileSettingsPanel from './ProfileSettingsPanel';
 
 export default function UnlockGate({ children, rememberPatient }) {
   const context = useContext(PatientSessionContext);
-  return context ? <SessionGate>{children}</SessionGate> : <PatientSessionProvider rememberPatient={rememberPatient}><SessionGate>{children}</SessionGate></PatientSessionProvider>;
+  return context ? <AccountGate>{children}</AccountGate> : <PatientSessionProvider rememberPatient={rememberPatient}><AccountGate>{children}</AccountGate></PatientSessionProvider>;
+}
+
+function AccountGate({ children }) {
+  const { session } = usePatientSession();
+  return <SessionGate key={session?.profile.id || 'signed-out'}>{children}</SessionGate>;
 }
 
 function SessionGate({ children }) {
-  const { session, loading, storageWarning, profileWarning, profileRefreshing, refreshProfile, completeSetup: saveSetup } = usePatientSession();
+  const { session, loading, storageWarning, profileWarning, profileRefreshing, refreshProfile, authError, signIn } = usePatientSession();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const [panelOpen, setPanelOpen] = useState(false);
@@ -87,14 +92,8 @@ function SessionGate({ children }) {
     }
   }
 
-  function completeSetup(nextSession) {
-    saveSetup(nextSession);
-    setHasOpened(true);
-    setUnlocked(true);
-  }
-
   if (loading) return <View style={styles.loading}><ActivityIndicator color={colors.primary} accessibilityLabel="Loading patient setup" /></View>;
-  if (!session) return <PatientSetup onComplete={completeSetup} />;
+  if (!session) return <PatientSetup onSignIn={signIn} authError={authError} />;
 
   return (
     <View style={styles.content}>

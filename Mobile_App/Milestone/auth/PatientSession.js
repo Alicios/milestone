@@ -1,17 +1,20 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { fetchSharedPatientProfile } from '../lib/patientProfile';
-import { MOCK_PATIENT, REMEMBER_MOCK_PATIENT, validateProfile } from './mockPatient';
-import { loadMockSession, saveMockSession } from './mockPatientStorage';
+import { createPatientSession, validateProfile } from './patientAccount';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { loadPatientSession, savePatientSession } from './patientStorage';
 import { defaultPreferences, normalizePreferences, validReminder } from './preferences';
 import { AppThemeProvider } from '../components/AppTheme';
 
 export const PatientSessionContext = createContext(null);
 
-export function PatientSessionProvider({ children, rememberPatient = REMEMBER_MOCK_PATIENT }) {
+export function PatientSessionProvider({ children, rememberPatient = true }) {
   const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(rememberPatient);
+  const [loading, setLoading] = useState(true);
   const [storageWarning, setStorageWarning] = useState('');
+  const [authError, setAuthError] = useState('');
+  const authGeneration = useRef(0);
   const [profileWarning, setProfileWarning] = useState('');
   const [profileRefreshing, setProfileRefreshing] = useState(false);
   const refreshPending = useRef(false);
@@ -22,16 +25,51 @@ export function PatientSessionProvider({ children, rememberPatient = REMEMBER_MO
   useEffect(() => {
     mounted.current = true;
     let active = true;
-    if (rememberPatient) {
-      loadMockSession().catch(() => null).then(saved => {
-        if (!active) return;
-        const restored = saved ? { ...saved, profile: { ...saved.profile, databasePatientId: saved.profile.databasePatientId || MOCK_PATIENT.databasePatientId }, preferences: normalizePreferences(saved.preferences) } : null;
-        current.current = restored;
-        setSession(restored);
+    async function restore(authSession) {
+      const generation = ++authGeneration.current;
+      if (!authSession) {
+        current.current = null;
+        setSession(null);
         setLoading(false);
-      });
+        return;
+      }
+      if (current.current?.profile.id === authSession.user.id) return;
+      setLoading(true);
+      try {
+        const shared = await fetchSharedPatientProfile();
+        const saved = rememberPatient ? await loadPatientSession(authSession.user.id) : null;
+        if (!active || generation !== authGeneration.current) return;
+        const next = saved && saved.profile.databasePatientId === shared.databasePatientId
+          ? { ...saved, profile: { ...saved.profile, ...shared }, preferences: normalizePreferences(saved.preferences) }
+          : createPatientSession({ ...shared, id: authSession.user.id });
+        current.current = next;
+        setSession(next);
+        setAuthError('');
+      } catch (error) {
+        if (active && generation === authGeneration.current) {
+          current.current = null;
+          setSession(null);
+          setAuthError(error.message || 'Unable to load your patient account.');
+        }
+      } finally {
+        if (active && generation === authGeneration.current) setLoading(false);
+      }
     }
-    return () => { active = false; mounted.current = false; };
+    if (!isSupabaseConfigured) {
+      setAuthError('Patient sign-in is unavailable. Configure Supabase and restart the app.');
+      setLoading(false);
+      return () => { active = false; mounted.current = false; };
+    }
+    // Schedule API calls outside the Auth callback to avoid holding its session lock.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, value) => {
+      setTimeout(() => { if (active) void restore(value); }, 0);
+    });
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) { setAuthError(error.message); setLoading(false); }
+      else void restore(data.session);
+    }).catch(error => { if (active) { setAuthError(error.message); setLoading(false); } });
+    return () => { active = false; mounted.current = false; authGeneration.current += 1; subscription.unsubscribe(); };
   }, [rememberPatient]);
 
   const commit = useCallback((next) => {
@@ -40,7 +78,7 @@ export function PatientSessionProvider({ children, rememberPatient = REMEMBER_MO
     if (!rememberPatient) return;
     writes.current = writes.current.catch(() => {}).then(async () => {
       let saved = false;
-      try { saved = await saveMockSession(next); } catch { /* Continue in memory. */ }
+      try { saved = await savePatientSession(next); } catch { /* Continue in memory. */ }
       if (mounted.current) setStorageWarning(saved ? '' : 'Your setup or changes could not be saved on this device. You can continue, but they may be lost after restarting.');
     });
   }, [rememberPatient]);
@@ -70,7 +108,10 @@ export function PatientSessionProvider({ children, rememberPatient = REMEMBER_MO
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => {
-      if (state === 'active') void refreshProfile();
+      if (state === 'active') {
+        supabase?.auth.startAutoRefresh();
+        void refreshProfile();
+      } else supabase?.auth.stopAutoRefresh();
     });
     const onVisible = () => { if (document.visibilityState === 'visible') void refreshProfile(); };
     if (Platform.OS === 'web') document.addEventListener('visibilitychange', onVisible);
@@ -80,8 +121,21 @@ export function PatientSessionProvider({ children, rememberPatient = REMEMBER_MO
     };
   }, [refreshProfile]);
 
-  function completeSetup(next) {
-    commit({ ...next, preferences: normalizePreferences(next.preferences) });
+  async function signIn(email, password) {
+    if (!isSupabaseConfigured) throw new Error('Patient sign-in is unavailable. Configure Supabase and restart the app.');
+    setAuthError('');
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error) throw error;
+  }
+
+  async function signOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    authGeneration.current += 1;
+    current.current = null;
+    setSession(null);
+    setProfileWarning('');
+    setStorageWarning('');
   }
 
   function updateProfile(patch) {
@@ -114,7 +168,7 @@ export function PatientSessionProvider({ children, rememberPatient = REMEMBER_MO
     commit({ ...previous, pin: newPin });
   }
 
-  return <PatientSessionContext.Provider value={{ session, loading, storageWarning, profileWarning, profileRefreshing, refreshProfile, preferences: session?.preferences || defaultPreferences(), completeSetup, updateProfile, updatePreferences, changePin }}><AppThemeProvider preference={session?.preferences.appearance || 'system'}>{children}</AppThemeProvider></PatientSessionContext.Provider>;
+  return <PatientSessionContext.Provider value={{ session, loading, storageWarning, profileWarning, profileRefreshing, refreshProfile, preferences: session?.preferences || defaultPreferences(), authError, signIn, signOut, updateProfile, updatePreferences, changePin }}><AppThemeProvider preference={session?.preferences.appearance || 'system'}>{children}</AppThemeProvider></PatientSessionContext.Provider>;
 }
 
 export function usePatientSession() {

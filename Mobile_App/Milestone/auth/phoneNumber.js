@@ -27,7 +27,7 @@ export function nationalPhoneDigits(value, country) {
 
 export function formatPhoneInput(value, country) {
   const digits = nationalPhoneDigits(value, country).slice(0, 15);
-  // Keep the requested area-code/dash format, including Frank's mock zeros.
+  // Format North American numbers as area code, exchange, and subscriber number.
   if (callingCode(country) === '1' && digits.length <= 10) {
     if (digits.length < 4) return digits;
     if (digits.length < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;

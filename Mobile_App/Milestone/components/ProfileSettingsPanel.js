@@ -20,7 +20,7 @@ function Action({ label, onPress, secondary = false, disabled = false }) {
 }
 
 function SettingsTab({ visible }) {
-  const { session, preferences, updatePreferences, changePin } = usePatientSession();
+  const { session, preferences, updatePreferences, changePin, signOut } = usePatientSession();
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const [pinAction, setPinAction] = useState(null);
@@ -29,6 +29,8 @@ function SettingsTab({ visible }) {
   const [confirmPin, setConfirmPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [pinMessage, setPinMessage] = useState('');
+  const [signOutError, setSignOutError] = useState('');
+  const [signingOut, setSigningOut] = useState(false);
   const [time, setTime] = useState(preferences.reminders.time);
   const [reminderError, setReminderError] = useState('');
   const pinEnabled = Boolean(session.pin);
@@ -79,6 +81,13 @@ function SettingsTab({ visible }) {
     <Field label="Reminder time (HH:MM)" value={time} placeholder="09:00" keyboardType="numbers-and-punctuation" maxLength={5} onChangeText={value => { setTime(value); if (/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) setReminder({ time: value }); }} onBlur={() => { if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) setReminderError('Enter a valid time as HH:MM (24-hour time).'); }} />
     <Text style={styles.hint}>Uses your device's local time zone.</Text>
     {reminderError ? <Text accessibilityRole="alert" style={styles.error}>{reminderError}</Text> : null}
+    <Action label="Sign out" secondary disabled={signingOut} onPress={async () => {
+      setSigningOut(true); setSignOutError('');
+      try { await signOut(); }
+      catch (error) { setSignOutError(error.message || 'Unable to sign out. Please try again.'); }
+      finally { setSigningOut(false); }
+    }} />
+    {signOutError ? <Text accessibilityRole="alert" style={styles.error}>{signOutError}</Text> : null}
   </>;
 }
 

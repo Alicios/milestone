@@ -122,9 +122,11 @@ export function DashboardPage() {
     refreshUnread()
     const channel = supabase.channel(`dashboard-message-count-${user.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, refreshUnread)
-      .subscribe()
+      .subscribe((status) => { if (status === 'SUBSCRIBED') refreshUnread() })
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') refreshUnread() }, 15000)
     window.addEventListener('focus', refreshUnread)
     return () => {
+      window.clearInterval(timer)
       active = false
       window.removeEventListener('focus', refreshUnread)
       void supabase.removeChannel(channel)

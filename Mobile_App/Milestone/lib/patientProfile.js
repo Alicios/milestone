@@ -1,14 +1,10 @@
 import { isSupabaseConfigured, supabase } from './supabase';
 
-export async function fetchSharedPatientProfile(profile) {
+export async function fetchSharedPatientProfile() {
   if (!isSupabaseConfigured) throw new Error('Patient details are unavailable. Please try again.');
-  let query = supabase.from('patients')
-    .select('id, name, email, phone, primary_concern, treatment_focus, start_of_care, care_status');
-  query = profile.databasePatientId
-    ? query.eq('id', profile.databasePatientId)
-    : query.eq('phone', profile.phone);
-  const { data, error } = await query.single();
+  const { data: rows, error } = await supabase.rpc('get_my_patient_profile');
   if (error) throw error;
+  const data = rows?.[0];
   if (!data?.id) throw new Error('Your patient record could not be found.');
   return {
     databasePatientId: data.id,

@@ -52,6 +52,7 @@ export function MessagesPage() {
   const [composeRecipientId, setComposeRecipientId] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [pageVisible, setPageVisible] = useState(document.visibilityState === 'visible')
   const [error, setError] = useState('')
   const requestId = useRef(0)
   const selected = conversations.find((conversation) => conversation.id === selectedId) ?? conversations[0]
@@ -80,10 +81,15 @@ export function MessagesPage() {
     void refresh()
     const channel = supabase.channel(`provider-messages-${user.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => { void refresh() })
-      .subscribe()
+      .subscribe((status) => { if (status === 'SUBSCRIBED') void refresh() })
     const onFocus = () => { void refresh() }
+    const onVisibility = () => { setPageVisible(document.visibilityState === 'visible'); if (document.visibilityState === 'visible') void refresh() }
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh() }, 15000)
+    document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('focus', onFocus)
     return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibility)
       requestId.current += 1
       window.removeEventListener('focus', onFocus)
       void supabase.removeChannel(channel)
@@ -91,13 +97,13 @@ export function MessagesPage() {
   }, [refresh, user])
 
   useEffect(() => {
-    if (!selected || selected.unread === 0 || isComposing || (!desktop && !showConversation)) return
+    if (!pageVisible || !selected || selected.unread === 0 || isComposing || (!desktop && !showConversation)) return
     const latest = selected.messages.at(-1)
     if (!latest) return
     void markMessageThreadRead(selected.id, latest.createdAt)
       .then(refresh)
       .catch((readError: Error) => setError(readError.message))
-  }, [desktop, isComposing, refresh, selected, showConversation])
+  }, [desktop, isComposing, pageVisible, refresh, selected, showConversation])
 
   function selectConversation(id: string) {
     setSelectedId(id)

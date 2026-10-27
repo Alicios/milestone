@@ -111,22 +111,12 @@ async function finishExercise(sets: number) {
 let mockExercises: unknown[];
 let mockCatalog: unknown[];
 let mockAssignment: unknown;
-jest.mock('../lib/supabase', () => ({
-  isSupabaseConfigured: true,
-  supabase: {from: jest.fn((table: string) => {
-    const result = () => ({error: null, data:
-      table === 'patients' ? {id: 'patient'} :
-      table === 'provider_patient_profiles' ? [{id: 'profile'}] :
-      table === 'routine_assignments' ? mockAssignment :
-      table === 'routines' ? {id: 'routine', name: 'Lower Body', exercise_list: mockExercises} : mockCatalog,
-    });
-    const query: any = {};
-    ['select', 'eq', 'in', 'order', 'limit'].forEach(method => { query[method] = jest.fn(() => query); });
-    query.single = query.maybeSingle = async () => result();
-    query.then = (resolve: Function, reject: Function) => Promise.resolve(result()).then(resolve as any, reject as any);
-    return query;
-  })},
-}));
+jest.mock('../lib/supabase', () => ({ isSupabaseConfigured: true, supabase: {} }));
+jest.mock('../lib/usePatientMessages', () => ({ __esModule: true, default: () => ({ conversations: [], messages: [], loading: false, error: '', unread: 0 }) }));
+jest.mock('../lib/patientRoutine', () => ({ loadPatientRoutine: async () => ({
+  routine: mockAssignment ? { name: 'Lower Body' } : null,
+  exercises: mockAssignment ? require('../lib/assignedExercises').normalizeAssignedExercises(require('../lib/assignedExercises').parseExerciseList(mockExercises), mockCatalog, ['#8BC0BC']) : [],
+}) }));
 
 beforeEach(() => {
   jest.clearAllMocks();

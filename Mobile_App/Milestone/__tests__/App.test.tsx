@@ -12,26 +12,14 @@ import { Accelerometer } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
 
 // UI regressions use a saved assignment fixture rather than a live backend.
-jest.mock('../lib/supabase', () => {
-  const catalog = [
-    {id: 'push', name: 'Push Ups', desc: 'A simple upper-body exercise that strengthens your chest, shoulders, and arms. Keep your body straight and move at a comfortable pace.'},
-    {id: 'sit', name: 'Sit Ups', desc: 'A core-strengthening exercise that works your abdominal muscles. Move slowly and avoid pulling on your neck.'},
-    {id: 'quad', name: 'Quad Stretch', desc: 'A lower-body stretch that helps improve flexibility in the front of your thigh.'},
-    {id: 'leg', name: 'Leg Stretch', desc: 'A gentle stretch for the legs that helps improve mobility and flexibility.'},
-  ];
-  return {isSupabaseConfigured: true, supabase: {from: (table: string) => {
-    const data = table === 'patients' ? {id: 'patient'}
-      : table === 'provider_patient_profiles' ? [{id: 'profile'}]
-      : table === 'routine_assignments' ? {id: 'assignment', routine_id: 'routine', status: 'scheduled'}
-      : table === 'routines' ? {id: 'routine', name: 'Daily routine', exercise_list: catalog.map((exercise, index) => ({exercise_id: exercise.id, sets: index < 2 ? 3 : 1, reps: index < 2 ? 5 : null, duration_seconds: index < 2 ? null : 30}))}
-      : catalog;
-    const query: any = {};
-    ['select', 'eq', 'in', 'order', 'limit'].forEach(method => { query[method] = () => query; });
-    query.single = query.maybeSingle = async () => ({data, error: null});
-    query.then = (resolve: Function, reject: Function) => Promise.resolve({data, error: null}).then(resolve as any, reject as any);
-    return query;
-  }}};
-});
+jest.mock('../lib/supabase', () => ({ isSupabaseConfigured: true, supabase: {} }));
+jest.mock('../lib/usePatientMessages', () => ({ __esModule: true, default: () => ({ conversations: [], messages: [], loading: false, error: '', unread: 0 }) }));
+jest.mock('../lib/patientRoutine', () => ({ loadPatientRoutine: async () => ({ routine: { name: 'Daily routine' }, exercises: require('../lib/assignedExercises').normalizeAssignedExercises([
+  {name: 'Push Ups', sets: 3, reps: 5, notes: 'A simple upper-body exercise that strengthens your chest, shoulders, and arms. Keep your body straight and move at a comfortable pace.'},
+  {name: 'Sit Ups', sets: 3, reps: 5, notes: 'A core-strengthening exercise that works your abdominal muscles. Move slowly and avoid pulling on your neck.'},
+  {name: 'Quad Stretch', sets: 1, duration_seconds: 30, notes: 'A lower-body stretch that helps improve flexibility in the front of your thigh.'},
+  {name: 'Leg Stretch', sets: 1, duration_seconds: 30, notes: 'A gentle stretch for the legs that helps improve mobility and flexibility.'}
+], [], ['#8BC0BC']) }) }));
 
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(async () => {}),
@@ -184,7 +172,7 @@ test('reveals the hidden selector only through the three-second Home hold', asyn
   expect(hasText('LeTeam')).toBe(true);
   expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Light);
   await ReactTestRenderer.act(() => home.props.onPress());
-  expect(hasText("You're all caught up")).toBe(true);
+  expect(hasText("No care team conversations yet. Your linked providers will appear here.")).toBe(true);
   expect(renderer.root.findAllByType(Image)).toHaveLength(1);
   expect(renderer.root.findByProps({accessibilityLabel: 'LeBron James in a Los Angeles Lakers uniform.'})).toBeDefined();
   expect(mockAudioPlayer.play).toHaveBeenCalledTimes(1);
@@ -354,7 +342,7 @@ test('opens Home with the daily overview and navigates to routines and messages'
   expect(button('Routines').props.accessibilityState.selected).toBe(true);
 
   await press('Messages');
-  expect(hasText("You're all caught up")).toBe(true);
+  expect(hasText("No care team conversations yet. Your linked providers will appear here.")).toBe(true);
   await press('Home');
   await press('View messages');
   expect(button('Messages').props.accessibilityState.selected).toBe(true);

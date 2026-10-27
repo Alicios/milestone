@@ -36,6 +36,20 @@ function initials(name: string) {
     : (parts[0]?.[0] ?? '?').toUpperCase()
 }
 
+async function loadMessageHistory(profileIds: string[]) {
+  const rows: MessageRow[] = []
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await supabase.from('messages')
+      .select('id, patient_profile_id, sender_kind, body, created_at')
+      .in('patient_profile_id', profileIds)
+      .order('created_at', { ascending: true }).order('id', { ascending: true })
+      .range(offset, offset + 499)
+    if (error) return { data: null, error }
+    rows.push(...((data ?? []) as MessageRow[]))
+    if (!data || data.length < 500) return { data: rows, error: null }
+  }
+}
+
 export async function loadMessageConversations(providerId: string): Promise<Conversation[]> {
   const { data: profiles, error: profileError } = await supabase
     .from('provider_patient_profiles')
@@ -48,11 +62,7 @@ export async function loadMessageConversations(providerId: string): Promise<Conv
   const patientIds = (profiles as ProfileRow[]).map((profile) => profile.patient_id)
   const [patientResult, messageResult, stateResult] = await Promise.all([
     supabase.from('patients').select('id, name').in('id', patientIds),
-    supabase.from('messages')
-      .select('id, patient_profile_id, sender_kind, body, created_at')
-      .in('patient_profile_id', profileIds)
-      .order('created_at', { ascending: true })
-      .order('id', { ascending: true }),
+    loadMessageHistory(profileIds),
     supabase.from('message_thread_state')
       .select('patient_profile_id, last_read_at, starred')
       .in('patient_profile_id', profileIds)
@@ -100,6 +110,7 @@ export async function loadMessageConversations(providerId: string): Promise<Conv
 }
 
 export async function sendProviderMessage(patientProfileId: string, body: string) {
+  if (!body.trim() || [...body.trim()].length > 4000) throw new Error('Enter a message between 1 and 4000 characters.')
   const { error } = await supabase.from('messages').insert({
     patient_profile_id: patientProfileId,
     sender_kind: 'provider',

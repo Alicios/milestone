@@ -27,7 +27,7 @@ export function AppThemeProvider({ children, preference = 'system' }) {
   const device = useColorScheme();
   const mode = resolveAppearance(preference, device);
   const theme = useMemo(() => makeTheme(mode), [mode]);
-  return <AppThemeContext.Provider value={theme}><StatusBar barStyle={theme.barStyle} backgroundColor={theme.colors.background} />{children}</AppThemeContext.Provider>;
+  return <AppThemeContext.Provider value={theme}><StatusBar barStyle={theme.barStyle} />{children}</AppThemeContext.Provider>;
 }
 
 export function useAppTheme() { return useContext(AppThemeContext); }

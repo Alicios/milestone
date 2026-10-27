@@ -1,5 +1,11 @@
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
+## Expo SDK 58
+
+Use Node.js 22.13 or newer. Install dependencies with `npm ci`, then start Metro with `npx expo start --clear`. Expo Go must support SDK 58; existing native development builds need rebuilding after this upgrade.
+
+The checked-in Android and iOS projects are maintained alongside `app.json`. Run `npx expo prebuild --no-clean` on the appropriate host after changing native app configuration. On macOS, run `npx pod-install` before building iOS to update CocoaPods and `ios/Podfile.lock` for SDK 58. CocoaPods and native device builds were not validated on Windows.
+
 ## Patient accounts and messaging
 
 Configure `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the ignored `.env` using the existing Supabase project URL and public API key. Never put a service-role key in the mobile app. Restart Expo with `npx expo start --clear` after changing configuration.

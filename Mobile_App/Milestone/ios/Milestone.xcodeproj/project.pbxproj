@@ -14,6 +14,7 @@
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		EC1EF0267F89B48884D4F0A3 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C5D6667A3BFAAA98D94F22 /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
+		B60AEFC0EC59403DA4938A65 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8928FFC54FC146F9B7B7CD22 /* SceneDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,6 +31,7 @@
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Milestone/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* Milestone-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "Milestone-Bridging-Header.h"; path = "Milestone/Milestone-Bridging-Header.h"; sourceTree = "<group>"; };
+		8928FFC54FC146F9B7B7CD22 /* SceneDelegate.swift */ = {isa = PBXFileReference; name = "SceneDelegate.swift"; path = "Milestone/SceneDelegate.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,6 +56,7 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				8C63B8DE3A62E8C983C92E40 /* PrivacyInfo.xcprivacy */,
+				8928FFC54FC146F9B7B7CD22 /* SceneDelegate.swift */,
 			);
 			name = Milestone;
 			sourceTree = "<group>";
@@ -327,6 +330,7 @@
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
 				EC1EF0267F89B48884D4F0A3 /* ExpoModulesProvider.swift in Sources */,
+				B60AEFC0EC59403DA4938A65 /* SceneDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

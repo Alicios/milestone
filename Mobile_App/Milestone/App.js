@@ -412,7 +412,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   if (!exercises.length && screen !== 'home' && screen !== 'messages') {
     return (
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-        <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
+        <StatusBar barStyle={barStyle} />
         <ScrollView
           style={styles.screenScroll}
           contentContainerStyle={styles.container}
@@ -635,7 +635,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   if (screen === 'home') {
     return (
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-        <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
+        <StatusBar barStyle={barStyle} />
         <HomeDashboard
           onLock={onLock}
           onOpenProfile={onOpenProfile}
@@ -752,7 +752,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
 
     return (
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-        <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
+        <StatusBar barStyle={barStyle} />
         <ScrollView
           key={`exercise-intro-${currentExerciseIndex}`}
           style={styles.screenScroll}
@@ -837,7 +837,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-      <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
+      <StatusBar barStyle={barStyle} />
 
       <ScrollView
         key="routine-list"

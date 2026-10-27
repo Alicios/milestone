@@ -59,7 +59,7 @@ export default function UnlockScreen({ busy, error, onSubmit, onClearError }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle={barStyle} backgroundColor={colors.background} />
+      <StatusBar barStyle={barStyle} />
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={styles.fill} contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
           <View style={styles.brand}>

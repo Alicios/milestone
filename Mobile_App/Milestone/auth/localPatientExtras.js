@@ -41,6 +41,17 @@ export async function loadLocalExtras(patientId) {
   }
 }
 
+// Called when the signed-in auth account no longer matches any patient
+// record (e.g. a provider deleted the patient while this device stayed
+// signed in) — wipes the cached PIN/photo/preferences so they can't resurface
+// if this auth user id is ever reused, and so a forced sign-out starts clean.
+export async function clearLocalExtras(patientId) {
+  try {
+    if (Platform.OS === 'web') global.localStorage?.removeItem(keyFor(patientId));
+    else await SecureStore.deleteItemAsync(keyFor(patientId));
+  } catch { /* best-effort cleanup. */ }
+}
+
 export async function saveLocalExtras(patientId, extras) {
   try {
     if (Platform.OS === 'web') {

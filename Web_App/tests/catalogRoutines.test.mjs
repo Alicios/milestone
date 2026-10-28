@@ -15,6 +15,7 @@ function loadTs(path, mocks = {}) {
   const module = { exports: {} }
   const dependency = (name) => {
     if (Object.hasOwn(mocks, name)) return mocks[name]
+    if (name === './errors' || name === '../lib/errors') return errors
     if (name.startsWith('.')) throw new Error(`Unmocked application import: ${name}`)
     if (name.startsWith('@mui/icons-material/')) return { default: 'Icon' }
     return require(name)
@@ -56,7 +57,7 @@ test('empty catalog and catalog read errors are surfaced without sample-data fal
   for (const result of [{ data: [] }, { error: { code: '42501', message: 'Denied' } }]) {
     const t = transport({ exercises: result })
     const { loadExercises } = loadTs('../src/lib/exerciseData.ts', { './supabase': t, './prescriptions': prescriptions })
-    await assert.rejects(loadExercises(), result.error ? (error) => error === result.error : /catalog is unavailable/)
+    await assert.rejects(loadExercises(), result.error ? (error) => error.cause === result.error && error.code === 'FORBIDDEN' && error.sourceCode === '42501' : /catalog is unavailable/)
   }
 })
 test('routine creation and editing send ordered UUIDs to the focused RPC, never labels', async () => {
@@ -79,7 +80,7 @@ test('backend ownership and invalid-reference errors propagate without another s
   for (const code of ['42501', 'P0002', '22023']) {
     const error = { code, message: 'Rejected' }
     const t = transport({}, { error })
-    await assert.rejects(dataModule(t).saveRoutine('foreign-id', 'Named', [input(a)]), (caught) => caught === error)
+    await assert.rejects(dataModule(t).saveRoutine('foreign-id', 'Named', [input(a)]), (caught) => caught.cause === error && caught.sourceCode === code)
     assert.equal(t.calls.length, 1)
   }
 })
@@ -191,13 +192,14 @@ test('edit form retains saved catalog UUIDs and requires explicit replacements f
     assert.deepEqual(saves, [['r', 'Stored', [input(legacy ? b : a)]]])
   }
 })
-test('catalog failures block saves and display the original backend error', async () => {
+test('catalog failures block saves and display a safe error', async () => {
   const h = pageHarness({ loadExercises: async () => { throw { message: 'Catalog permission denied' } } })
   await tick(); h.button('New Routine').onClick()
   h.field('Routine name').onChange({ target: { value: 'Name' } })
   h.editor().onChange([{ key: '1', exerciseId: a }])
   assert.equal(h.button('Create Routine').disabled, true)
-  assert.match(text(h.render()), /Catalog permission denied/)
+  assert.match(text(h.render()), /exercise catalog could not be loaded/)
+  assert.doesNotMatch(text(h.render()), /Catalog permission denied/)
 })
 async function layoutHarness({ save = async () => 'new-id', load = async () => [] } = {}) {
   const hook = hooks(); const writes = []; const reads = []
@@ -433,7 +435,7 @@ test('pre-deployment snapshot reads fall back only for missing columns, not auth
     const t = transport({ routine_assignments: rows, routine_assignment_exercises: operations =>
       operations.find(op => op[0] === 'select')[1].includes('sets_snapshot')
         ? { error: failure } : { data: [{ id: 's', routine_assignment_id: 'assignment', exercise_name_snapshot: 'Old', position: 0 }] } })
-    if (code === '42501') await assert.rejects(dataModule(t).loadRoutineAssignments(['profile'], '2026-10-20', '2026-10-26'), e => e === failure)
+    if (code === '42501') await assert.rejects(dataModule(t).loadRoutineAssignments(['profile'], '2026-10-20', '2026-10-26'), e => e.cause === failure && e.code === 'FORBIDDEN' && e.sourceCode === '42501')
     else {
       const [assignment] = await dataModule(t).loadRoutineAssignments(['profile'], '2026-10-20', '2026-10-26')
       assert.equal(assignment.exercises[0].sets, null)
@@ -447,7 +449,7 @@ test('deletion uses the ownership-checked delete RPC and propagates failures', a
   await dataModule(t).deleteRoutine('routine-id')
   assert.deepEqual(t.calls, [{ rpc: 'delete_routine', args: { p_routine_id: 'routine-id' } }])
   const failure = { code: 'P0002', message: 'Routine not found' }
-  await assert.rejects(dataModule(transport({}, { error: failure })).deleteRoutine('foreign-id'), e => e === failure)
+  await assert.rejects(dataModule(transport({}, { error: failure })).deleteRoutine('foreign-id'), e => e.code === 'ROUTINE_NOT_FOUND' && e.sourceCode === 'P0002' && e.cause === failure)
 })
 
 test('routine retrieval works with the live schema without archive columns', async () => {
@@ -487,7 +489,7 @@ test('failed deletion retains the editor and shows the error in the confirmation
   h.render().filter(node => node.type === 'Button' && text(node) === 'Delete Routine').at(0).props.onClick()
   await tick()
   assert.equal(h.render().find(node => node.type === 'Dialog').props.open, true)
-  assert.match(text(h.render()), /Access denied/)
+  assert.match(text(h.render()), /routine could not be deleted/); assert.doesNotMatch(text(h.render()), /Access denied/)
   assert.ok(h.button('Finish Editing'))
 })
 

@@ -17,7 +17,8 @@ async function authFixture(context, options = {}) {
   await context.route('**/auth/v1/**', async (route) => {
     const url = new URL(route.request().url())
     if (url.hostname !== 'scrum64-test.supabase.co') return route.abort()
-    const reply = (data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) })
+    // The SDK reads this version header to recognize modern auth error codes.
+    const reply = (data, status = 200) => route.fulfill({ status, headers: { 'X-Supabase-Api-Version': '2024-01-01', 'Access-Control-Expose-Headers': 'X-Supabase-Api-Version' }, contentType: 'application/json', body: JSON.stringify(data) })
     if (url.pathname.endsWith('/token')) {
       const refreshing = url.searchParams.get('grant_type') === 'refresh_token'
       if (refreshing) state.refreshes++

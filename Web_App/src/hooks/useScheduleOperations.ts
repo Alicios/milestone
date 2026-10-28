@@ -1,3 +1,4 @@
+import { AppError, normalizeError } from '../lib/errors'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { findScheduleReceipt, submitSchedule } from '../lib/schedulingData'
 import { ScheduleRecovery, SingleFlight } from '../lib/scheduleRecovery'
@@ -69,20 +70,20 @@ export function useScheduleOperations(providerId: string | undefined, onSaved: (
   }, [providerId, reload, recover])
 
   const confirm = (patientProfileId: string, entries: ConfirmedSelection[]) => flights.current.run(`confirm:${providerId}:${patientProfileId}`, async () => {
-    if (!providerId || active.current !== providerId) throw new Error('Sign in before confirming a schedule.')
+    if (!providerId || active.current !== providerId) throw new AppError('AUTH_REQUIRED', { message: 'Sign in before confirming a schedule.' })
     if (storageError || recovery().list(providerId).some((entry) => entry.patientProfileId === patientProfileId)) {
-      throw new Error('Resolve the previous confirmed schedule for this patient before submitting another.')
+      throw new AppError('CONFLICT', { message: 'Resolve the previous confirmed schedule for this patient before submitting another.' })
     }
     const operation: ScheduleOperation = { providerId, patientProfileId, requestId: crypto.randomUUID(), entries }
     try { recovery().retain(operation) }
-    catch { throw new Error('Recovery information could not be stored. No schedule was submitted. Check your browser storage settings.') }
+    catch { throw new AppError('SERVICE_UNAVAILABLE', { message: 'Recovery information could not be stored. No schedule was submitted. Check your browser storage settings.' }) }
     reload()
     try {
       await submitSchedule(operation)
     } catch (error) {
       if (active.current !== providerId) return false
       if (isDefinitiveScheduleFailure(error)) {
-        recovery().remove(operation); reload(); throw new Error(scheduleError(error))
+        recovery().remove(operation); reload(); throw normalizeError(error, { operation: 'schedule' })
       }
       setNotice('The save response was lost. Your confirmed request is retained below. Check its receipt before retrying.')
       return false

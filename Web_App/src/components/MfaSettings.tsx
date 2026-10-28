@@ -1,8 +1,9 @@
+import { errorMessage } from '../lib/errors'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Alert, Box, Button, CircularProgress, Stack, TextField, Typography } from '@mui/material'
 import { supabase } from '../lib/supabase'
 
-type Step = 'loading' | 'enrolled' | 'start' | 'qr'
+type Step = 'unavailable' | 'loading' | 'enrolled' | 'start' | 'qr'
 
 export function MfaSettings() {
   const [step, setStep] = useState<Step>('loading')
@@ -16,15 +17,18 @@ export function MfaSettings() {
   const [busy, setBusy] = useState(false)
 
   async function refreshFactors() {
-    const { data, error: listError } = await supabase.auth.mfa.listFactors()
-    if (listError) { setError(listError.message); setStep('start'); return }
-    // data.totp only ever contains verified factors; an abandoned/unverified
-    // enrollment only shows up in data.all.
-    const verified = data.totp[0]
-    const unverified = data.all.find((factor) => factor.factor_type === 'totp' && factor.status === 'unverified')
-    setVerifiedFactorId(verified?.id ?? null)
-    setUnverifiedFactorId(unverified?.id ?? null)
-    setStep(verified ? 'enrolled' : 'start')
+    try {
+      const { data, error: listError } = await supabase.auth.mfa.listFactors()
+      if (listError) throw listError
+      const verified = data.totp[0]
+      const unverified = data.all.find((factor) => factor.factor_type === 'totp' && factor.status === 'unverified')
+      setVerifiedFactorId(verified?.id ?? null)
+      setUnverifiedFactorId(unverified?.id ?? null)
+      setStep(verified ? 'enrolled' : 'start')
+    } catch (error) {
+      setError(errorMessage(error, 'Authenticator settings could not be loaded.'))
+      setStep('unavailable')
+    }
   }
 
   useEffect(() => { void refreshFactors() }, [])
@@ -35,7 +39,8 @@ export function MfaSettings() {
       // mfa.enroll() rejects if an abandoned unverified TOTP factor already
       // exists for this user, so clear it out before starting fresh.
       if (unverifiedFactorId) {
-        await supabase.auth.mfa.unenroll({ factorId: unverifiedFactorId })
+        const { error } = await supabase.auth.mfa.unenroll({ factorId: unverifiedFactorId })
+        if (error) throw error
         setUnverifiedFactorId(null)
       }
       const { data, error: enrollError } = await supabase.auth.mfa.enroll({ factorType: 'totp' })
@@ -45,7 +50,7 @@ export function MfaSettings() {
       setSecret(data.totp.secret)
       setStep('qr')
     } catch (enrollCatch) {
-      setError(enrollCatch instanceof Error ? enrollCatch.message : 'Could not start enrollment.')
+      setError(errorMessage(enrollCatch, 'Could not start enrollment.'))
     } finally {
       setBusy(false)
     }
@@ -63,7 +68,7 @@ export function MfaSettings() {
       setCode(''); setPendingFactorId(''); setQrCodeDataUrl(''); setSecret('')
       await refreshFactors()
     } catch (verifyCatch) {
-      setError(verifyCatch instanceof Error ? verifyCatch.message : 'That code did not match. Try again.')
+      setError(errorMessage(verifyCatch, 'That code did not match. Try again.'))
     } finally {
       setBusy(false)
     }
@@ -72,11 +77,15 @@ export function MfaSettings() {
   async function cancelEnrollment() {
     setBusy(true); setError('')
     try {
-      if (pendingFactorId) await supabase.auth.mfa.unenroll({ factorId: pendingFactorId })
+      if (pendingFactorId) {
+        const { error } = await supabase.auth.mfa.unenroll({ factorId: pendingFactorId })
+        if (error) throw error
+      }
+      setPendingFactorId(''); setQrCodeDataUrl(''); setSecret(''); setCode(''); setStep('start')
     } catch (cancelCatch) {
-      console.error(cancelCatch)
+      setError(errorMessage(cancelCatch, 'Enrollment could not be cancelled. Please retry.'))
     } finally {
-      setPendingFactorId(''); setQrCodeDataUrl(''); setSecret(''); setCode(''); setBusy(false); setStep('start')
+      setBusy(false)
     }
   }
 
@@ -88,7 +97,7 @@ export function MfaSettings() {
       if (unenrollError) throw unenrollError
       await refreshFactors()
     } catch (removeCatch) {
-      setError(removeCatch instanceof Error ? removeCatch.message : 'Could not remove authenticator app.')
+      setError(errorMessage(removeCatch, 'Could not remove authenticator app.'))
     } finally {
       setBusy(false)
     }
@@ -98,6 +107,7 @@ export function MfaSettings() {
 
   return <Stack spacing={2}>
     {error && <Alert severity="error">{error}</Alert>}
+    {step === 'unavailable' && <Button onClick={() => { setError(''); void refreshFactors() }}>Retry authenticator settings</Button>}
 
     {step === 'enrolled' && (
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} justifyContent="space-between">

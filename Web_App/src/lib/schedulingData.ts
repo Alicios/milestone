@@ -1,11 +1,16 @@
 import { supabase } from './supabase'
+import { normalizeError } from './errors'
 import { verifiedReceipt } from './scheduling'
 import type { OccupiedDate, ScheduleOperation, SchedulePreview, ScheduleReceipt, ScheduleSelection, SchedulingPolicy } from './scheduling'
 
 async function rpc<T>(name: string, args?: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.rpc(name, args)
-  if (error) throw error
-  return data as T
+  try {
+    const { data, error, status } = await supabase.rpc(name, args)
+    if (error) throw normalizeError(error, { operation: name, status })
+    return data as T
+  } catch (error) {
+    throw normalizeError(error, { operation: name })
+  }
 }
 export const loadSchedulingPolicy = () => rpc<SchedulingPolicy>('get_routine_scheduling_policy')
 export const loadScheduleOccupancy = (patientProfileId: string, start: string, end: string) => rpc<OccupiedDate[]>('get_patient_schedule_occupancy', {

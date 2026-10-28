@@ -1,3 +1,4 @@
+import { AppError } from './errors'
 import type { ExercisePrescription } from '../types'
 
 // PostgreSQL integer range; this is a storage limit, not a clinical recommendation.
@@ -10,7 +11,7 @@ export function validPrescriptionText(value = '') {
 }
 
 export function parsePrescriptionText(value = ''): number | null {
-  if (!validPrescriptionText(value)) throw new Error('Use a positive whole number or leave the field blank.')
+  if (!validPrescriptionText(value)) throw new AppError('VALIDATION_ERROR', { message: 'Use a positive whole number or leave the field blank.' })
   return value.trim() ? Number(value) : null
 }
 

@@ -53,6 +53,7 @@ export function NewPatientPage() {
         // The patient record was created; only generating the code failed.
         setInviteFailed(true)
         setOtp('')
+        setSaveError(errorMessage(error, 'The login code could not be confirmed.'))
         setSubmitted(true)
       } else {
         setSaveError(errorMessage(error, 'The patient could not be saved.'))
@@ -75,10 +76,10 @@ export function NewPatientPage() {
   if (submitted) return <Box maxWidth={650} mx="auto" py={{ xs: 2, md: 5 }}>
     <Card sx={{ border: `4px solid ${border}`, borderRadius: '30px', bgcolor: surface, color: text, p: { xs: 3, sm: 5 }, textAlign: 'center' }}>
       <Box sx={{ width: 92, height: 92, mx: 'auto', mb: 2, borderRadius: '50%', bgcolor: inviteFailed ? '#eb681d' : '#8bd153', border: `4px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircleOutlineIcon sx={{ color: 'white', fontSize: 62 }} /></Box>
-      <Typography variant="h4" sx={{ ...fontSx, fontWeight: 700, mb: 1 }}>{inviteFailed ? 'Patient saved, code not generated' : 'Pending account created'}</Typography>
+      <Typography variant="h4" sx={{ ...fontSx, fontWeight: 700, mb: 1 }}>{inviteFailed ? 'Patient saved, code unconfirmed' : 'Pending account created'}</Typography>
       <Typography sx={{ ...fontSx, fontSize: '1.25rem', mb: 3 }}>{name} has been added to your patient list.</Typography>
       {inviteFailed
-        ? <Alert icon={<VpnKeyOutlinedIcon />} severity="warning" sx={{ mb: 3, border: `3px solid ${border}`, borderRadius: '18px', color: text, ...fontSx, textAlign: 'left' }}>A login code for {email} could not be generated. Try inviting {name} again from their patient page.</Alert>
+        ? <Alert icon={<VpnKeyOutlinedIcon />} severity="warning" sx={{ mb: 3, border: `3px solid ${border}`, borderRadius: '18px', color: text, ...fontSx, textAlign: 'left' }}>{saveError} The patient record is saved. Check their patient page before generating another code; do not create this patient again.</Alert>
         : <Alert icon={<VpnKeyOutlinedIcon />} severity="info" sx={{ mb: 3, border: `3px solid ${border}`, borderRadius: '18px', bgcolor: infoSurface, color: text, ...fontSx, textAlign: 'left' }}>
             <Typography sx={{ ...fontSx, fontWeight: 700 }}>Give this code to {name}:</Typography>
             <Typography sx={{ ...fontSx, fontSize: '2rem', fontWeight: 800, letterSpacing: '4px', my: .5 }}>{otp}</Typography>

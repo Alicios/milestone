@@ -1,3 +1,4 @@
+import { errorMessage } from '../lib/errors'
 import { useState } from 'react'
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Fade, FormControlLabel, Radio, RadioGroup, Typography, useTheme } from '@mui/material'
 import type { Routine } from '../types'
@@ -51,7 +52,7 @@ export function AssignRoutineDialog({ patientName, weekday, scheduledDate, routi
         setSaving(true)
         setError('')
         void onAssign(selectedRoutine).catch((assignmentError: Error) => {
-          setError(assignmentError.message || 'The routine could not be assigned.')
+          setError(errorMessage(assignmentError, 'The routine could not be assigned.'))
           setSaving(false)
         })
       }} sx={{ ...buttonSx, bgcolor: '#91c8c0', color: '#102b34', '&:hover': { bgcolor: '#82bdb5' }, '&.Mui-disabled': { bgcolor: theme.palette.action.disabledBackground, color: theme.palette.action.disabled } }}>{saving ? 'Assigning…' : 'Assign'}</Button>

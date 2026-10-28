@@ -1,4 +1,5 @@
 import type { RoutineExercise } from '../types'
+import { AppError, errorMessage, normalizeError } from './errors'
 
 export interface SchedulingPolicy { today: string; lastDate: string; horizonDays: number; timeZone: string }
 export interface ScheduleSelection { date: string; routineId: string }
@@ -21,7 +22,7 @@ export function verifiedReceipt(value: unknown, operation: ScheduleOperation): S
     || new Set(receipt.assignments.map((entry) => entry?.date)).size !== operation.entries.length
     || receipt.assignments.some((entry) => !entry || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(entry.id)
       || !operation.entries.some((selection) => selection.date === entry.date && selection.routineId === entry.routineId))) {
-    throw new Error('The server receipt could not be verified. Retain this request for recovery.')
+    throw new AppError('UNEXPECTED_ERROR', { message: 'The server receipt could not be verified. Retain this request for recovery.' })
   }
   return receipt
 }
@@ -60,13 +61,9 @@ export class RequestEpoch {
 }
 
 export function isDefinitiveScheduleFailure(error: unknown) {
-  const code = (error as { code?: string } | null)?.code
+  const code = error instanceof AppError ? error.sourceCode : (error as { code?: string } | null)?.code
   return Boolean(code && ['22023', '22007', '22P02', '23505', '23514', '42501', 'P0002', '40001', '55000', 'PGRST202'].includes(code))
 }
 export function scheduleError(error: unknown) {
-  const code = (error as { code?: string } | null)?.code
-  if (code === '23505') return 'One or more selected dates already have an active assignment. Nothing was scheduled. Explicitly cancel the existing assignment before replacing it.'
-  if (code === '40001') return 'A selected routine changed. Nothing was scheduled. Review a new preview before confirming.'
-  if (code === 'PGRST202') return 'Scheduling is unavailable until the scheduling database update has been reviewed and deployed.'
-  return (error as { message?: string } | null)?.message || 'The schedule could not be loaded. Please retry.'
+  return errorMessage(normalizeError(error, { operation: 'schedule' }), 'The schedule could not be loaded. Please retry.')
 }

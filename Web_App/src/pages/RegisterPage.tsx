@@ -1,3 +1,4 @@
+import { errorMessage } from '../lib/errors'
 import { useEffect, useState, type FormEvent } from 'react'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
@@ -73,7 +74,7 @@ export function RegisterPage() {
       })
       .catch((loadError) => {
         if (!active) return
-        setPracticesError(loadError instanceof Error ? `Medical practices could not be loaded: ${loadError.message}` : 'Medical practices could not be loaded.')
+        setPracticesError(errorMessage(loadError, 'Medical practices could not be loaded.'))
       })
       .finally(() => { if (active) setPracticesLoading(false) })
     return () => { active = false }
@@ -94,7 +95,7 @@ export function RegisterPage() {
       await register({ name, email, password, confirmPassword, medicalPracticeId })
       navigate('/dashboard', { replace: true })
     } catch (submissionError) {
-      setError(submissionError instanceof Error ? submissionError.message : 'Unable to create your account.')
+      setError(errorMessage(submissionError, 'Unable to create your account.'))
     } finally {
       setLoading(false)
     }

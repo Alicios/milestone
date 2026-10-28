@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "tsc -b --pretty false",
     "preview": "vite preview",
+    "test:errors": "node --test tests/errors.test.mjs",
     "test:auth": "node --test tests/authentication*.test.mjs",
     "test:routines": "node --test tests/catalogRoutines.test.mjs",
     "test:scheduling": "node --test tests/scheduling.test.mjs",

@@ -1,3 +1,4 @@
+import { AppError, normalizeError } from '../lib/errors'
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { sameCredentials, sameSession, sessionUnexpired } from './session'
@@ -68,14 +69,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null); setMfaFactorId(null); mfaSession.current = null
   }
   const fail = (request: number, error: unknown, fallback = sessionError) => {
-    const message = error instanceof AuthenticationCheckError ? error.message : fallback
+    const normalized = normalizeError(error)
+    const failure = error instanceof AuthenticationCheckError ? error
+      : new AuthenticationCheckError(normalized.code === 'UNEXPECTED_ERROR' ? fallback : normalized.message, normalized, normalized.code)
+    const message = failure.message
     if (current(request)) {
       blocked.current = true
       stopExpiryTimer(); verified.current = null; setUser(null)
       setAuthError(message)
       setLoading(false)
     }
-    return new AuthenticationCheckError(message)
+    return failure
   }
   const checkSession = async (expected: Session, request: number) => {
     const { data, error } = await supabase.auth.getSession()
@@ -83,7 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error || !sessionUnexpired(data.session) || !sameSession(data.session, expected)) {
       if (mfaOperation.current) invalidateMfa(mfaOperation.current)
       if (credentialOperation.current) invalidateCredentials(credentialOperation.current)
-      throw new AuthenticationCheckError(sessionError)
+      if (error) throw normalizeError(error)
+      throw new AuthenticationCheckError(sessionError, undefined, !sessionUnexpired(data.session) ? 'SESSION_EXPIRED' : 'AUTH_VERIFICATION_FAILED')
     }
   }
   const persistenceError = 'Protected access is blocked in this tab. Logout protection could not be saved; reloading may restore a remaining session. Retry sign-out before closing this tab.'
@@ -178,7 +183,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const { data, error } = await supabase.auth.getSession()
       assertCurrent(request)
-      if (error || !data.session) throw new AuthenticationCheckError(sessionError)
+      if (error) {
+        if (previous && !sessionUnexpired(previous.session)) throw new AuthenticationCheckError(sessionError, error, 'SESSION_EXPIRED')
+        throw normalizeError(error)
+      }
+      if (!data.session) throw new AuthenticationCheckError(sessionError, undefined, 'SESSION_EXPIRED')
       if (previous && sameSession(previous.session, data.session) && sessionUnexpired(previous.session)) return
       if (previous && !sameSession(previous.session, data.session)) {
         // A silent storage/account replacement is not a routine SDK refresh event.
@@ -196,7 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (blocked.current) { setLoading(false); return }
         const { data, error } = await supabase.auth.getSession()
         if (!current(initialRequest)) return
-        if (error) throw new AuthenticationCheckError(sessionError)
+        if (error) throw normalizeError(error)
         if (!data.session) { clearUser(); setLoading(false); return }
         await resolveSession(data.session, initialRequest)
       } catch (error) { fail(initialRequest, error) }
@@ -333,7 +342,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login: (email, password) => authenticate(async (request) => {
       const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
       checkCredentialResponse(data.session, request)
-      if (error || !data.user || !data.session) throw new AuthenticationCheckError('Unable to sign in. Check your email and password and try again.')
+      if (error) throw normalizeError(error)
+      if (!data.user || !data.session) throw new AppError('UNEXPECTED_ERROR')
       return resolveSession(data.session, request, true)
     }, 'Unable to sign in. Please try again.'),
     verifyMfaLogin: (code) => {
@@ -346,11 +356,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await checkSession(expected, request)
           const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId })
           await checkSession(expected, request)
-          if (challengeError || !challenge) throw new AuthenticationCheckError('Unable to start MFA verification. Please try again.')
+          if (challengeError) throw normalizeError(challengeError)
+          if (!challenge) throw new AuthenticationCheckError('Unable to start MFA verification. Please try again.')
           operation.verifying = true
           const { data, error: verifyError } = await supabase.auth.mfa.verify({ factorId, challengeId: challenge.id, code })
           assertCurrent(request)
-          if (verifyError) throw new AuthenticationCheckError('Unable to verify your code. Please try again.')
+          if (verifyError) throw normalizeError(verifyError)
           if (!data || data.user?.id !== expected.user.id || !sameCredentials(operation.verifiedEvent, data)) {
             invalidateMfa(operation)
             throw new AuthenticationCheckError('Authentication changed. Please sign in again.')
@@ -384,7 +395,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           professional_title: 'Physical Therapist', role: 'Physical Therapist' } },
       })
       checkCredentialResponse(data.session, request)
-      if (error) throw new AuthenticationCheckError('Unable to create your account. Please try again.')
+      if (error) throw normalizeError(error)
       if (!data.user || !data.session) throw new AuthenticationCheckError('Account created. Confirm your email before signing in.')
       await resolveSession(data.session, request, true)
     }, 'Unable to create your account. Please try again.'),
@@ -392,7 +403,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateProfile: async (profile) => {
       const request = authGeneration.current
       const session = verified.current?.session
-      if (!user || !session || blocked.current) return
+      if (!user || !session || blocked.current) throw new AppError('AUTH_REQUIRED')
       await checkSession(session, request)
       await updateProvider(user.id, { ...user, ...profile })
       assertCurrent(request)

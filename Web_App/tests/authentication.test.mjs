@@ -12,7 +12,7 @@ test('successful password login checks MFA and publishes the current provider', 
   assert.equal(h.state.calls[0][1].email, alice.email)
 })
 test('invalid credentials fail closed with a safe message', async (t) => {
-  const h = harness(t, { loginError: { message: 'private backend details' } }); await settle()
+  const h = harness(t, { loginError: { code: 'invalid_credentials', status: 400, message: 'private backend details' } }); await settle()
   await assert.rejects(login(h), /Check your email and password/)
   denied(h); assert.equal(h.state.providerCalls.length, 0)
   assert.doesNotMatch(h.value().authError, /private/)
@@ -161,4 +161,28 @@ test('route guard rejects missing users, pending MFA, auth errors, and logout st
     assert.equal(result.type, 'Navigate'); assert.equal(result.props.to, '/login')
   }
   assert.equal(protectedResult({ user: alice, loading: true }).type, 'Box')
+})
+
+for (const [failure, code] of [
+  [{ code: 'invalid_credentials', status: 400 }, 'INVALID_CREDENTIALS'],
+  [{ code: 'refresh_token_not_found', status: 400 }, 'SESSION_EXPIRED'],
+  [{ status: 401 }, 'AUTH_REQUIRED'],
+  [{ code: '42501', status: 403 }, 'FORBIDDEN'],
+  [{ status: 429 }, 'RATE_LIMITED'],
+  [{ name: 'AuthRetryableFetchError', status: 0 }, 'NETWORK_ERROR'],
+  [{ status: 500 }, 'SERVICE_UNAVAILABLE'],
+  [{ code: 'unknown' }, 'UNEXPECTED_ERROR'],
+]) test(`authentication reports ${code} without exposing diagnostics or granting access`, async (t) => {
+  const native = { ...failure, message: 'private SQL token patient details' }
+  const h = harness(t, { loginError: native }); await settle()
+  await assert.rejects(login(h), error => {
+    assert.equal(error.code, code)
+    assert.equal(error.sourceCode, native.code)
+    assert.equal(error.httpStatus, native.status)
+    assert.equal(error.cause.cause, native)
+    assert.doesNotMatch(JSON.stringify(error), /private SQL|token patient/)
+    return true
+  })
+  denied(h); assert.equal(h.state.providerCalls.length, 0)
+  assert.doesNotMatch(h.value().authError, /private SQL|token patient/)
 })

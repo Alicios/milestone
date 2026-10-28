@@ -9,7 +9,7 @@ import { Alert, Box, Button, Card, Chip, Divider, Link, MenuItem, Stack, Tab, Ta
 import { CalendarWeekNavigation } from '../components/CalendarWeekNavigation'
 import { withinHorizon } from '../lib/scheduling'
 import { prescriptionSummary } from '../lib/prescriptions'
-import { inviteExistingPatient, PatientInviteError } from '../lib/supabaseData'
+import { inviteExistingPatient } from '../lib/supabaseData'
 import { errorMessage } from '../lib/errors'
 import type { DashboardOutletContext } from '../components/DashboardLayout'
 import { PatientDetailsDialog } from '../components/PatientDetailsDialog'
@@ -54,7 +54,7 @@ function PatientOverview({ patient }: { patient: Patient }) {
       setOtp(code.otp)
       setInviteMessage({ text: 'Login code generated below.', severity: 'success' })
     } catch (inviteError) {
-      setInviteMessage({ text: inviteError instanceof PatientInviteError ? inviteError.message : errorMessage(inviteError, 'The code could not be generated.'), severity: 'error' })
+      setInviteMessage({ text: errorMessage(inviteError, 'The code could not be generated.'), severity: 'error' })
     } finally {
       setInviting(false)
     }
@@ -139,7 +139,7 @@ function PatientOverview({ patient }: { patient: Patient }) {
                       <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={.75} sx={{ flexShrink: 0 }}>
                         <Chip size="small" variant="outlined" label={assignment.status} color="primary" />
                         {assignment.followUp?.status !== 'completed' && <Button size="small" startIcon={<EventOutlinedIcon />} onClick={() => setFollowUpAssignment(assignment)}>{assignment.followUp?.status === 'scheduled' ? 'Reschedule' : 'Schedule follow-up'}</Button>}
-                        {assignment.followUp?.status === 'scheduled' && <><Button size="small" color="success" onClick={() => void completeFollowUp(assignment.id).then(() => setFeedback('Follow-up marked complete.')).catch((followUpError: Error) => setError(followUpError.message))}>Mark follow-up complete</Button><Button size="small" color="warning" onClick={() => void cancelFollowUp(assignment.id).then(() => setFeedback('Follow-up cancelled.')).catch((followUpError: Error) => setError(followUpError.message))}>Cancel follow-up</Button></>}
+                        {assignment.followUp?.status === 'scheduled' && <><Button size="small" color="success" onClick={() => void completeFollowUp(assignment.id).then(() => setFeedback('Follow-up marked complete.')).catch((followUpError: Error) => setError(errorMessage(followUpError, 'The follow-up could not be updated.')))}>Mark follow-up complete</Button><Button size="small" color="warning" onClick={() => void cancelFollowUp(assignment.id).then(() => setFeedback('Follow-up cancelled.')).catch((followUpError: Error) => setError(errorMessage(followUpError, 'The follow-up could not be updated.')))}>Cancel follow-up</Button></>}
                         <Button size="small" color="error" onClick={() => setRemoval(assignment)}>Cancel assignment</Button>
                       </Stack>
                     </Stack>
@@ -197,7 +197,7 @@ function PatientOverview({ patient }: { patient: Patient }) {
     }} />}
     {confirmDischarge && <DischargePatientDialog patientName={patient.name} onCancel={() => setConfirmDischarge(false)} onDischarge={() => {
       void dischargePatient(patient.id).then(() => navigate('/dashboard/patients', { replace: true })).catch((dischargeError: Error) => {
-        setError(dischargeError.message)
+        setError(errorMessage(dischargeError, 'The patient could not be discharged.'))
         setConfirmDischarge(false)
       })
     }} />}
@@ -206,12 +206,14 @@ function PatientOverview({ patient }: { patient: Patient }) {
 
 export function PatientPage() {
   const { patientId } = useParams<{ patientId: string }>()
-  const { patients } = useOutletContext<DashboardOutletContext>()
+  const { patients, patientsLoading, patientsError, retryPatients } = useOutletContext<DashboardOutletContext>()
   const patient = patients.find((item) => item.id === patientId)
 
   return <Box component="main" maxWidth={1100} mx="auto" py={{ xs: 1, md: 2 }}>
     <Button component={RouterLink} to="/dashboard/patients" startIcon={<ArrowBackIcon />} sx={{ mb: 2 }}>Back to Patients</Button>
-    {patient ? <PatientOverview key={patient.id} patient={patient} /> : <Card sx={{ p: { xs: 3, sm: 5 } }} role="status">
+    {patientsLoading ? <Alert severity="info">Loading patient…</Alert>
+      : patientsError ? <Alert severity="error" action={<Button color="inherit" onClick={retryPatients}>Retry patients</Button>}>{patientsError}</Alert>
+      : patient ? <PatientOverview key={patient.id} patient={patient} /> : <Card sx={{ p: { xs: 3, sm: 5 } }} role="status">
       <Typography component="h1" variant="h4" sx={{ mb: 1 }}>Patient not found</Typography>
       <Typography color="text.secondary">This patient is not in your active list. They may have been discharged, or the link may be incorrect.</Typography>
       <Button component={RouterLink} to="/dashboard/patients" variant="contained" sx={{ mt: 3 }}>Return to Patients</Button>

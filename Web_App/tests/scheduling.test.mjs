@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { loadTs, hooks, MemoryStorage, deferred, tick } from './helpers/modules.mjs'
-const scheduling = loadTs('src/lib/scheduling.ts')
+const errors = loadTs('src/lib/errors.ts')
+const scheduling = loadTs('src/lib/scheduling.ts', { './errors': errors })
 const { ScheduleRecovery, SingleFlight } = loadTs('src/lib/scheduleRecovery.ts')
 const provider = '00000000-0000-0000-0000-000000000001'
 const other = '00000000-0000-0000-0000-000000000002'
@@ -69,7 +70,7 @@ test('synchronous single-flight guards rapid clicks, clears failures, permits ex
 function operationsHarness({ storage = new MemoryStorage(), find = async () => null, submit = async (op) => ({ ...receipt, requestId: op.requestId }), saved = async () => {} } = {}) {
   const hook = hooks(); const writes = []; const lookups = []; let account = provider
   globalThis.window = { localStorage: storage, addEventListener() {}, removeEventListener() {} }
-  const { useScheduleOperations } = loadTs('src/hooks/useScheduleOperations.ts', { react: hook.react, '../lib/schedulingData': {
+  const { useScheduleOperations } = loadTs('src/hooks/useScheduleOperations.ts', { react: hook.react, './errors': errors, '../lib/errors': errors, '../lib/schedulingData': {
     findScheduleReceipt: async (...args) => { lookups.push(args); return find(...args) },
     submitSchedule: async (...args) => { writes.push(args[0]); return submit(...args) },
   } })
@@ -156,8 +157,8 @@ test('mutation invalidation discards in-flight reads and failed reloads expose n
   await tick(); h.flush(); await tick(); h.flush().invalidate()
   wait.resolve([{ patientProfileId: profile, scheduledDate: '2026-10-20', id: 'old' }]); await tick()
   assert.deepEqual(h.flush().assignments, {})
-  fail = true; await assert.rejects(h.flush().refresh()); assert.match(h.flush().error, /reload failed/)
-  await h.flush().refreshPolicy(); assert.match(h.flush().error, /reload failed/); h.unmount()
+  fail = true; await assert.rejects(h.flush().refresh()); assert.match(h.flush().error, /schedule could not be loaded/); assert.doesNotMatch(h.flush().error, /reload failed/)
+  await h.flush().refreshPolicy(); assert.match(h.flush().error, /schedule could not be loaded/); assert.doesNotMatch(h.flush().error, /reload failed/); h.unmount()
 })
 test('provider changes discard responses from the previous provider', async () => {
   const wait = deferred(); const h = calendarHarness(() => wait.promise)
@@ -173,7 +174,7 @@ test('scheduling RPC transport uses batch tokens, exact range names, and validat
   await api.loadScheduleOccupancy(profile, '2020-01-01', '2020-01-07')
   assert.deepEqual(calls[1][1], { p_patient_profile_id: profile, p_start_date: '2020-01-01', p_end_date: '2020-01-07' })
   result = { data: null }; await assert.rejects(api.submitSchedule(operation), /could not be verified/)
-  result = { error: { code: '42501' } }; await assert.rejects(api.submitSchedule(operation), (error) => error.code === '42501')
+  result = { error: { code: '42501' } }; await assert.rejects(api.submitSchedule(operation), (error) => error.code === 'FORBIDDEN' && error.sourceCode === '42501')
 })
 test('verified write followed by a failed refresh remains successful and never repeats the write', async () => {
   const h = operationsHarness({ saved: async () => { throw new Error('read failed') } })
@@ -298,4 +299,37 @@ test('late authentication/provider responses cannot restore a previous account o
   assert.equal(hook.flush().props.value.user.id, other)
   listener('SIGNED_OUT', null); await new Promise((resolve) => setTimeout(resolve, 5))
   assert.equal(hook.flush().props.value.user, null); hook.unmount()
+})
+
+for (const [native, status, expected, definitive] of [
+  [{ code: '23505', message: 'private constraint' }, 409, 'SCHEDULE_CONFLICT', true],
+  [{ code: '40001', message: 'private revision' }, 500, 'ROUTINE_CHANGED', true],
+  [{ code: '42501', message: 'private policy' }, 403, 'FORBIDDEN', true],
+  [{ code: '', message: 'TypeError: Failed to fetch' }, 0, 'NETWORK_ERROR', false],
+  [{ code: 'XX000', message: 'private SQL' }, 500, 'SERVICE_UNAVAILABLE', false],
+]) test(`normalized scheduling ${expected} preserves rejection versus uncertainty`, async () => {
+  const api = loadTs('src/lib/schedulingData.ts', { './errors': errors, './supabase': { supabase: { rpc: async () => ({ error: native, status }) } } })
+  const h = operationsHarness({ submit: api.submitSchedule })
+  if (definitive) await assert.rejects(h.flush().confirm(profile, entries), error => {
+    assert.equal(error.code, expected); assert.equal(error.sourceCode, native.code); assert.equal(error.cause, native)
+    assert.doesNotMatch(error.message, /private/)
+    return true
+  })
+  else {
+    assert.equal(await h.flush().confirm(profile, entries), false)
+    assert.match(h.flush().notice, /retained/)
+    assert.deepEqual(h.flush().pending[0], h.writes[0])
+  }
+  assert.equal(h.writes.length, 1)
+  assert.equal(h.storage.length, definitive ? 0 : 1)
+  h.unmount()
+})
+
+test('a normalized permission error during receipt lookup does not prove the original write failed', async () => {
+  const storage = new MemoryStorage(); new ScheduleRecovery(storage).retain(operation)
+  const api = loadTs('src/lib/schedulingData.ts', { './errors': errors, './supabase': { supabase: { rpc: async () => ({ error: { code: '42501' }, status: 403 }) } } })
+  const h = operationsHarness({ storage, find: api.findScheduleReceipt }); await tick()
+  assert.equal(await h.flush().recover(operation, true), false)
+  assert.equal(h.storage.length, 1); assert.equal(h.writes.length, 0)
+  h.unmount()
 })

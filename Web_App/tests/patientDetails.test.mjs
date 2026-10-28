@@ -23,6 +23,28 @@ test('uses the returned row and saves blank optional fields as null', async () =
 test('preserves database authorization and save errors', async () => {
   const failure = { code: '42501', message: 'Active relationship required' }
   const api = harness({ data: null, error: failure })
-  await assert.rejects(api.updatePatientDetails('patient', valid), error => error === failure)
+  await assert.rejects(api.updatePatientDetails('patient', valid), error => error.code === 'FORBIDDEN' && error.sourceCode === '42501' && error.cause === failure)
   assert.equal(api.calls.length, 1)
+})
+
+for (const [code, status, expected] of [['P0002', 400, 'PATIENT_NOT_FOUND'], ['22023', 400, 'VALIDATION_ERROR'], ['XX000', 503, 'SERVICE_UNAVAILABLE']]) test(`patient edit ${code} retains diagnostics without exposing backend text`, async () => {
+  const native = { code, message: 'private SQL patient token' }
+  const api = harness({ data: null, error: native, status })
+  await assert.rejects(api.updatePatientDetails('patient', valid), e => e.code === expected && e.httpStatus === status && e.sourceCode === code && e.cause === native && !JSON.stringify(e).includes('private SQL'))
+  assert.equal(api.calls.length, 1)
+})
+test('patient edit validation details include new fields without values', async () => {
+  const api = harness()
+  await assert.rejects(api.updatePatientDetails('patient', { ...valid, phone: 'private bad phone', careStatus: 'invalid' }), e => {
+    assert.deepEqual(e.details, { fieldErrors: { phone: 'INVALID', careStatus: 'INVALID' } })
+    assert.doesNotMatch(JSON.stringify(e), /private bad phone/)
+    return true
+  })
+  assert.equal(api.calls.length, 0)
+})
+test('a thrown edit transport failure retains its cause and is not retried', async () => {
+  const native = new TypeError('Failed to fetch'); let calls = 0
+  const api = loadTs('src/lib/supabaseData.ts', { './supabase': { supabase: { rpc() { calls++; return { single: async () => { throw native } } } } } })
+  await assert.rejects(api.updatePatientDetails('patient', valid), e => e.code === 'NETWORK_ERROR' && e.cause === native)
+  assert.equal(calls, 1)
 })

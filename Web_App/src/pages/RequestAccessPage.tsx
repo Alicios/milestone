@@ -1,3 +1,4 @@
+import { errorMessage } from '../lib/errors'
 import { useState, type FormEvent } from 'react'
 import HowToRegOutlinedIcon from '@mui/icons-material/HowToRegOutlined'
 import { Alert, Box, Button, CircularProgress, Container, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material'
@@ -29,7 +30,7 @@ export function RequestAccessPage() {
       if (insertError) throw new Error(insertError.message)
       setSubmitted(true)
     } catch (submissionError) {
-      setError(submissionError instanceof Error ? submissionError.message : 'Unable to submit your request.')
+      setError(errorMessage(submissionError, 'Unable to submit your request.'))
     } finally {
       setLoading(false)
     }

@@ -18,7 +18,7 @@ import {
   saveRoutine as saveRoutineInDatabase,
   scheduleRoutineFollowUp as scheduleFollowUpInDatabase,
 } from '../lib/supabaseData'
-import { errorMessage } from '../lib/errors'
+import { AppError, errorMessage } from '../lib/errors'
 import { useAssignmentCalendar } from '../hooks/useAssignmentCalendar'
 import { useScheduleOperations } from '../hooks/useScheduleOperations'
 import { SingleFlight } from '../lib/scheduleRecovery'
@@ -30,6 +30,9 @@ type RoutineAssignments = Record<string, DayAssignments>
 
 export interface DashboardOutletContext {
   patients: Patient[]
+  patientsLoading: boolean
+  patientsError: string
+  retryPatients: () => void
   routines: Routine[]
   assignments: RoutineAssignments
   weekDates: string[]
@@ -69,6 +72,8 @@ export function DashboardWorkspace() {
   const [patients, setPatients] = useState<Patient[]>([])
   const [patientsLoading, setPatientsLoading] = useState(true)
   const [patientsError, setPatientsError] = useState('')
+  const [patientAttempt, setPatientAttempt] = useState(0)
+  const retryPatients = () => setPatientAttempt((attempt) => attempt + 1)
   const [routines, setRoutines] = useState<Routine[]>([])
   const [routineReloadError, setRoutineReloadError] = useState('')
   const [routinesReloading, setRoutinesReloading] = useState(false)
@@ -132,12 +137,12 @@ export function DashboardWorkspace() {
       if (!active) return
       setPatients(nextPatients)
     }).catch((error: Error) => {
-      if (active) setPatientsError(error.message || 'Patients could not be loaded from Supabase.')
+      if (active) setPatientsError(errorMessage(error, 'Patients could not be loaded.'))
     }).finally(() => {
       if (active) setPatientsLoading(false)
     })
     return () => { active = false }
-  }, [user?.id])
+  }, [user?.id, patientAttempt])
 
   useEffect(() => {
     let active = true
@@ -180,7 +185,7 @@ export function DashboardWorkspace() {
   }
 
   const saveRoutine = async (routineId: string | null, name: string, exercises: RoutineExerciseInput[]) => {
-    if (!user) throw new Error('Sign in before saving a routine.')
+    if (!user) throw new AppError('AUTH_REQUIRED')
     await saveRoutineInDatabase(routineId, name, exercises)
     try {
       const rows = await loadRoutines(user.id)
@@ -195,7 +200,7 @@ export function DashboardWorkspace() {
   }
 
   const deleteRoutine = async (routineId: string) => {
-    if (!user) throw new Error('Sign in before deleting a routine.')
+    if (!user) throw new AppError('AUTH_REQUIRED')
     await deleteRoutineInDatabase(routineId)
     if (activeProvider.current !== user.id) return
     setRoutines((current) => current.filter((routine) => routine.id !== routineId))
@@ -203,7 +208,7 @@ export function DashboardWorkspace() {
 
   const updatePatientDetails = (patientId: string, input: PatientDetailsInput) => mutations.current.run(`patient:${patientId}`, async () => {
     const providerId = user?.id
-    if (!providerId) throw new Error('Sign in before editing a patient.')
+    if (!providerId) throw new AppError('AUTH_REQUIRED')
     const saved = await updatePatientDetailsInDatabase(patientId, input)
     if (activeProvider.current !== providerId) return
     setPatients(current => current.map(patient => patient.id !== saved.id ? patient : {
@@ -255,7 +260,7 @@ export function DashboardWorkspace() {
     </AppBar>
     <Container maxWidth={false} sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: isMessagesPage ? 0 : { xs: 2, md: 3 } }}>
       {patientsLoading && <Alert severity="info" sx={{ mb: 2 }}>Loading patients from Supabase…</Alert>}
-      {patientsError && <Alert severity="error" sx={{ mb: 2 }}>{patientsError}</Alert>}
+      {patientsError && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" onClick={retryPatients}>Retry patients</Button>}>{patientsError}</Alert>}
       {calendar.error && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" disabled={calendar.refreshing} onClick={retryAssignments}>Retry loading assignments</Button>}>{calendar.error}</Alert>}
       {calendar.loading && !calendar.error && <Alert severity="info" sx={{ mb: 2 }}>Loading assignment calendar…</Alert>}
       {assignmentNotice && <Alert severity="warning" sx={{ mb: 2 }} action={<Button color="inherit" disabled={calendar.refreshing} onClick={() => void calendar.refresh().then(() => setAssignmentNotice('')).catch(() => {})}>Retry loading assignments</Button>}>{assignmentNotice}</Alert>}
@@ -266,7 +271,7 @@ export function DashboardWorkspace() {
         <Stack direction="row" spacing={1}><Button disabled={operations.busy.includes(operation.requestId)} onClick={() => void operations.recover(operation)}>Check receipt</Button><Button disabled={operations.busy.includes(operation.requestId)} onClick={() => void operations.recover(operation, true)}>Retry same confirmed request</Button></Stack>
       </Alert>)}
       {routineReloadError && <Alert severity="warning" sx={{ mb: 2 }} action={<Button color="inherit" disabled={routinesReloading} onClick={() => void reloadRoutines()}>{routinesReloading ? 'Loading…' : 'Retry loading routines'}</Button>}>{routineReloadError}</Alert>}
-      <Outlet context={{ patients, routines, assignments, weekDates, openSchedule, policy, occupied, setWeek, assignmentsLoading: calendar.loading, assignmentsError: calendar.error, retryAssignments, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, deleteRoutine, updatePatientDetails, dischargePatient } satisfies DashboardOutletContext} />
+      <Outlet context={{ patients, patientsLoading, patientsError, retryPatients, routines, assignments, weekDates, openSchedule, policy, occupied, setWeek, assignmentsLoading: calendar.loading, assignmentsError: calendar.error, retryAssignments, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, deleteRoutine, updatePatientDetails, dischargePatient } satisfies DashboardOutletContext} />
       {target && policy && <ScheduleRoutineDialog key={`${target.patient.profileId}/${target.singleDate ?? weekDates[0]}`} patientName={target.patient.name} patientProfileId={target.patient.profileId} routines={routines} weekStart={weekDates[0]} singleDate={target.singleDate} policy={policy} onCancel={() => setTarget(null)} onConfirm={async (entries) => {
         calendar.invalidate()
         try {

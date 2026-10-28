@@ -1,3 +1,4 @@
+import { errorMessage } from '../lib/errors'
 import { useMemo, useState } from 'react'
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from '@mui/material'
 import type { RoutineAssignment } from '../types'
@@ -30,8 +31,8 @@ export function FollowUpDialog({ assignment, onCancel, onSave }: {
       <Button variant="contained" disabled={!scheduledAt || saving} onClick={() => {
         setSaving(true)
         setError('')
-        void onSave(new Date(scheduledAt).toISOString()).catch((saveError: Error) => {
-          setError(saveError.message || 'The follow-up could not be scheduled.')
+        void Promise.resolve().then(() => onSave(new Date(scheduledAt).toISOString())).catch((saveError: Error) => {
+          setError(errorMessage(saveError, 'The follow-up could not be scheduled.'))
           setSaving(false)
         })
       }}>{saving ? 'Saving…' : 'Save follow-up'}</Button>

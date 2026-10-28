@@ -1,3 +1,4 @@
+import { errorMessage } from '../lib/errors'
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined'
@@ -86,7 +87,7 @@ export function ProfilePage() {
       })
       .catch((loadError) => {
         if (!active) return
-        setPracticesError(loadError instanceof Error ? `Medical practices could not be loaded: ${loadError.message}` : 'Medical practices could not be loaded.')
+        setPracticesError(errorMessage(loadError, 'Medical practices could not be loaded.'))
       })
     return () => { active = false }
   }, [])
@@ -195,26 +196,14 @@ export function ProfilePage() {
     if (Object.keys(nextErrors).length) return
 
     try {
-      if (photoFile) {
-        try {
-          nextProfile = { ...nextProfile, avatarUrl: await uploadProviderAvatar(providerId, photoFile) }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'The image upload was rejected.'
-          throw new Error(`Profile image upload failed: ${message}`)
-        }
-      }
-      try {
-        await updateProfile(nextProfile)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'The provider profile update was rejected.'
-        throw new Error(`Profile details update failed: ${message}`)
-      }
+      if (photoFile) nextProfile = { ...nextProfile, avatarUrl: await uploadProviderAvatar(providerId, photoFile) }
+      await updateProfile(nextProfile)
       setDraft(null)
       setSaved(true)
       setSaveError('')
       setPhotoFile(null)
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Your profile could not be saved.')
+      setSaveError(errorMessage(error, 'Your profile could not be saved.'))
     }
   }
 

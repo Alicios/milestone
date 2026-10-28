@@ -1,3 +1,4 @@
+import { errorMessage } from '../lib/errors'
 import { useEffect, useState, type FormEvent } from 'react'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
@@ -70,7 +71,7 @@ export function LoginPage() {
       }
       // 'mfa-required': mfaChallengePending flips true and the form below swaps to the code step.
     } catch (submissionError) {
-      setError(submissionError instanceof Error ? submissionError.message : 'Unable to sign in.')
+      setError(errorMessage(submissionError, 'Unable to sign in.'))
     } finally {
       setLoading(false)
     }
@@ -84,7 +85,7 @@ export function LoginPage() {
       await verifyMfaLogin(mfaCode)
       navigate((location.state as { from?: string } | null)?.from ?? '/dashboard', { replace: true })
     } catch (verifyError) {
-      setMfaError(verifyError instanceof Error ? verifyError.message : 'Invalid code. Try again.')
+      setMfaError(errorMessage(verifyError, 'Unable to verify your code. Please try again.'))
     } finally {
       setVerifying(false)
     }

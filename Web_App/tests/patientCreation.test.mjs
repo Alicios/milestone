@@ -18,6 +18,7 @@ function loadTs(path, mocks = {}) {
   const module = { exports: {} }
   const dependency = (name) => {
     if (Object.hasOwn(mocks, name)) return mocks[name]
+    if (name === './errors' || name === '../lib/errors') return errors
     if (name === './supabase' || name === '../lib/supabaseData') throw new Error('Live Supabase imports are forbidden in tests')
     if (name.startsWith('@mui/icons-material/')) return { default: 'Icon' }
     return require(name)
@@ -73,10 +74,10 @@ test('createPatient sends a null phone and the trimmed email', async () => {
   assert.deepEqual(calls, [{ name: 'create_patient', args: { patient_name: 'Patient', patient_phone: null, patient_email: 'patient@example.com' } }])
 })
 
-test('createPatient propagates Supabase errors unchanged', async () => {
+test('createPatient normalizes Supabase errors while retaining diagnostics', async () => {
   const error = { code: '42501', message: 'Sign in before creating a patient' }
   const { createPatient, calls } = dataHarness({ rpcResponses: [{ error }] })
-  await assert.rejects(createPatient('Patient', 'patient@example.com'), (caught) => caught === error)
+  await assert.rejects(createPatient('Patient', 'patient@example.com'), (caught) => caught.cause === error && caught.sourceCode === error.code)
   assert.equal(calls.length, 1)
 })
 
@@ -84,7 +85,7 @@ test('inviteExistingPatient requires an active session and never calls fetch wit
   const { inviteExistingPatient, PatientInviteError, fetchImpl, fetchCalls } = dataHarness({ session: null })
   await assert.rejects(
     inviteExistingPatient('patient-id', fetchImpl),
-    (error) => error instanceof PatientInviteError && error.patientId === 'patient-id' && /session expired/.test(error.message),
+    (error) => error instanceof PatientInviteError && error.patientId === 'patient-id' && error.code === 'AUTH_REQUIRED',
   )
   assert.equal(fetchCalls.length, 0)
 })
@@ -100,22 +101,22 @@ test('inviteExistingPatient posts the patient id with a bearer token and returns
   assert.deepEqual(JSON.parse(fetchCalls[0].options.body), { patientId: 'patient-id' })
 })
 
-test('inviteExistingPatient surfaces the server error message on a non-2xx response', async () => {
+test('inviteExistingPatient normalizes the server error without exposing text on a non-2xx response', async () => {
   const { inviteExistingPatient, PatientInviteError, fetchImpl } = dataHarness({ fetchResponses: [jsonResponse(409, { error: 'This patient already has an account.' })] })
   await assert.rejects(
     inviteExistingPatient('patient-id', fetchImpl),
-    (error) => error instanceof PatientInviteError && error.patientId === 'patient-id' && error.message === 'This patient already has an account.',
+    (error) => error instanceof PatientInviteError && error.patientId === 'patient-id' && error.code === 'CONFLICT' && error.httpStatus === 409 && !error.message.includes('This patient already'),
   )
 })
 
 test('inviteExistingPatient falls back to a generic message when the response has no error field', async () => {
   const { inviteExistingPatient, PatientInviteError, fetchImpl } = dataHarness({ fetchResponses: [jsonResponse(500, {})] })
-  await assert.rejects(inviteExistingPatient('patient-id', fetchImpl), (error) => error instanceof PatientInviteError && error.message === 'The code could not be generated.')
+  await assert.rejects(inviteExistingPatient('patient-id', fetchImpl), (error) => error instanceof PatientInviteError && error.code === 'SERVICE_UNAVAILABLE' && error.httpStatus === 500)
 })
 
 test('inviteExistingPatient rejects a 2xx response missing an otp', async () => {
   const { inviteExistingPatient, PatientInviteError, fetchImpl } = dataHarness({ fetchResponses: [jsonResponse(200, { email: 'patient@example.com' })] })
-  await assert.rejects(inviteExistingPatient('patient-id', fetchImpl), (error) => error instanceof PatientInviteError && error.message === 'The code could not be generated.')
+  await assert.rejects(inviteExistingPatient('patient-id', fetchImpl), (error) => error instanceof PatientInviteError && error.code === 'OTP_UNCONFIRMED' && error.httpStatus === 200)
 })
 
 test('createPatientAndInvite creates the patient, then invites them, returning the patient id and code', async () => {
@@ -133,7 +134,7 @@ test('createPatientAndInvite creates the patient, then invites them, returning t
 test('createPatientAndInvite never calls fetch if creating the patient fails', async () => {
   const error = { code: '22023', message: 'Patient name is required' }
   const { createPatientAndInvite, fetchImpl, fetchCalls } = dataHarness({ rpcResponses: [{ error }] })
-  await assert.rejects(createPatientAndInvite('Patient', 'patient@example.com', fetchImpl), (caught) => caught === error)
+  await assert.rejects(createPatientAndInvite('Patient', 'patient@example.com', fetchImpl), (caught) => caught.cause === error && caught.sourceCode === error.code)
   assert.equal(fetchCalls.length, 0)
 })
 
@@ -144,15 +145,15 @@ test('createPatientAndInvite surfaces a PatientInviteError carrying the new pati
   })
   await assert.rejects(
     createPatientAndInvite('Patient', 'patient@example.com', fetchImpl),
-    (error) => error instanceof PatientInviteError && error.patientId === 'patient-id' && error.message === 'The invitation could not be confirmed.',
+    (error) => error instanceof PatientInviteError && error.patientId === 'patient-id' && error.code === 'OTP_UNCONFIRMED' && error.httpStatus === 502,
   )
 })
 
-test('error messages support Error instances and Supabase objects without changing codes', () => {
+test('error messages sanitize Error instances and Supabase objects without changing native codes', () => {
   const error = Object.freeze({ code: '42501', message: 'Sign in before creating a patient' })
-  assert.equal(errors.errorMessage(error, 'Fallback'), error.message)
+  assert.equal(errors.errorMessage(error, 'Fallback'), 'You do not have permission to perform this action.')
   assert.equal(error.code, '42501')
-  assert.equal(errors.errorMessage(new Error('Connection failed'), 'Fallback'), 'Connection failed')
+  assert.equal(errors.errorMessage(new Error('Connection failed'), 'Fallback'), 'Fallback')
   for (const unknown of [null, undefined, {}, 'failure', { message: 42 }, { message: '' }, { message: ' \n' }]) {
     assert.equal(errors.errorMessage(unknown, 'Fallback'), 'Fallback')
   }
@@ -235,8 +236,8 @@ test('a PatientInviteError still shows the patient as saved, with a code-not-gen
   page.change('Patient name', 'Patient')
   page.change('Patient email', 'patient@example.com')
   await page.submit()
-  assert.match(page.text(), /Patient saved, code not generated/)
-  assert.match(page.text(), /could not be generated/)
+  assert.match(page.text(), /Patient saved, code unconfirmed/)
+  assert.match(page.text(), /login code could not be confirmed/)
 })
 
 test('a creation failure (not an invite failure) shows the generic save error with no success screen', async () => {
@@ -248,7 +249,7 @@ test('a creation failure (not an invite failure) shows the generic save error wi
   page.change('Patient name', 'Patient')
   page.change('Patient email', 'patient@example.com')
   await page.submit()
-  assert.match(page.text(), /Sign in before creating a patient/)
+  assert.match(page.text(), /You do not have permission/)
   assert.doesNotMatch(page.text(), /Pending account created/)
   assert.equal(page.button().disabled, false)
 })
@@ -272,9 +273,64 @@ test('a Supabase rejection during creation shows the error and allows a successf
   page.change('Patient name', 'Patient')
   page.change('Patient email', 'patient@example.com')
   await page.submit()
-  assert.match(page.text(), /Sign in before creating a patient/)
+  assert.match(page.text(), /You do not have permission/)
   assert.equal(page.button().disabled, false)
   await page.submit()
   assert.match(page.text(), /Pending account created/)
   assert.match(page.text(), /123456/)
+})
+
+for (const failure of [new TypeError('Failed to fetch'), new Error('private SQL path and token')]) {
+  test(`invitation transport rejection preserves the saved patient (${failure.name})`, async () => {
+    const h = dataHarness({ rpcResponses: [{ data: 'saved-patient-id' }], fetchResponses: [failure] })
+    await assert.rejects(h.createPatientAndInvite('Patient', 'patient@example.com', h.fetchImpl), error => {
+      assert.ok(error instanceof h.PatientInviteError)
+      assert.equal(error.patientId, 'saved-patient-id')
+      assert.equal(error.code, failure instanceof TypeError ? 'NETWORK_ERROR' : 'UNEXPECTED_ERROR')
+      assert.equal(error.cause.cause, failure)
+      assert.doesNotMatch(JSON.stringify(error), /private SQL|saved-patient-id|patient@example|token/)
+      return true
+    })
+    assert.equal(h.calls.length, 1); assert.equal(h.fetchCalls.length, 1)
+  })
+}
+
+test('real invitation network failure displays partial success and does not offer creation retry', async () => {
+  const h = dataHarness({ rpcResponses: [{ data: 'saved-patient-id' }], fetchResponses: [new TypeError('Failed to fetch')] })
+  const page = pageHarness({ createPatientAndInvite: (name, email) => h.createPatientAndInvite(name, email, h.fetchImpl), PatientInviteError: h.PatientInviteError })
+  page.change('Patient name', 'Patient'); page.change('Patient email', 'patient@example.com')
+  await page.submit()
+  assert.match(page.text(), /Patient saved, code unconfirmed/)
+  assert.match(page.text(), /do not create this patient again/)
+  assert.doesNotMatch(page.text(), /Failed to fetch|The patient could not be saved/)
+  assert.equal(h.calls.length, 1); assert.equal(h.fetchCalls.length, 1)
+})
+
+for (const mode of ['returned', 'thrown']) test(`session ${mode} failure after creation remains a PatientInviteError`, async () => {
+  let creates = 0; let invites = 0
+  const failure = { code: 'refresh_token_not_found', message: 'private refresh token' }
+  const supabase = { rpc: async () => { creates++; return { data: 'saved-patient-id' } }, auth: { getSession: async () => {
+    if (mode === 'thrown') throw failure
+    return { data: { session: null }, error: failure }
+  } } }
+  const api = loadTs('../src/lib/supabaseData.ts', { './supabase': { supabase }, './prescriptions': loadTs('../src/lib/prescriptions.ts') })
+  await assert.rejects(api.createPatientAndInvite('Patient', 'patient@example.com', async () => { invites++ }), error => {
+    assert.ok(error instanceof api.PatientInviteError)
+    assert.equal(error.code, 'SESSION_EXPIRED'); assert.equal(error.patientId, 'saved-patient-id')
+    assert.doesNotMatch(JSON.stringify(error), /private refresh token|saved-patient-id/)
+    return true
+  })
+  assert.equal(creates, 1); assert.equal(invites, 0)
+})
+
+test('a malformed success response cannot claim invitation delivery or lose partial success', async () => {
+  const h = dataHarness({ rpcResponses: [{ data: 'saved-patient-id' }], fetchResponses: [jsonResponse(200, {})] })
+  await assert.rejects(h.createPatientAndInvite('Patient', 'patient@example.com', h.fetchImpl), error => error instanceof h.PatientInviteError && error.code === 'OTP_UNCONFIRMED')
+  assert.equal(h.calls.length, 1); assert.equal(h.fetchCalls.length, 1)
+})
+
+for (const payload of [null, { email: 'patient@example.com', otp: '123456' }, { email: 'patient@example.com', otp: 123456, expiresAt: '2026-01-01' }, { email: 'patient@example.com', otp: 'secret text', expiresAt: '2026-01-01' }, { email: '', otp: '123456', expiresAt: '2026-01-01' }, { email: 'patient@example.com', otp: '123456', expiresAt: 'not-a-date' }]) test(`malformed OTP payload ${JSON.stringify(payload)} preserves the saved patient`, async () => {
+  const h = dataHarness({ rpcResponses: [{ data: 'saved-patient-id' }], fetchResponses: [jsonResponse(200, payload)] })
+  await assert.rejects(h.createPatientAndInvite('Patient', 'patient@example.com', h.fetchImpl), e => e instanceof h.PatientInviteError && e.patientId === 'saved-patient-id' && e.code === 'OTP_UNCONFIRMED' && e.httpStatus === 200 && !JSON.stringify(e).includes('patient@example.com'))
+  assert.equal(h.calls.length, 1); assert.equal(h.fetchCalls.length, 1)
 })

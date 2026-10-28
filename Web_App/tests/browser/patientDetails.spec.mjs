@@ -50,7 +50,8 @@ for (const width of [390, 1365]) {
       await page.getByRole('button', { name: 'Edit patient details', exact: true }).click();
       await page.getByLabel('Email address', { exact: true }).fill('retry@example.invalid');
       fail = true; await page.getByRole('button', { name: 'Save patient details', exact: true }).click();
-      await expect(page.getByText('Synthetic save rejected', { exact: true })).toBeVisible();
+      await expect(page.getByText('You do not have permission to perform this action.', { exact: true })).toBeVisible();
+      await expect(page.locator('body')).not.toContainText('Synthetic save rejected');
       await expect(page.getByLabel('Email address', { exact: true })).toHaveValue('retry@example.invalid');
       fail = false; await page.getByRole('button', { name: 'Save patient details', exact: true }).click();
       await expect(dialog).toHaveCount(0);

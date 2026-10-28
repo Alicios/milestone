@@ -1,3 +1,4 @@
+import { errorMessage } from '../lib/errors'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import SearchIcon from '@mui/icons-material/Search'
@@ -71,7 +72,7 @@ export function MessagesPage() {
       setComposeRecipientId((current) => rows.some((row) => row.id === current) ? current : rows[0]?.id ?? '')
       setError('')
     } catch (loadError) {
-      if (currentRequest === requestId.current) setError((loadError as Error).message || 'Messages could not be loaded.')
+      if (currentRequest === requestId.current) setError(errorMessage(loadError, 'Messages could not be loaded.'))
     } finally {
       if (currentRequest === requestId.current) setLoading(false)
     }
@@ -103,7 +104,7 @@ export function MessagesPage() {
     if (!latest) return
     void markMessageThreadRead(selected.id, latest.createdAt)
       .then(refresh)
-      .catch((readError: Error) => setError(readError.message))
+      .catch((readError: Error) => setError(errorMessage(readError, 'The message could not be marked as read.')))
   }, [desktop, isComposing, pageVisible, refresh, selected, showConversation])
 
   function selectConversation(id: string) {
@@ -127,7 +128,7 @@ export function MessagesPage() {
       await setMessageThreadStarred(selected.id, !selected.starred)
       await refresh()
     } catch (starError) {
-      setError((starError as Error).message)
+      setError(errorMessage(starError, 'The conversation could not be updated.'))
     }
   }
 
@@ -143,7 +144,7 @@ export function MessagesPage() {
       setIsComposing(false)
       await refresh()
     } catch (sendError) {
-      setError((sendError as Error).message || 'Message could not be sent.')
+      setError(errorMessage(sendError, 'Message could not be sent.'))
     } finally {
       setSending(false)
     }

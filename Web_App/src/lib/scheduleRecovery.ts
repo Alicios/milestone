@@ -1,3 +1,4 @@
+import { AppError } from './errors'
 import type { ScheduleOperation } from './scheduling'
 
 const prefix = 'milestone.schedule.v1.'
@@ -12,9 +13,9 @@ export class ScheduleRecovery {
     const key = this.key(operation)
     const payload = JSON.stringify(operation)
     const existing = this.storage.getItem(key)
-    if (existing && existing !== payload) throw new Error('This confirmed request cannot be changed. Recover it before creating another.')
+    if (existing && existing !== payload) throw new AppError('CONFLICT', { message: 'This confirmed request cannot be changed. Recover it before creating another.' })
     this.storage.setItem(key, payload)
-    if (this.storage.getItem(key) !== payload) throw new Error('Recovery storage is unavailable. No schedule was submitted.')
+    if (this.storage.getItem(key) !== payload) throw new AppError('SERVICE_UNAVAILABLE', { message: 'Recovery storage is unavailable. No schedule was submitted.' })
   }
   remove(operation: ScheduleOperation) { this.storage.removeItem(this.key(operation)) }
   list(providerId: string): ScheduleOperation[] {
@@ -26,7 +27,7 @@ export class ScheduleRecovery {
       if (!value || value.providerId !== providerId || !uuid.test(value.requestId) || !uuid.test(value.patientProfileId)
         || !Array.isArray(value.entries) || !value.entries.length || value.entries.some((entry) => !uuid.test(entry.routineId)
           || !/^\d{4}-\d{2}-\d{2}$/.test(entry.date) || !/^[0-9a-f]{64}$/.test(entry.token))) {
-        throw new Error('Saved scheduling recovery information is damaged. Do not resubmit; contact support to check the original request.')
+        throw new AppError('UNEXPECTED_ERROR', { message: 'Saved scheduling recovery information is damaged. Do not resubmit; contact support to check the original request.' })
       }
       operations.push(value)
     }

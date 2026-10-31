@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { Dimensions, StyleSheet, TextInput } from 'react-native';
+import { Dimensions, Keyboard, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import MessagesScreen from '../components/MessagesScreen';
 import useAdaptiveLayout from '../components/useAdaptiveLayout';
 
 let mockInsets = { top: 0, left: 0, bottom: 0, right: 0 };
-jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => mockInsets }));
+jest.mock('react-native-safe-area-context', () => ({
+  ...require('react-native-safe-area-context/jest/mock').default,
+  useSafeAreaInsets: () => mockInsets,
+}));
 
 let windowSize;
 let renderer;
@@ -16,7 +19,7 @@ const conversations = [
 const send = jest.fn(async () => true);
 function Harness() {
   const [selectedId, select] = useState(null);
-  return <MessagesScreen messaging={{ conversations, selected: conversations.find(row => row.id === selectedId),
+  return <MessagesScreen dock={<View testID="test-dock" />} messaging={{ conversations, selected: conversations.find(row => row.id === selectedId),
     messages: [{ id: 'message', body: 'Keep moving.', sender_kind: 'provider' }],
     select, send, loading: false, sending: false, error: '', refresh: jest.fn() }} />;
 }
@@ -96,4 +99,56 @@ test('uses the usable window and large text setting rather than the physical dev
   await act(async () => Dimensions.set({ window: windowSize }));
   expect(layout.isWide).toBe(false);
   expect(layout.isShort).toBe(true);
+});
+
+test.each(['ios', 'android'])('keeps the %s composer above the keyboard and restores navigation without losing a draft', async platform => {
+  jest.replaceProperty(Platform, 'OS', platform);
+  mockInsets.top = 44;
+  const callbacks = {};
+  const removals = [];
+  jest.spyOn(Keyboard, 'addListener').mockImplementation((event, callback) => {
+    (callbacks[event] ||= []).push(callback);
+    const remove = jest.fn(); removals.push(remove);
+    return { remove };
+  });
+  await act(async () => { renderer = ReactTestRenderer.create(<Harness />); });
+  const avoider = renderer.root.findByType(KeyboardAvoidingView);
+  async function layout(height) {
+    await act(async () => avoider.instance._onLayout({ persist: jest.fn(), nativeEvent: { layout: { x: 0, y: 0, width: 390, height } } }));
+  }
+  async function keyboardEvent(visible, screenY = 300) {
+    const event = { endCoordinates: { screenY, height: 844 - screenY } };
+    await act(async () => {
+      for (const phase of ['Will', 'Did']) (callbacks[`keyboard${phase}${visible ? 'Show' : 'Hide'}`] || []).forEach(callback => callback(event));
+    });
+  }
+  await layout(844);
+  await press('Conversation with Alex Provider, 1 unread');
+  await act(async () => input().props.onChangeText('Keep this draft'));
+  await keyboardEvent(true);
+  expect(renderer.root.findAllByProps({ testID: 'test-dock' })).toHaveLength(0);
+  expect(input().props.value).toBe('Keep this draft');
+  expect(avoider.props.behavior).toBe('padding');
+  expect(avoider.instance.state.bottom).toBe(544);
+  const workspace = renderer.root.findAll(node => typeof node.props.onLayout === 'function' && StyleSheet.flatten(node.props.style)?.maxWidth === 720)[0];
+  await act(async () => workspace.props.onLayout({ nativeEvent: { layout: { height: 240 } } }));
+  expect(StyleSheet.flatten(input().props.style).maxHeight).toBe(72);
+  await resize(844, 390);
+  await layout(390);
+  await keyboardEvent(true, 180);
+  expect(avoider.instance.state.bottom).toBe(210);
+  if (platform === 'android') {
+    // adjustResize may already remove the keyboard area from the app window.
+    await layout(180);
+    expect(avoider.instance.state.bottom).toBe(0);
+  }
+  expect(input().props.value).toBe('Keep this draft');
+  await keyboardEvent(false);
+  expect(avoider.instance.state.bottom).toBe(0);
+  expect(renderer.root.findAllByProps({ testID: 'test-dock' }).length).toBeGreaterThan(0);
+  await press('Send message');
+  expect(send).toHaveBeenCalledWith('Keep this draft');
+  await act(async () => renderer.unmount());
+  renderer = null;
+  expect(removals.every(remove => remove.mock.calls.length === 1)).toBe(true);
 });

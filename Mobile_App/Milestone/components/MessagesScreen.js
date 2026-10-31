@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Text from './AppText';
 import Brand from './Brand';
 import ProfileAvatar from './ProfileAvatar';
@@ -13,17 +14,61 @@ function ProviderAvatar({ provider }) {
   return <ProfileAvatar profile={{ fullName: provider.name, preferredName: provider.name, photoUri: provider.avatarUrl }} size={40} />;
 }
 
-export default function MessagesScreen({ messaging }) {
+export default function MessagesScreen({ messaging, dock }) {
   const { conversations, selected, messages, loading, error, sending, refresh, select, send } = messaging;
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const { isWide, isShort } = useAdaptiveLayout();
   const [drafts, setDrafts] = useState({});
   const [choosingProvider, setChoosingProvider] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(() => Keyboard.isVisible());
+  const [webKeyboardInset, setWebKeyboardInset] = useState(0);
+  const [workspaceHeight, setWorkspaceHeight] = useState(null);
   const history = useRef(null);
   const composer = useRef(null);
   const focusComposer = useRef(false);
   const draft = drafts[selected?.id] || '';
+
+  useEffect(() => {
+    const show = () => setKeyboardVisible(true);
+    const hide = () => setKeyboardVisible(false);
+    const subscriptions = [
+      Keyboard.addListener('keyboardDidShow', show),
+      Keyboard.addListener('keyboardDidHide', hide),
+    ];
+    if (Platform.OS === 'ios') {
+      subscriptions.push(Keyboard.addListener('keyboardWillShow', show), Keyboard.addListener('keyboardWillHide', hide));
+    }
+    return () => subscriptions.forEach(subscription => subscription.remove());
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !window.visualViewport) return undefined;
+    const viewport = window.visualViewport;
+    let frame;
+    function update() {
+      const typing = document.activeElement === composer.current;
+      const inset = typing ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
+      setWebKeyboardInset(inset);
+      setKeyboardVisible(inset > 0);
+    }
+    function schedule() {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(update);
+    }
+    viewport.addEventListener('resize', schedule);
+    viewport.addEventListener('scroll', schedule);
+    document.addEventListener('focusin', schedule);
+    document.addEventListener('focusout', schedule);
+    schedule();
+    return () => {
+      cancelAnimationFrame(frame);
+      viewport.removeEventListener('resize', schedule);
+      viewport.removeEventListener('scroll', schedule);
+      document.removeEventListener('focusin', schedule);
+      document.removeEventListener('focusout', schedule);
+    };
+  }, []);
 
   useEffect(() => {
     if (selected?.id && focusComposer.current) {
@@ -50,11 +95,17 @@ export default function MessagesScreen({ messaging }) {
   }
   const showInbox = isWide || (!selected && !choosingProvider);
   const showDetail = isWide || selected || choosingProvider;
+  const compactHeader = isShort || keyboardVisible;
+  const composerMaxHeight = workspaceHeight == null ? 140 : Math.max(48, Math.min(140, workspaceHeight * 0.3));
 
-  return <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <View style={[styles.workspace, isWide && styles.workspaceWide]}>
-    <View style={[styles.header, isShort && styles.headerShort]}>
-      {!isShort && <Brand />}
+  // Keep keyboard coordinates relative to the full screen. Safe-area padding
+  // and the dock belong inside this view so neither can obscure the composer.
+  // Padding only compensates for remaining overlap after Android adjustResize.
+  return <KeyboardAvoidingView testID="messages-keyboard-avoider" style={[styles.fill, { backgroundColor: colors.background, paddingBottom: webKeyboardInset }]} behavior="padding">
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.fill}>
+    <View onLayout={event => setWorkspaceHeight(event.nativeEvent.layout.height)} style={[styles.workspace, isWide && styles.workspaceWide]}>
+    <View style={[styles.header, compactHeader && styles.headerShort, keyboardVisible && selected && !choosingProvider && styles.hidden]}>
+      {!compactHeader && <Brand />}
       <View style={styles.titleRow}>
         <Text accessibilityRole="header" style={styles.title}>Messages</Text>
         {!choosingProvider && <Pressable accessibilityRole="button" accessibilityLabel="Compose message" accessibilityState={{ disabled: loading || sending || !conversations.length }} disabled={loading || sending || !conversations.length} onPress={startCompose} style={[styles.composeButton, (loading || sending || !conversations.length) && styles.disabled]}><Text style={styles.sendText}>Compose</Text></Pressable>}
@@ -84,15 +135,17 @@ export default function MessagesScreen({ messaging }) {
       </ScrollView>
     </> : selected ? <>
       <View style={styles.threadHeader}><Pressable accessibilityRole="button" accessibilityLabel="Back to conversations" onPress={() => select(null)} style={styles.backButton}><ArrowLeft accessible={false} size={24} color={colors.primary} /></Pressable><ProviderAvatar provider={selected} /><View style={styles.fill}><Text accessibilityRole="header" style={styles.name}>{selected.name}</Text>{selected.title ? <Text style={styles.muted}>{selected.title}</Text> : null}</View></View>
-      <ScrollView ref={history} style={styles.fill} contentContainerStyle={styles.history} onContentSizeChange={() => history.current?.scrollToEnd({ animated: false })} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={history} style={styles.fill} contentContainerStyle={styles.history} onContentSizeChange={() => history.current?.scrollToEnd({ animated: false })} onLayout={() => history.current?.scrollToEnd({ animated: false })} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         {loading ? <ActivityIndicator accessibilityLabel="Loading conversation" color={colors.primary} /> : messages.length === 0 ? <Text style={styles.muted}>No messages yet. Send your provider a message below.</Text> : messages.map(message => <View key={message.id} style={[styles.bubble, message.sender_kind === 'patient' ? styles.outgoing : styles.incoming]}><Text style={styles.body}>{message.body}</Text><Text style={styles.timestamp}>{message.sender_kind === 'patient' ? 'You' : selected.name} · {time(message.created_at)}</Text></View>)}
       </ScrollView>
-      <View style={styles.composer}><TextInput ref={composer} accessibilityLabel="Message to provider" placeholder="Write a message..." placeholderTextColor={colors.muted} multiline maxLength={8000} value={draft} onChangeText={value => setDrafts(current => ({ ...current, [selected.id]: value }))} style={styles.input} /><Pressable accessibilityRole="button" accessibilityLabel="Send message" accessibilityState={{ disabled: sending || !draft.trim() || [...draft.trim()].length > 4000, busy: sending }} disabled={sending || !draft.trim() || [...draft.trim()].length > 4000} onPress={submit} style={[styles.send, (sending || !draft.trim() || [...draft.trim()].length > 4000) && styles.disabled]}><Text style={styles.sendText}>{sending ? 'Sending...' : 'Send'}</Text></Pressable></View>
+      <View style={styles.composer}><TextInput ref={composer} accessibilityLabel="Message to provider" placeholder="Write a message..." placeholderTextColor={colors.muted} multiline maxLength={8000} value={draft} onChangeText={value => setDrafts(current => ({ ...current, [selected.id]: value }))} style={[styles.input, { maxHeight: composerMaxHeight }]} /><Pressable accessibilityRole="button" accessibilityLabel="Send message" accessibilityState={{ disabled: sending || !draft.trim() || [...draft.trim()].length > 4000, busy: sending }} disabled={sending || !draft.trim() || [...draft.trim()].length > 4000} onPress={submit} style={[styles.send, (sending || !draft.trim() || [...draft.trim()].length > 4000) && styles.disabled]}><Text style={styles.sendText}>{sending ? 'Sending...' : 'Send'}</Text></Pressable></View>
       <Text style={styles.counter}>{[...draft.trim()].length}/4000</Text>
     </> : <View style={styles.placeholder}><Text style={styles.muted}>Select a conversation or compose a message to your care team.</Text></View>}
     </View>
     </View>
     </View>
+    {!keyboardVisible && dock}
+    </SafeAreaView>
   </KeyboardAvoidingView>;
 }
 

@@ -33,6 +33,15 @@ let browser;
 try {
   browser = await chromium.launch({ channel: 'chrome', headless: true });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'America/Los_Angeles', reducedMotion: 'reduce' });
+  await context.addInitScript(() => {
+    // Simulate a keyboard overlay that changes visualViewport without resizing
+    // the layout viewport, as mobile browsers can do when an input is focused.
+    const viewport = window.visualViewport;
+    let keyboardHeight = 0;
+    Object.defineProperty(viewport, 'height', { get: () => innerHeight - keyboardHeight });
+    Object.defineProperty(viewport, 'offsetTop', { get: () => 0 });
+    window.setTestKeyboardHeight = height => { keyboardHeight = height; viewport.dispatchEvent(new Event('resize')); };
+  });
   await context.routeWebSocket('**/*', socket => socket.close());
   await context.route('**/*', async route => {
     const url = new URL(route.request().url());
@@ -137,6 +146,32 @@ try {
   await resize(1280, 800);
   await expect(composer).toHaveValue('Draft survives folding');
   await expect(page.getByTestId('conversation-list')).toBeVisible();
+  await composer.focus();
+  for (const [width, height, keyboardHeight] of [[390, 844, 320], [844, 390, 180], [1024, 768, 300]]) {
+    await resize(width, height);
+    await page.evaluate(value => window.setTestKeyboardHeight(value), keyboardHeight);
+    await expect(page.getByRole('button', { name: 'Home', exact: true })).toBeHidden();
+    await expect(composer).toHaveValue('Draft survives folding');
+    await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
+    const bounds = await composer.boundingBox();
+    const sendBounds = await page.getByRole('button', { name: 'Send message', exact: true }).boundingBox();
+    await page.screenshot({ path: resolve(output, `messages-keyboard-overlay-${width}x${height}.png`) });
+    assert(bounds && sendBounds && bounds.y >= 0 && Math.max(bounds.y + bounds.height, sendBounds.y + sendBounds.height) <= height - keyboardHeight + 1, JSON.stringify({ width, height, keyboardHeight, bounds, sendBounds }));
+    await check('messages-keyboard-overlay', width, height);
+  }
+  await page.evaluate(() => window.setTestKeyboardHeight(0));
+  await expect(page.getByRole('button', { name: 'Home', exact: true })).toBeVisible();
+  // Reduced-window checks complement native keyboard-event unit tests; desktop
+  // browser resizing does not create an actual Android/iOS software keyboard.
+  for (const [width, height] of [[390, 320], [844, 280], [1024, 320]]) {
+    await resize(width, height);
+    await composer.fill('Draft survives folding\nA second line\nA third line\nA fourth line');
+    const bounds = await composer.boundingBox();
+    const sendBounds = await page.getByRole('button', { name: 'Send message', exact: true }).boundingBox();
+    assert(bounds && sendBounds && bounds.y >= 0 && Math.max(bounds.y + bounds.height, sendBounds.y + sendBounds.height) <= height - 54, 'Composer and Send must fit the reduced window');
+    await check('messages-reduced-height', width, height);
+  }
+  await composer.fill('Draft survives folding');
   await press('Send message');
   await expect(composer).toHaveValue('');
   await expect(page.getByTestId('conversation-detail').getByText('Draft survives folding', { exact: true })).toBeVisible();

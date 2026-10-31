@@ -543,10 +543,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
 
   if (screen === 'messages') {
     return (
-      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-        <MessagesScreen messaging={messaging} />
-        {renderDock('messages')}
-      </SafeAreaView>
+      <MessagesScreen messaging={messaging} dock={renderDock('messages')} />
     );
   }
 

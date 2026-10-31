@@ -33,6 +33,7 @@ import MessagesScreen from './components/MessagesScreen';
 import usePatientMessages from './lib/usePatientMessages';
 import { loadPatientRoutine } from './lib/patientRoutine';
 import EasterEggSelector from './components/EasterEggSelector';
+import useAdaptiveLayout from './components/useAdaptiveLayout';
 import LockKeyhole from 'lucide-react-native/icons/lock-keyhole';
 import ClipboardClock from 'lucide-react-native/icons/clipboard-clock';
 import House from 'lucide-react-native/icons/house';
@@ -115,7 +116,8 @@ export default function App() {
 function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   const styles = useThemedStyles(baseStyles);
   const { colors, barStyle } = useAppTheme();
-  const { width } = useWindowDimensions();
+  const { width, isShort, isMedium } = useAdaptiveLayout();
+  const landscapeExercise = isShort && isMedium;
   const [routineStarted, setRoutineStarted] = useState(false);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [exercises, setExercises] = useState([]);
@@ -439,18 +441,19 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <ScrollView
           style={styles.screenScroll}
-          contentContainerStyle={styles.exerciseScreen}
+          contentContainerStyle={[styles.exerciseScreen, landscapeExercise && styles.exerciseScreenShort]}
         >
-          <Text style={styles.encouragementText}>you got this!</Text>
+          <Text style={[styles.encouragementText, landscapeExercise && styles.encouragementShort]}>you got this!</Text>
 
-          <View style={styles.exercisePageCard}>
-            <View style={styles.exercisePageHeader}>
-              <Text style={styles.exercisePageTitle}>
+          <View style={[styles.exercisePageCard, landscapeExercise && styles.exerciseCardShort]}>
+            <View style={[styles.exercisePageHeader, landscapeExercise && styles.exerciseHeaderShort]}>
+              <Text style={[styles.exercisePageTitle, landscapeExercise && styles.exerciseTitleShort]}>
                 {activeExercise.name}
               </Text>
             </View>
 
-            <View style={styles.exercisePageContent}>
+            <View style={[styles.exercisePageContent, landscapeExercise && styles.exerciseContentShort]}>
+              <View style={landscapeExercise && styles.exerciseColumn}>
               <Text
                 testID="exercise-timer"
                 numberOfLines={1}
@@ -458,25 +461,27 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
                 minimumFontScale={0.65}
                 style={[
                   styles.timerText,
-                  { color: palette.white, fontSize: Math.min(64, width * 0.125) },
+                  { color: palette.white, fontSize: Math.min(landscapeExercise ? 48 : 64, width * (landscapeExercise ? 0.06 : 0.125)) },
                 ]}
               >
                 {formatTimer(timerCentiseconds)}
               </Text>
 
-              <View style={styles.exerciseInfoPill}>
-                <Text style={styles.exerciseInfoText}>
+              <View style={[styles.exerciseInfoPill, landscapeExercise && styles.exercisePillShort]}>
+                <Text style={[styles.exerciseInfoText, landscapeExercise && styles.exerciseInfoShort]}>
                   Set {currentSet} of {activeExercise.sets}
                 </Text>
               </View>
 
-              <View style={styles.exerciseInfoPill}>
-                <Text style={styles.exerciseInfoText}>
+              <View style={[styles.exerciseInfoPill, landscapeExercise && styles.exercisePillShort]}>
+                <Text style={[styles.exerciseInfoText, landscapeExercise && styles.exerciseInfoShort]}>
                   {activeExercise.reps == null ? 'Reps not specified' : `${activeExercise.reps} Reps`}
                 </Text>
               </View>
+              </View>
 
-              <View style={styles.exerciseInstructions}>
+              <View style={[styles.exerciseDetails, landscapeExercise && styles.exerciseColumn]}>
+              <View style={[styles.exerciseInstructions, landscapeExercise && styles.exerciseInstructionsShort]}>
                 <Text accessibilityRole="header" style={styles.exerciseInstructionsTitle}>
                   How to do it
                 </Text>
@@ -485,15 +490,15 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
                 </Text>
               </View>
 
-              <View style={styles.exerciseControls}>
+              <View style={[styles.exerciseControls, landscapeExercise && styles.exerciseControlsShort]}>
                 {isRunning ? (
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Pause exercise"
-                    style={styles.stopButton}
+                    style={[styles.stopButton, landscapeExercise && styles.exerciseControlShort]}
                     onPress={() => setIsRunning(false)}
                   >
-                    <Text style={styles.stopButtonText}>STOP</Text>
+                    <Text style={[styles.stopButtonText, landscapeExercise && styles.exerciseControlTextShort]}>STOP</Text>
                   </Pressable>
                 ) : (
                   <View style={styles.controlRow}>
@@ -504,14 +509,14 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
                           ? 'Finish exercise'
                           : 'Next set'
                       }
-                      style={styles.controlButton}
+                      style={[styles.controlButton, landscapeExercise && styles.exerciseControlShort]}
                       onPress={
                         currentSet >= activeExercise.sets
                           ? finishExercise
                           : goToNextSet
                       }
                     >
-                      <Text style={styles.controlButtonText}>
+                      <Text style={[styles.controlButtonText, landscapeExercise && styles.exerciseControlTextShort]}>
                         {currentSet >= activeExercise.sets ? 'FINISH' : 'NEXT'}
                       </Text>
                     </Pressable>
@@ -519,13 +524,14 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel="Resume exercise"
-                      style={styles.controlButton}
+                      style={[styles.controlButton, landscapeExercise && styles.exerciseControlShort]}
                       onPress={resumeExercise}
                     >
-                      <Text style={styles.controlButtonText}>RESUME</Text>
+                      <Text style={[styles.controlButtonText, landscapeExercise && styles.exerciseControlTextShort]}>RESUME</Text>
                     </Pressable>
                   </View>
                 )}
+              </View>
               </View>
             </View>
           </View>
@@ -1078,6 +1084,7 @@ function HomeDashboard({
 }) {
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
+  const { isWide } = useAdaptiveLayout();
   const displayName = profile?.preferredName || profile?.fullName?.split(' ')[0] || 'there';
   const progressPercent = exercises.length
   ? Math.round((completedExerciseCount / exercises.length) * 100)
@@ -1098,7 +1105,7 @@ function HomeDashboard({
   return (
     <ScrollView
       style={styles.screenScroll}
-      contentContainerStyle={styles.dashboardContent}
+      contentContainerStyle={[styles.dashboardContent, isWide && styles.dashboardWide]}
     >
       <View style={styles.topRow}>
         <Brand />
@@ -1119,7 +1126,8 @@ function HomeDashboard({
         <Text style={styles.welcomeSubtext}>Here's your day at a glance.</Text>
       </View>
 
-      <View style={[styles.dashboardCard, styles.dashboardRoutineCard]}>
+      <View testID="dashboard-columns" style={isWide && styles.dashboardColumns}>
+      <View style={[styles.dashboardCard, styles.dashboardRoutineCard, isWide && styles.dashboardPlan]}>
         <Text style={styles.dashboardEyebrow}>YOUR DAILY PLAN</Text>
         <Text accessibilityRole="header" style={styles.dashboardCardTitle}>
           {exercises.length ? "Today's routine" : 'No routines today'}
@@ -1151,6 +1159,7 @@ function HomeDashboard({
         </Pressable>
       </View>
 
+      <View style={isWide && styles.dashboardSecondary}>
       <View style={styles.dashboardCard}>
         <View style={styles.dashboardCardHeading}>
           <Text accessibilityRole="header" style={styles.dashboardCardTitle}>
@@ -1208,6 +1217,8 @@ function HomeDashboard({
           <Text style={styles.dashboardTextButtonLabel}>View messages</Text>
         </Pressable>
       </View>
+      </View>
+      </View>
       <Text style={styles.dashboardFooter}>Move well. Feel better.</Text>
     </ScrollView>
   );
@@ -1225,6 +1236,7 @@ function BottomDock({
   onRevealEasterEgg,
 }) {
   const styles = useThemedStyles(baseStyles);
+  const { isWide, isShort } = useAdaptiveLayout();
   const activePalette = useAppTheme().palette || palette;
   const [showEasterEgg, setShowEasterEgg] = useState(false);
   const homeWasHeld = useRef(false);
@@ -1243,7 +1255,7 @@ function BottomDock({
   return (
     <>
       <SafeAreaView edges={['bottom']} style={styles.dock}>
-        <View style={styles.dockContent}>
+        <View style={[styles.dockContent, isWide && styles.dockWide, isShort && styles.dockShort]}>
           {items.map((item) => {
             const isActive = activeTab === item.id;
             const Icon = item.icon;
@@ -1272,7 +1284,7 @@ function BottomDock({
                   }
                   item.onPress();
                 }}
-                style={styles.dockItem}
+                style={[styles.dockItem, isShort && styles.dockItemShort]}
               >
                 <View style={styles.dockIcon}>
                   <Icon
@@ -1390,6 +1402,9 @@ const baseStyles = StyleSheet.create({
     paddingVertical: 7,
     gap: '1%',
   },
+  dockWide: { maxWidth: 1100 },
+  dockShort: { paddingVertical: 2 },
+  dockItemShort: { minHeight: 44, paddingVertical: 2 },
   dockItem: {
     alignItems: 'center',
     flex: 1,
@@ -1717,6 +1732,20 @@ const baseStyles = StyleSheet.create({
   exerciseScreen: {
     ...pageLayout,
   },
+  exerciseScreenShort: { paddingVertical: 8 },
+  encouragementShort: { fontSize: 18, marginBottom: 4 },
+  exerciseCardShort: { minHeight: 0 },
+  exerciseHeaderShort: { minHeight: 44, paddingVertical: 6 },
+  exerciseTitleShort: { fontSize: 22 },
+  exerciseContentShort: { flexDirection: 'row', gap: 16, margin: 12, padding: 12 },
+  exerciseColumn: { flex: 1, minWidth: 0 },
+  exerciseDetails: { flexGrow: 1 },
+  exercisePillShort: { width: '100%', marginTop: 8, paddingVertical: 4 },
+  exerciseInfoShort: { fontSize: 18 },
+  exerciseInstructionsShort: { paddingTop: 0 },
+  exerciseControlsShort: { paddingTop: 12 },
+  exerciseControlShort: { minHeight: 48, paddingVertical: 8 },
+  exerciseControlTextShort: { fontSize: 16 },
   encouragementText: {
     color: palette.ink,
     fontSize: 25,
@@ -1970,6 +1999,10 @@ const baseStyles = StyleSheet.create({
   dashboardContent: {
     ...pageLayout,
   },
+  dashboardWide: { maxWidth: 1100 },
+  dashboardColumns: { flexDirection: 'row', alignItems: 'flex-start', gap: 24 },
+  dashboardPlan: { flex: 1, minWidth: 0, paddingHorizontal: 24 },
+  dashboardSecondary: { flex: 1, minWidth: 0 },
   dashboardGreeting: {
     marginBottom: 24,
   },

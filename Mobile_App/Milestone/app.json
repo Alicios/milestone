@@ -1,5 +1,6 @@
 {
   "name": "Milestone",
+  "orientation": "default",
   "userInterfaceStyle": "automatic",
   "web": {
     "bundler": "metro"
@@ -8,6 +9,8 @@
     "package": "com.anonymous.milestone"
   },
   "ios": {
+    "supportsTablet": true,
+    "requireFullScreen": false,
     "bundleIdentifier": "com.anonymous.milestone",
     "infoPlist": {
       "NSMotionUsageDescription": "Allow Milestone to use phone movement to tilt the hidden image."

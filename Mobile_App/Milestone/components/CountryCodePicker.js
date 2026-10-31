@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Text from './AppText';
 import { callingCode, phoneCountries } from '../auth/phoneNumber';
 import countryFlags from '../assets/flags';
+import { supportedOrientations } from './useAdaptiveLayout';
 
 function CountryFlag({ country, compact = false }) {
   const styles = useThemedStyles(baseStyles);
@@ -27,7 +28,7 @@ export default function CountryCodePicker({ country, onChange }) {
         <View style={styles.countryRow}><CountryFlag country={country} compact /><Text style={styles.country}>{country}</Text></View>
         <View style={styles.codeRow}><Text style={styles.code}>+{callingCode(country)}</Text><View style={[styles.chevron, { borderColor: colors.primary }]} accessible={false} /></View>
       </Pressable>
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <Modal visible={open} supportedOrientations={supportedOrientations} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <SafeAreaView style={styles.overlay}>
           <View style={styles.dialog} accessibilityViewIsModal>
             <View style={styles.heading}>

@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import {Image, Text} from 'react-native';
+import {Dimensions, Image, Text, StyleSheet} from 'react-native';
 import ReactTestRenderer from 'react-test-renderer';
 import type {ReactTestInstance} from 'react-test-renderer';
 import App from '../App';
@@ -592,4 +592,27 @@ test('resets the sample session on a fresh mount', async () => {
   });
   expect(hasText('Not started')).toBe(true);
   expect(hasText('0 of 4 exercises complete')).toBe(true);
+});
+
+test('adapts the dashboard and preserves an active routine through window resizing', async () => {
+  let dimensions = { width: 1024, height: 768, scale: 1, fontScale: 1 };
+  await ReactTestRenderer.act(async () => Dimensions.set({window: dimensions}));
+  expect(StyleSheet.flatten(renderer.root.findByProps({testID: 'dashboard-columns'}).props.style).flexDirection).toBe('row');
+  await press('Start routine');
+  await press('Start exercise');
+  await advanceTime(1250);
+  await press('Pause exercise');
+  const elapsed = timerText();
+  for (const [width, height] of [[360, 740], [740, 360], [1280, 800]]) {
+    dimensions = {...dimensions, width, height};
+    await ReactTestRenderer.act(async () => Dimensions.set({window: dimensions}));
+    expect(timerText()).toBe(elapsed);
+    expect(hasText('Set 1 of 3')).toBe(true);
+    expect(button('Resume exercise')).toBeDefined();
+  }
+  await press('Home');
+  dimensions = {...dimensions, width: 390, height: 844};
+  await ReactTestRenderer.act(async () => Dimensions.set({window: dimensions}));
+  expect(StyleSheet.flatten(renderer.root.findByProps({testID: 'dashboard-columns'}).props.style)?.flexDirection).not.toBe('row');
+  expect(hasText('In progress')).toBe(true);
 });

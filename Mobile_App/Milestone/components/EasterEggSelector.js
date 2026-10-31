@@ -9,6 +9,7 @@ import Text from './AppText';
 import useEasterEggAudio from './useEasterEggAudio';
 import useImageMotionTilt from './useImageMotionTilt';
 import ImageSpotlight from './ImageSpotlight';
+import { supportedOrientations } from './useAdaptiveLayout';
 
 const images = [
   { label: 'The King', description: 'LeBron James in a Los Angeles Lakers uniform.', source: require('../assets/easter-egg/lebron-king.jpg'), sound: require('../assets/easter-egg/lebroooon-james.mp3'), aspectRatio: 16 / 9 },
@@ -104,7 +105,7 @@ export default function EasterEggSelector({ onClose }) {
   }
 
   return (
-    <Modal transparent animationType="fade" visible onRequestClose={close}>
+    <Modal transparent supportedOrientations={supportedOrientations} animationType="fade" visible onRequestClose={close}>
       <View style={styles.overlay}>
         <View style={StyleSheet.absoluteFill} />
         <View style={styles.card} accessibilityViewIsModal>

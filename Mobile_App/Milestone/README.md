@@ -6,6 +6,18 @@ Use Node.js 22.13 or newer. Install dependencies with `npm ci`, then start Metro
 
 The checked-in Android and iOS projects are maintained alongside `app.json`. Run `npx expo prebuild --no-clean` on the appropriate host after changing native app configuration. On macOS, run `npx pod-install` before building iOS to update CocoaPods and `ios/Podfile.lock` for SDK 58. CocoaPods and native device builds were not validated on Windows.
 
+## Tablets, foldables, and resizable windows
+
+Layouts follow the current app window and safe-area insets, updating on rotation, folding, and split-screen resizing. At 840 points of usable width (adjusted for the system text scale), Home uses two columns and Messages shows the inbox beside the selected conversation. Narrower windows use the existing stacked screens. Forms and exercise screens retain bounded reading widths. Short windows with at least 600 points of readable width place the exercise timer beside instructions and controls. Profile and Settings opens as a centered dialog on larger windows and a bottom sheet on phones or short landscape windows. Conversation drafts, selected providers, profile edits, and active routine state survive size changes while those screens remain open.
+
+iPad support is enabled in `app.json` and both Xcode build configurations. All orientations and iPad multitasking are allowed. Android's main activity explicitly supports resizing and already handles size/orientation configuration changes. Native modals support portrait and landscape. Rebuild the native apps to pick up the device-family and manifest changes; a Metro reload alone cannot update them.
+
+Run the responsive unit checks with `npm test -- --runInBand __tests__/adaptiveLayout.test.js __tests__/App.test.tsx __tests__/assignedRoutineFlow.test.tsx`. Export web with `node node_modules/expo/bin/cli export --platform web --output-dir .expo/adaptive-web`, then run `node tests/browser/adaptive-layout.mjs`. The browser test uses Chrome and the existing `Web_App` Playwright dependency, intercepts all remote traffic with synthetic data, and saves screenshots/results under `.expo/adaptive-check`.
+
+Before a device release, check native iPad portrait/landscape and Split View, Android tablet multi-window, a foldable cover and expanded display, rotation with the keyboard open, large system text, and profile dialogs during resizing. Browser resizing and JavaScript exports do not validate native keyboard behavior or hardware postures. These layouts adapt to window dimensions; they do not consume hinge-position or tabletop-posture APIs, so a separating physical hinge needs device-specific validation before claiming spanning support.
+
+Implementation references: [React Native window dimensions](https://reactnative.dev/docs/usewindowdimensions), [Expo tablet configuration](https://docs.expo.dev/versions/latest/config/app/#supportstablet), and [Android resizability](https://developer.android.com/develop/adaptive-apps/guides/app-orientation-aspect-ratio-resizability).
+
 ## Patient accounts and messaging
 
 Configure `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the ignored `.env` using the existing Supabase project URL and public API key. Never put a service-role key in the mobile app. Restart Expo with `npx expo start --clear` after changing configuration.

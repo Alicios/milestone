@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, findNodeHandle, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import useAdaptiveLayout, { supportedOrientations } from './useAdaptiveLayout';
 import X from 'lucide-react-native/icons/x';
 import Text from './AppText';
 import ProfileAvatar from './ProfileAvatar';
@@ -101,6 +102,10 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const { isMedium, isShort, height, width } = useAdaptiveLayout();
+  const centered = isMedium && !isShort;
+  const dismissalDistance = useRef(height);
+  dismissalDistance.current = height;
   const [tab, setTab] = useState('profile');
   const [draft, setDraft] = useState(() => ({ preferredName: profile.preferredName, photoUri: profile.photoUri || null }));
   const [error, setError] = useState('');
@@ -108,7 +113,7 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
   const [photoBusy, setPhotoBusy] = useState(false);
   const [discard, setDiscard] = useState(false);
   const [present, setPresent] = useState(visible);
-  const translation = useRef(new Animated.Value(900)).current;
+  const translation = useRef(new Animated.Value(height)).current;
   const reducedMotion = useRef(false);
   const title = useRef(null);
   const dialog = useRef(null);
@@ -132,7 +137,7 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
       AccessibilityInfo.isReduceMotionEnabled().then(reduced => {
         if (!active) return;
         reducedMotion.current = reduced;
-        translation.setValue(reduced ? 0 : 900);
+        translation.setValue(reduced ? 0 : dismissalDistance.current);
         Animated.timing(translation, { toValue: 0, duration: reduced ? 0 : 260, useNativeDriver: Platform.OS !== 'web' }).start();
       }).catch(() => translation.setValue(0));
     } else { setPresent(false); translation.stopAnimation(); }
@@ -142,7 +147,7 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
   function finishClose() {
     if (closing.current) return;
     closing.current = true;
-    Animated.timing(translation, { toValue: 900, duration: reducedMotion.current ? 0 : 220, useNativeDriver: Platform.OS !== 'web' }).start(({ finished }) => { if (finished && mounted.current) { setPresent(false); onClose(); } else closing.current = false; });
+    Animated.timing(translation, { toValue: dismissalDistance.current, duration: reducedMotion.current ? 0 : 220, useNativeDriver: Platform.OS !== 'web' }).start(({ finished }) => { if (finished && mounted.current) { setPresent(false); onClose(); } else closing.current = false; });
   }
   function requestDismiss() {
     if (closing.current) return;
@@ -214,14 +219,14 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
     catch (failure) { setError(failure.message); }
   }
 
-  return <Modal visible={present && visible} transparent animationType="none" onShow={focusTitle} onRequestClose={requestDismiss}>
-    <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+  return <Modal visible={present && visible} supportedOrientations={supportedOrientations} transparent animationType="none" onShow={focusTitle} onRequestClose={requestDismiss}>
+    <KeyboardAvoidingView style={[styles.overlay, centered && styles.centeredOverlay, { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Pressable accessibilityRole="button" accessibilityLabel="Dismiss profile panel" onPress={requestDismiss} style={styles.backdrop} />
-      <Animated.View ref={dialog} accessibilityViewIsModal style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12), transform: [{ translateY: translation }] }]}>
+      <Animated.View ref={dialog} accessibilityViewIsModal style={[styles.sheet, centered && styles.centeredSheet, { maxWidth: Math.min(720, width), maxHeight: height, paddingBottom: Math.max(insets.bottom, 12), transform: [{ translateY: translation }] }]}>
         <View {...drag.panHandlers} {...mouseDrag} style={styles.handleArea}><View style={styles.handle} /></View>
         <View style={styles.header}><Text ref={title} tabIndex={-1} accessibilityRole="header" style={styles.title}>Your account</Text><Pressable accessibilityRole="button" accessibilityLabel="Close profile and settings" onPress={requestDismiss} style={styles.close}><X size={24} color={colors.text} accessible={false} /></Pressable></View>
         <View accessibilityRole="tablist" style={styles.tabs}>{[['profile', 'Profile'], ['settings', 'Settings']].map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityLabel={label} aria-selected={tab === value} accessibilityState={{ selected: tab === value }} onPress={() => setTab(value)} style={[styles.tab, tab === value && styles.activeTab, tab === value && { borderBottomColor: colors.primary }]}><Text style={[styles.tabText, tab === value && styles.activeTabText]}>{label}</Text></Pressable>)}</View>
-        {discard ? <View style={styles.confirmation}><Text accessibilityRole="header" style={styles.sectionTitle}>Discard profile edits?</Text><Text style={styles.hint}>Your unsaved profile changes will be lost.</Text><Action label="Keep editing" onPress={() => setDiscard(false)} /><Action label="Discard changes" secondary onPress={finishClose} /></View> : <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {discard ? <ScrollView style={styles.scroll} contentContainerStyle={styles.confirmation} keyboardShouldPersistTaps="handled"><Text accessibilityRole="header" style={styles.sectionTitle}>Discard profile edits?</Text><Text style={styles.hint}>Your unsaved profile changes will be lost.</Text><Action label="Keep editing" onPress={() => setDiscard(false)} /><Action label="Discard changes" secondary onPress={finishClose} /></ScrollView> : <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {storageWarning ? <Text accessibilityRole="alert" style={styles.error}>{storageWarning}</Text> : null}
           <View style={tab !== 'profile' && styles.hidden} importantForAccessibility={tab === 'profile' ? 'auto' : 'no-hide-descendants'}>
             <View style={styles.photoSection}><ProfileAvatar profile={{ ...profile, ...draft }} size={88} /><Action label={draft.photoUri ? 'Change profile photo' : 'Add profile photo'} secondary disabled={photoBusy} onPress={pickPhoto} />{draft.photoUri && <Action label="Remove profile photo" secondary disabled={photoBusy} onPress={() => edit('photoUri', null)} />}{photoBusy && <Text style={styles.hint}>Preparing photo…</Text>}</View>
@@ -248,6 +253,8 @@ export default function ProfileSettingsPanel({ visible, onClose }) {
 
 const baseStyles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
+  centeredOverlay: { justifyContent: 'center', paddingBottom: 12 },
+  centeredSheet: { width: '90%', height: '88%', borderRadius: 28 },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(12,35,35,0.55)' },
   sheet: { width: '100%', maxWidth: 720, height: '88%', maxHeight: '94%', alignSelf: 'center', backgroundColor: '#FFFDF7', borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden' },
   handleArea: { height: 28, alignItems: 'center', justifyContent: 'center' },

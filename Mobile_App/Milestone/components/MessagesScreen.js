@@ -5,6 +5,7 @@ import Brand from './Brand';
 import ProfileAvatar from './ProfileAvatar';
 import ArrowLeft from 'lucide-react-native/icons/arrow-left';
 import { useAppTheme, useThemedStyles } from './AppTheme';
+import useAdaptiveLayout from './useAdaptiveLayout';
 
 function time(value) { return value ? new Date(value).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''; }
 
@@ -16,6 +17,7 @@ export default function MessagesScreen({ messaging }) {
   const { conversations, selected, messages, loading, error, sending, refresh, select, send } = messaging;
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
+  const { isWide, isShort } = useAdaptiveLayout();
   const [drafts, setDrafts] = useState({});
   const [choosingProvider, setChoosingProvider] = useState(false);
   const history = useRef(null);
@@ -46,15 +48,26 @@ export default function MessagesScreen({ messaging }) {
     const text = draft;
     if (await send(text)) setDrafts(current => current[id] === text ? { ...current, [id]: '' } : current);
   }
+  const showInbox = isWide || (!selected && !choosingProvider);
+  const showDetail = isWide || selected || choosingProvider;
+
   return <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <View style={styles.header}>
-      <Brand />
+    <View style={[styles.workspace, isWide && styles.workspaceWide]}>
+    <View style={[styles.header, isShort && styles.headerShort]}>
+      {!isShort && <Brand />}
       <View style={styles.titleRow}>
         <Text accessibilityRole="header" style={styles.title}>Messages</Text>
         {!choosingProvider && <Pressable accessibilityRole="button" accessibilityLabel="Compose message" accessibilityState={{ disabled: loading || sending || !conversations.length }} disabled={loading || sending || !conversations.length} onPress={startCompose} style={[styles.composeButton, (loading || sending || !conversations.length) && styles.disabled]}><Text style={styles.sendText}>Compose</Text></Pressable>}
       </View>
     </View>
     {error ? <View style={styles.notice}><Text accessibilityRole="alert" style={styles.error}>{error}</Text><Pressable accessibilityRole="button" accessibilityLabel="Retry messages" onPress={refresh} style={styles.action}><Text style={styles.link}>Retry</Text></Pressable></View> : null}
+    <View testID="messages-panes" style={[styles.fill, isWide && styles.panes]}>
+    <View testID="conversation-list" style={[styles.fill, isWide && styles.inboxPane, !showInbox && styles.hidden]} accessibilityElementsHidden={!showInbox} importantForAccessibility={showInbox ? 'auto' : 'no-hide-descendants'}>
+      <ScrollView style={styles.fill} contentContainerStyle={styles.history}>
+        {loading && !conversations.length ? <ActivityIndicator accessibilityLabel="Loading messages" color={colors.primary} /> : !conversations.length && !error ? <Text style={styles.muted}>No care team conversations yet. Your linked providers will appear here.</Text> : conversations.map(row => <Pressable key={row.id} accessibilityRole="button" accessibilityLabel={`Conversation with ${row.name}${row.unread ? `, ${row.unread} unread` : ''}`} accessibilityState={{ selected: selected?.id === row.id }} onPress={() => { setChoosingProvider(false); select(row.id); }} style={[styles.row, selected?.id === row.id && styles.selectedRow]}><ProviderAvatar provider={row} /><View style={styles.fill}><Text style={styles.name}>{row.name}</Text><Text style={styles.muted} numberOfLines={2}>{row.preview}</Text><Text style={styles.timestamp}>{time(row.lastMessageAt)}</Text></View>{row.unread > 0 ? <Text style={styles.badge}>{row.unread}</Text> : null}</Pressable>)}
+      </ScrollView>
+    </View>
+    <View testID="conversation-detail" style={[styles.fill, isWide && styles.detailPane, !showDetail && styles.hidden]} accessibilityElementsHidden={!showDetail} importantForAccessibility={showDetail ? 'auto' : 'no-hide-descendants'}>
     {choosingProvider ? <>
       <View style={styles.threadHeader}>
         <View style={styles.fill}><Text accessibilityRole="header" style={styles.name}>New message</Text><Text style={styles.muted}>Choose one of your assigned providers.</Text></View>
@@ -76,14 +89,26 @@ export default function MessagesScreen({ messaging }) {
       </ScrollView>
       <View style={styles.composer}><TextInput ref={composer} accessibilityLabel="Message to provider" placeholder="Write a message..." placeholderTextColor={colors.muted} multiline maxLength={8000} value={draft} onChangeText={value => setDrafts(current => ({ ...current, [selected.id]: value }))} style={styles.input} /><Pressable accessibilityRole="button" accessibilityLabel="Send message" accessibilityState={{ disabled: sending || !draft.trim() || [...draft.trim()].length > 4000, busy: sending }} disabled={sending || !draft.trim() || [...draft.trim()].length > 4000} onPress={submit} style={[styles.send, (sending || !draft.trim() || [...draft.trim()].length > 4000) && styles.disabled]}><Text style={styles.sendText}>{sending ? 'Sending...' : 'Send'}</Text></Pressable></View>
       <Text style={styles.counter}>{[...draft.trim()].length}/4000</Text>
-    </> : <ScrollView style={styles.fill} contentContainerStyle={styles.history}>
-      {loading ? <ActivityIndicator accessibilityLabel="Loading messages" color={colors.primary} /> : !conversations.length && !error ? <Text style={styles.muted}>No care team conversations yet. Your linked providers will appear here.</Text> : conversations.map(row => <Pressable key={row.id} accessibilityRole="button" accessibilityLabel={`Conversation with ${row.name}${row.unread ? `, ${row.unread} unread` : ''}`} onPress={() => select(row.id)} style={styles.row}><ProviderAvatar provider={row} /><View style={styles.fill}><Text style={styles.name}>{row.name}</Text><Text style={styles.muted} numberOfLines={2}>{row.preview}</Text><Text style={styles.timestamp}>{time(row.lastMessageAt)}</Text></View>{row.unread > 0 ? <Text style={styles.badge}>{row.unread}</Text> : null}</Pressable>)}
-    </ScrollView>}
+    </> : <View style={styles.placeholder}><Text style={styles.muted}>Select a conversation or compose a message to your care team.</Text></View>}
+    </View>
+    </View>
+    </View>
   </KeyboardAvoidingView>;
 }
 
 const baseStyles = StyleSheet.create({
-  fill: { flex: 1 }, header: { paddingHorizontal: 24, paddingTop: 16, gap: 16 }, title: { color: '#193333', fontSize: 28, fontWeight: '800' },
+  fill: { flex: 1, minWidth: 0, minHeight: 0 },
+  workspace: { flex: 1, width: '100%', maxWidth: 720, alignSelf: 'center', minHeight: 0 },
+  workspaceWide: { maxWidth: 1200 },
+  panes: { flexDirection: 'row' },
+  inboxPane: { flex: 0.38, borderRightWidth: 1, borderColor: '#B7CAC2' },
+  detailPane: { flex: 0.62 },
+  hidden: { display: 'none' },
+  selectedRow: { backgroundColor: '#9BCBC5', borderColor: '#357F83' },
+  placeholder: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  header: { paddingHorizontal: 24, paddingTop: 16, gap: 16 },
+  headerShort: { paddingTop: 4, gap: 4 },
+  title: { color: '#193333', fontSize: 28, fontWeight: '800', flexShrink: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   composeButton: { backgroundColor: '#193333', borderRadius: 14, minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' },
   disabled: { opacity: 0.5 },

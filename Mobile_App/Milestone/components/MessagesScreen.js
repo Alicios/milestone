@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Text from './AppText';
 import Brand from './Brand';
@@ -114,7 +114,7 @@ export default function MessagesScreen({ messaging, dock }) {
     {error ? <View style={styles.notice}><Text accessibilityRole="alert" style={styles.error}>{error}</Text><Pressable accessibilityRole="button" accessibilityLabel="Retry messages" onPress={refresh} style={styles.action}><Text style={styles.link}>Retry</Text></Pressable></View> : null}
     <View testID="messages-panes" style={[styles.fill, isWide && styles.panes]}>
     <View testID="conversation-list" style={[styles.fill, isWide && styles.inboxPane, !showInbox && styles.hidden]} accessibilityElementsHidden={!showInbox} importantForAccessibility={showInbox ? 'auto' : 'no-hide-descendants'}>
-      <ScrollView style={styles.fill} contentContainerStyle={styles.history}>
+      <ScrollView style={styles.fill} contentContainerStyle={styles.history} refreshControl={<RefreshControl refreshing={loading && Boolean(conversations.length)} onRefresh={refresh} tintColor={colors.primary} colors={[colors.primary]} />}>
         {loading && !conversations.length ? <ActivityIndicator accessibilityLabel="Loading messages" color={colors.primary} /> : !conversations.length && !error ? <Text style={styles.muted}>No care team conversations yet. Your linked providers will appear here.</Text> : conversations.map(row => <Pressable key={row.id} accessibilityRole="button" accessibilityLabel={`Conversation with ${row.name}${row.unread ? `, ${row.unread} unread` : ''}`} accessibilityState={{ selected: selected?.id === row.id }} onPress={() => { setChoosingProvider(false); select(row.id); }} style={[styles.row, selected?.id === row.id && styles.selectedRow]}><ProviderAvatar provider={row} /><View style={styles.fill}><Text style={styles.name}>{row.name}</Text><Text style={styles.muted} numberOfLines={2}>{row.preview}</Text><Text style={styles.timestamp}>{time(row.lastMessageAt)}</Text></View>{row.unread > 0 ? <Text style={styles.badge}>{row.unread}</Text> : null}</Pressable>)}
       </ScrollView>
     </View>

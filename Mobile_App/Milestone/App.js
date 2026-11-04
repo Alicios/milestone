@@ -1,11 +1,12 @@
 import { useAppTheme, useThemedStyles } from './components/AppTheme';
 import { PatientSessionProvider } from './auth/PatientSession';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Animated,
   Easing,
   Pressable,
+  RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -31,7 +32,7 @@ import ProfileAvatar from './components/ProfileAvatar';
 import UnlockGate from './components/UnlockGate';
 import MessagesScreen from './components/MessagesScreen';
 import usePatientMessages from './lib/usePatientMessages';
-import { loadPatientRoutine } from './lib/patientRoutine';
+import { loadPatientRoutine, exercisesForAssignment } from './lib/patientRoutine';
 import EasterEggSelector from './components/EasterEggSelector';
 import useAdaptiveLayout from './components/useAdaptiveLayout';
 import LockKeyhole from 'lucide-react-native/icons/lock-keyhole';
@@ -124,6 +125,11 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   const [routine, setRoutine] = useState(null);
   const [routineLoading, setRoutineLoading] = useState(true);
   const [routineError, setRoutineError] = useState(null);
+  const [upcomingRoutines, setUpcomingRoutines] = useState([]);
+  const [expandedUpcomingRoutineId, setExpandedUpcomingRoutineId] = useState(null);
+  const [upcomingRoutineDetails, setUpcomingRoutineDetails] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
+  const routineRequest = useRef(0);
   const databasePatientId = profile?.id;
 
   const activeExercise = exercises[currentExerciseIndex];
@@ -198,63 +204,81 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     if (!isUnlocked) setIsRunning(false);
   }, [isUnlocked]);
 
-  useEffect(() => {
-    let cancelled = false;
+  // silent: true skips the full-page "Loading your routine..." takeover, for
+  // pull-to-refresh — the existing content stays on screen while the
+  // RefreshControl's own spinner shows instead.
+  const loadAssignedRoutine = useCallback(async ({ silent = false } = {}) => {
+    const requestId = ++routineRequest.current;
 
-    async function loadAssignedRoutine() {
-      if (!isSupabaseConfigured) {
-        setRoutineError(
-          'Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file, then restart Expo.'
-        );
-        setRoutineLoading(false);
-        return;
-      }
-
-      if (!databasePatientId) {
-        setRoutineLoading(false);
-        return;
-      }
-
-      try {
-        setRoutineLoading(true);
-        setRoutineError(null);
-
-        const now = new Date();
-
-        const today = [
-          now.getFullYear(),
-          String(now.getMonth() + 1).padStart(2, '0'),
-          String(now.getDate()).padStart(2, '0'),
-        ].join('-');
-
-        const result = await loadPatientRoutine(today, exerciseAccents);
-        if (!cancelled) {
-          setRoutine(result.routine);
-          setExercises(result.exercises);
-          setCurrentExerciseIndex(0);
-          setCurrentSet(1);
-        }
-      } catch (error) {
-        console.error('Error loading assigned routine:', error);
-
-        if (!cancelled) {
-          setRoutineError(
-            error.message || 'Unable to load your assigned routine.'
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setRoutineLoading(false);
-        }
-      }
+    if (!isSupabaseConfigured) {
+      setRoutineError(
+        'Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file, then restart Expo.'
+      );
+      if (!silent) setRoutineLoading(false);
+      return;
     }
 
-    loadAssignedRoutine();
+    if (!databasePatientId) {
+      if (!silent) setRoutineLoading(false);
+      return;
+    }
 
-    return () => {
-      cancelled = true;
-    };
+    try {
+      if (!silent) setRoutineLoading(true);
+      setRoutineError(null);
+
+      const now = new Date();
+
+      const today = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0'),
+      ].join('-');
+
+      const result = await loadPatientRoutine(today, exerciseAccents);
+      if (routineRequest.current !== requestId) return;
+      setRoutine(result.routine);
+      setExercises(result.exercises);
+      setUpcomingRoutines(result.upcoming ?? []);
+      setUpcomingRoutineDetails({});
+      setExpandedUpcomingRoutineId(null);
+      setCurrentExerciseIndex(0);
+      setCurrentSet(1);
+    } catch (error) {
+      if (routineRequest.current !== requestId) return;
+      console.error('Error loading assigned routine:', error);
+      setRoutineError(error.message || 'Unable to load your assigned routine.');
+    } finally {
+      if (routineRequest.current === requestId && !silent) setRoutineLoading(false);
+    }
   }, [databasePatientId]);
+
+  useEffect(() => {
+    loadAssignedRoutine();
+  }, [loadAssignedRoutine]);
+
+  function toggleUpcomingRoutine(assignmentId) {
+    if (expandedUpcomingRoutineId === assignmentId) {
+      setExpandedUpcomingRoutineId(null);
+      return;
+    }
+    setExpandedUpcomingRoutineId(assignmentId);
+    if (upcomingRoutineDetails[assignmentId]) return;
+    setUpcomingRoutineDetails(current => ({ ...current, [assignmentId]: { status: 'loading' } }));
+    exercisesForAssignment(assignmentId, exerciseAccents)
+      .then(exercises => setUpcomingRoutineDetails(current => ({ ...current, [assignmentId]: { status: 'loaded', exercises } })))
+      .catch(error => setUpcomingRoutineDetails(current => ({ ...current, [assignmentId]: { status: 'error', message: error.message || 'Unable to load this routine.' } })));
+  }
+
+  async function handleRefresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await Promise.all([loadAssignedRoutine({ silent: true }), messaging.refresh()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   function showRoutineScreen(nextScreen) {
     setRoutineScreen(nextScreen);
@@ -417,6 +441,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
         <ScrollView
           style={styles.screenScroll}
           contentContainerStyle={styles.container}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
         >
           <View style={styles.topRow}>
             <Brand />
@@ -430,6 +455,12 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
               You have no exercises assigned for today.
             </Text>
           </View>
+          <UpcomingRoutines
+            routines={upcomingRoutines}
+            expandedId={expandedUpcomingRoutineId}
+            details={upcomingRoutineDetails}
+            onToggle={toggleUpcomingRoutine}
+          />
         </ScrollView>
         {renderDock('routines')}
       </SafeAreaView>
@@ -651,6 +682,8 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
           onViewSummary={viewSummary}
           onMessages={openMessages}
           messaging={messaging}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
         />
         {renderDock('home')}
       </SafeAreaView>
@@ -845,6 +878,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
         key="routine-list"
         style={styles.screenScroll}
         contentContainerStyle={styles.container}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       >
         <View style={styles.topRow}>
           <Brand />
@@ -917,8 +951,15 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
                 : 'START ROUTINE'}
           </Text>
 
-          
+
         </Pressable>
+
+        <UpcomingRoutines
+          routines={upcomingRoutines}
+          expandedId={expandedUpcomingRoutineId}
+          details={upcomingRoutineDetails}
+          onToggle={toggleUpcomingRoutine}
+        />
 
         <Text style={styles.footerText}>Move well. Feel better.</Text>
       </ScrollView>
@@ -1065,6 +1106,78 @@ function ExerciseStats({ exercise }) {
   );
 }
 
+// Read-only preview of everything scheduled after today, across every
+// provider relationship. Tapping an item lazily fetches its exercise list
+// (see lib/patientRoutine.js's exercisesForAssignment) rather than fetching
+// every upcoming routine's exercises up front.
+function UpcomingRoutines({ routines, expandedId, details, onToggle }) {
+  const styles = useThemedStyles(baseStyles);
+  const { mode, colors } = useAppTheme();
+
+  if (!routines.length) return null;
+
+  return (
+    <View style={styles.comingUpSection}>
+      <Text accessibilityRole="header" style={styles.sectionTitle}>Upcoming routines</Text>
+      <View style={styles.exerciseList}>
+        {routines.map((item, index) => {
+          const expanded = expandedId === item.id;
+          const detail = details[item.id];
+          const dateLabel = new Date(`${item.scheduledDate}T00:00:00`).toLocaleDateString(undefined, {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+          });
+          return (
+            <View
+              key={item.id}
+              style={[styles.exerciseListItem, index === routines.length - 1 && styles.lastExercise]}
+            >
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${item.name}, ${dateLabel} information`}
+                accessibilityHint={expanded ? 'Collapse routine information' : 'Expand routine information'}
+                accessibilityState={{ expanded }}
+                aria-expanded={expanded}
+                onPress={() => onToggle(item.id)}
+                style={[styles.upcomingRow, { backgroundColor: mode === 'dark' ? colors.raised : palette.teal }]}
+              >
+                <View style={styles.upcomingCopy}>
+                  <Text style={styles.listTitle} numberOfLines={1}>{item.name}</Text>
+                  <Text style={styles.listSubtitle}>{dateLabel}{item.status === 'in progress' ? ' · In progress' : ''}</Text>
+                </View>
+                <Text style={[styles.chevron, expanded && styles.expandedChevron]}>›</Text>
+              </Pressable>
+              {expanded && (
+                <View style={styles.upcomingDetail}>
+                  {detail?.status === 'loading' ? (
+                    <Text style={styles.listSubtitle}>Loading exercises…</Text>
+                  ) : detail?.status === 'error' ? (
+                    <Text style={styles.listSubtitle}>{detail.message}</Text>
+                  ) : detail?.exercises?.length ? (
+                    detail.exercises.map(exercise => (
+                      <View key={exercise.id} style={styles.upcomingDetailRow}>
+                        <Text style={styles.listSubtitle} numberOfLines={1}>{exercise.name}</Text>
+                        <Text style={styles.statsText}>
+                          {exercise.type === 'countdown'
+                            ? `${exercise.durationSeconds}s`
+                            : exercise.reps == null ? `${exercise.sets} sets` : `${exercise.sets} × ${exercise.reps}`}
+                        </Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.listSubtitle}>No exercises listed.</Text>
+                  )}
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function HomeDashboard({
   onOpenProfile,
   onLock,
@@ -1078,6 +1191,8 @@ function HomeDashboard({
   exercises,
   routineMinutes,
   messaging,
+  refreshing,
+  onRefresh,
 }) {
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
@@ -1103,6 +1218,7 @@ function HomeDashboard({
     <ScrollView
       style={styles.screenScroll}
       contentContainerStyle={[styles.dashboardContent, isWide && styles.dashboardWide]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
     >
       <View style={styles.topRow}>
         <Brand />
@@ -1622,6 +1738,28 @@ const baseStyles = StyleSheet.create({
   comingUpSection: {
     marginTop: 28,
     gap: 14,
+  },
+  upcomingRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    minHeight: 63,
+    paddingHorizontal: '4%',
+    paddingVertical: 12,
+    gap: '3%',
+  },
+  upcomingCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  upcomingDetail: {
+    paddingHorizontal: '4%',
+    paddingBottom: 14,
+    gap: 6,
+  },
+  upcomingDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
   },
   primaryButton: {
     alignItems: 'center',

@@ -13,6 +13,7 @@
     "test:routines": "node --test tests/catalogRoutines.test.mjs",
     "test:scheduling": "node --test tests/scheduling.test.mjs",
     "test:scheduling:db": "python3 supabase/tests/scheduling_integration.py",
+    "test:rls:db": "python3 supabase/tests/rls_integration.py",
     "test:scheduling:browser": "playwright test",
     "test:patients": "node --test tests/patientCreation.test.mjs",
     "test:approve-access-request": "node --test tests/approveAccessRequest.test.mjs",

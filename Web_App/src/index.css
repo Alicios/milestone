@@ -305,6 +305,16 @@ html {
   color: var(--milestone-dashboard-text) !important;
 }
 
+/* Status surfaces retain their semantic colors through the dashboard overrides. */
+.modern-dashboard-shell .MuiCard-root[data-routine-status] {
+  background-color: var(--routine-status-background) !important;
+  color: var(--routine-status-foreground) !important;
+}
+
+.modern-dashboard-shell [data-routine-status] {
+  border-color: var(--routine-status-border) !important;
+}
+
 [data-milestone-theme='dark'] .modern-dashboard-shell .MuiOutlinedInput-root,
 [data-milestone-theme='dark'] .modern-dashboard-shell .MuiTextField-root .MuiOutlinedInput-root {
   color: var(--milestone-dashboard-text) !important;

@@ -295,6 +295,16 @@ profiles, with immutable routine and exercise snapshots.
 | `routine_name_snapshot` | `text` | Routine name captured at assignment time. |
 | `created_at` | `timestamptz` | Time the assignment was created. |
 | `updated_at` | `timestamptz` | Time the supported assignment workflow last changed the row. |
+| `patient_in_progress` | `boolean` | Whether the patient has started the routine; defaults to false. Completion/missed lifecycle remains in `status`. |
+| `patient_issue_severity` | `text` | Unresolved patient-reported issue: `none` (default), `noncritical`, or `critical`. Independent of completion. |
+| `patient_comment` | `text`, nullable | Plain-text patient feedback, separate from provider exercise notes; maximum 4000 characters. |
+| `patient_result_source` | `text`, nullable | `demo` for seeded results, `patient` for patient submissions, null when no result is recorded. |
+
+Result metadata was added by `routine_patient_results` on November 3, 2026
+(America/Los_Angeles). Existing provider-scoped SELECT policies protect the new
+columns. Browser clients have no INSERT/UPDATE grant; this phase adds no patient
+submission API and does not change mobile RPC return shapes. Provider views show
+comments read-only and explicitly label seeded feedback as demo results.
 
 ### `routine_exercises`
 

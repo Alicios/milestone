@@ -20,6 +20,9 @@ import { RemoveRoutineDialog } from '../components/RemoveRoutineDialog'
 import { weekdayNames, type Patient } from '../data/mockPatients'
 import { formatCalendarDate } from '../lib/week'
 import type { RoutineAssignment } from '../types'
+import { resolveRoutineStatus } from '../lib/routineStatus'
+import { RoutineStatusCard, RoutineStatusLegend } from '../components/RoutineStatus'
+import { PatientRoutineFeedback } from '../components/PatientRoutineFeedback'
 
 function Detail({ label, children }: { label: string; children?: ReactNode }) {
   return <Box sx={{ minWidth: 0 }}>
@@ -120,15 +123,16 @@ function PatientOverview({ patient }: { patient: Patient }) {
 
           <Stack component="ul" spacing={0} divider={<Divider component="li" role="presentation" />} sx={{ listStyle: 'none', m: 0, mt: 2, p: 0 }}>
             {weekDates.map((date, index) => {
-              const dayAssignments = patientAssignments[date] ?? []
+              const dayAssignments = (patientAssignments[date] ?? []).filter((assignment) => assignment.status !== 'cancelled')
               return <Box component="li" key={date} sx={{ py: 2 }}>
                 <Typography fontWeight={700}>{weekdayNames[index]}, {formatCalendarDate(date)}</Typography>
                 {!dayAssignments.length && <Typography variant="body2" color="text.secondary" sx={{ mt: .5 }}>{assignmentsLoading ? 'Loading…' : (occupied[patient.profileId] ?? []).some((entry) => entry.date === date) ? 'This date already has an active assignment. Contact the assigning provider before replacing it.' : 'No routine assigned'}</Typography>}
                 <Stack spacing={1.5} sx={{ mt: dayAssignments.length ? 1.25 : 0 }}>
-                  {dayAssignments.map((assignment) => <Card key={assignment.id} variant="outlined" sx={{ p: 1.5 }}>
+                  {dayAssignments.map((assignment) => <RoutineStatusCard key={assignment.id} presentation={resolveRoutineStatus(assignment, policy?.today)!}>
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between">
                       <Box minWidth={0}>
                         <Typography fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>{assignment.routineName}</Typography>
+                        <PatientRoutineFeedback assignment={assignment} />
                         {!assignment.exercises.length && <Typography variant="body2">No exercises listed</Typography>}
                         {assignment.exercises.map((exercise) => <Box key={exercise.id} sx={{ mt: .5 }}>
                           <Typography variant="body2">{exercise.name}{prescriptionSummary(exercise) && ` · ${prescriptionSummary(exercise)}`}</Typography>
@@ -137,17 +141,17 @@ function PatientOverview({ patient }: { patient: Patient }) {
                         {assignment.followUp?.status === 'scheduled' ? <Typography variant="body2" sx={{ mt: 1 }}><strong>Follow-up:</strong> {new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(assignment.followUp.scheduledAt))}</Typography> : assignment.followUp?.status === 'completed' ? <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>Follow-up completed</Typography> : <Typography variant="body2" color="warning.main" sx={{ mt: 1 }}>Follow-up needs scheduling</Typography>}
                       </Box>
                       <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={.75} sx={{ flexShrink: 0 }}>
-                        <Chip size="small" variant="outlined" label={assignment.status} color="primary" />
                         {assignment.followUp?.status !== 'completed' && <Button size="small" startIcon={<EventOutlinedIcon />} onClick={() => setFollowUpAssignment(assignment)}>{assignment.followUp?.status === 'scheduled' ? 'Reschedule' : 'Schedule follow-up'}</Button>}
                         {assignment.followUp?.status === 'scheduled' && <><Button size="small" color="success" onClick={() => void completeFollowUp(assignment.id).then(() => setFeedback('Follow-up marked complete.')).catch((followUpError: Error) => setError(errorMessage(followUpError, 'The follow-up could not be updated.')))}>Mark follow-up complete</Button><Button size="small" color="warning" onClick={() => void cancelFollowUp(assignment.id).then(() => setFeedback('Follow-up cancelled.')).catch((followUpError: Error) => setError(errorMessage(followUpError, 'The follow-up could not be updated.')))}>Cancel follow-up</Button></>}
                         <Button size="small" color="error" onClick={() => setRemoval(assignment)}>Cancel assignment</Button>
                       </Stack>
                     </Stack>
-                  </Card>)}
+                  </RoutineStatusCard>)}
                 </Stack>
               </Box>
             })}
           </Stack>
+          <RoutineStatusLegend />
         </Card>
       </Stack>
 

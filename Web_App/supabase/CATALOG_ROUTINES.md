@@ -221,6 +221,44 @@ an unguarded older writer or overwrite newer data with a stale recovery export.
 
 ## Hosted routine record update log
 
+### 2026-11-03 — Frank Murgolo previous-week demo results
+
+- Project `lwldkhrsngwtuhztlmul`; only Frank's three existing active assignments
+  for October 26–November 1 were updated. All three previously had `scheduled`
+  status and no result metadata. No new routine assignments were created.
+- October 26, `Cardio` (`d1c6a599-b207-4b0f-84d8-387409e453ce`): completed,
+  no issue; comment says both exercises were completed and felt manageable.
+- October 27, `Feet Fun` (`147dbaf0-3250-4ed5-a2ee-ca112a8b3b58`): completed
+  with a noncritical difficulty report; comment describes balance difficulty,
+  taking breaks, and a request to review at the next visit. Appears yellow.
+- October 28, `Feet Fun` (`3ca88e1d-235b-4214-94e6-ac090b275be8`): missed;
+  comment explains the routine could not be fitted into the day. Appears light red.
+- All three results have `patient_result_source = 'demo'` and are labeled as sample
+  patient comments in the provider UI. These are demonstration results, not
+  patient-submitted clinical reports. `updated_at` records the seed time.
+- Applied the additive `routine_patient_results` migration for progress, issue
+  severity, comment and provenance fields. Existing RLS, grants, assignment
+  identity/date constraints, snapshots and mobile RPC contracts were preserved.
+- The one-time `seed_frank_routine_results.sql` locks and checks the exact three
+  expected records before writing; it rejects reapplication or changed results.
+- Hosted readback confirmed all three results. Preservation fingerprints matched
+  for every other assignment (including cancelled rows), all exercise snapshots,
+  routine templates, and follow-ups. No other assignment received feedback.
+- `tests/routine_patient_results_access.sql` passed transactionally: assigning
+  provider can read results, unrelated authenticated users and anonymous users
+  cannot, client writes remain forbidden, and invalid severity/source/oversize
+  comments are rejected. All probe writes were rolled back.
+- Security Advisor reported scheduling-policy/RPC/Auth notices on existing
+  objects. This change adds no policy, grant, function, or table. See the
+  [RPC advisory](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable)
+  and [password protection guidance](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+- Provider verification passed: 73 focused automated checks, 21 transport-fixture
+  browser scenarios, and the production build. Reviewed desktop and narrow
+  feedback screenshots in light/dark themes. Comments survive fixture reloads,
+  render as plain text with preserved line breaks, and match the status filters.
+  Hosted database readback/access checks are separate from fixture browser tests;
+  the frontend has not been published by this change.
+
 ### 2026-10-26 — Lebron James provider routines
 
 - In Supabase project `lwldkhrsngwtuhztlmul`, converted the first `Cardio` entry to the current prescription-object format. The existing catalog UUID resolves to `Toe Spreading`; sets (3) and reps (10) were preserved, with `duration_seconds` and `notes` null.

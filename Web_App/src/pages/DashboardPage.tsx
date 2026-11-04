@@ -15,7 +15,8 @@ import { withinHorizon, type OccupiedDate, type SchedulingPolicy } from '../lib/
 import { PatientAvatar } from '../components/PatientAvatar'
 import type { DashboardOutletContext, DayAssignments } from '../components/DashboardLayout'
 import { weekdayNames, type Patient } from '../data/mockPatients'
-import type { RoutineAssignmentStatus } from '../types'
+import { resolveRoutineStatus, routineStatusLabels, routineStatusOrder, type RoutineVisualStatus } from '../lib/routineStatus'
+import { RoutineStatusButton, RoutineStatusLegend } from '../components/RoutineStatus'
 import { formatCalendarDate } from '../lib/week'
 import { useAuth } from '../auth/AuthContext'
 import { loadMessageConversations } from '../lib/messages'
@@ -23,7 +24,7 @@ import { supabase } from '../lib/supabase'
 
 const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 type SortOrder = 'nameAsc' | 'nameDesc'
-type StatusFilter = 'all' | RoutineAssignmentStatus | 'unassigned'
+type StatusFilter = 'all' | RoutineVisualStatus | 'modified' | 'unassigned'
 
 interface PatientRowProps {
   patient: Patient
@@ -69,17 +70,18 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
         <Stack direction="row" spacing={{ xs: .25, sm: .75 }} justifyContent="center" sx={{ minWidth: 616 }}>
           {weekDates.map((date, index) => {
             const day = days[index]
-            const dayAssignments = assignments[weekDates[index]] ?? []
+            const dayAssignments = (assignments[weekDates[index]] ?? []).filter((assignment) => assignment.status !== 'cancelled')
             const isOccupied = dayAssignments.length > 0 || occupied.some((entry) => entry.date === date)
 
             return <Box key={weekDates[index]} sx={{ flex: 1, minWidth: 0, textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
               <Typography sx={{ bgcolor: weekDates[index] === policy?.today ? '#eb681d' : neutralSurface, color: 'white', border: `3px solid ${border}`, borderRadius: '28px', py: { xs: 1, sm: 1.5 }, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 700, fontSize: { xs: '.65rem', sm: '1.05rem' } }}>{day}<br />{formatCalendarDate(weekDates[index])}</Typography>
               <Stack sx={{ mt: .5, bgcolor: isOccupied ? surface : assignableSurface, border: `3px solid ${border}`, borderRadius: '24px', minHeight: { xs: 112, sm: 132 }, flexGrow: 1, p: .5 }} spacing={.5}>
-                {dayAssignments.map((assignment) => <Grow in key={assignment.id} timeout={220}><Button
-                  aria-label={`View assigned routine ${assignment.routineName} on ${assignment.scheduledDate}`}
-                  aria-expanded={selectedAssignmentId === assignment.id} aria-controls={detailsId}
-                  onClick={() => setSelectedAssignmentId((current) => current === assignment.id ? null : assignment.id)}
-                  sx={{ width: '100%', minWidth: 0, bgcolor: '#91c8c0', color: accentText, border: `2px solid ${border}`, borderRadius: '18px', px: .5, py: .75, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '.72rem', sm: '.82rem' }, lineHeight: 1.3, overflowWrap: 'anywhere', '&:hover': { bgcolor: '#82bdb5' }, '&.Mui-focusVisible': { outline: '3px solid #eb681d', outlineOffset: 2 } }}>{assignment.routineName}</Button></Grow>)}
+                {dayAssignments.map((assignment) => <Grow in key={assignment.id} timeout={220}><Box>
+                  <RoutineStatusButton name={assignment.routineName} date={assignment.scheduledDate}
+                    presentation={resolveRoutineStatus(assignment, policy?.today)!}
+                    expanded={selectedAssignmentId === assignment.id} controls={detailsId}
+                    onClick={() => setSelectedAssignmentId((current) => current === assignment.id ? null : assignment.id)} />
+                </Box></Grow>)}
                 {isOccupied ? <Typography variant="caption" color="text.secondary" sx={{ py: .75 }}>Occupied</Typography> :
                 <Button disabled={loading || !withinHorizon(date, policy)} onClick={() => onAssign(index)} aria-label={`Assign routine to ${patient.name} on ${weekdayNames[index]}`} sx={{ minWidth: 0, width: '100%', flexGrow: 1, p: .5, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: .5, color: text, borderRadius: '18px', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '.7rem', sm: '.8rem' }, lineHeight: 1.2, '&:hover': { bgcolor: isDark ? '#35545c' : '#c8deda' }, '&.Mui-focusVisible': { outline: `3px solid ${border}`, outlineOffset: -2 } }}>
                   <Box component="span" sx={{ width: 38, height: 38, flexShrink: 0, borderRadius: '50%', bgcolor: '#4b9da9', border: `3px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><AddIcon sx={{ color: 'white', fontSize: 28 }} /></Box>
@@ -92,7 +94,8 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
       </Box>
       </Box>
       {expanded && selectedAssignmentId && <AssignedRoutineDetails id={detailsId} assignment={selectedAssignment}
-        loading={loading} error={error} onRetry={onRetry} onClose={() => setSelectedAssignmentId(null)} />}
+        today={policy?.today} loading={loading} error={error} onRetry={onRetry} onClose={() => setSelectedAssignmentId(null)} />}
+      {expanded && <RoutineStatusLegend />}
     </Collapse>
   </Card>
 }
@@ -140,15 +143,17 @@ export function DashboardPage() {
       .filter((patient) => patient.name.toLowerCase().includes(normalizedQuery))
       .filter((patient) => {
         if (statusFilter === 'all') return true
-        const patientAssignments = Object.values(assignments[patient.profileId] ?? {}).flat()
+        const patientAssignments = Object.values(assignments[patient.profileId] ?? {}).flat().filter((assignment) => assignment.status !== 'cancelled')
         if (statusFilter === 'unassigned') return patientAssignments.length === 0
-        return patientAssignments.some((assignment) => assignment.status === statusFilter)
+        return patientAssignments.some((assignment) => statusFilter === 'modified'
+          ? assignment.status === 'modified' && resolveRoutineStatus(assignment, policy?.today)?.status === 'neutral'
+          : resolveRoutineStatus(assignment, policy?.today)?.status === statusFilter)
       })
       .sort((first, second) => {
         const comparison = first.name.localeCompare(second.name)
         return sortOrder === 'nameAsc' ? comparison : -comparison
       })
-  }, [assignments, patients, query, sortOrder, statusFilter])
+  }, [assignments, patients, query, sortOrder, statusFilter, policy?.today])
   const allExpanded = visiblePatients.length > 0 && visiblePatients.every((patient) => expanded.includes(patient.id))
   const togglePatient = (id: string) => setExpanded((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
   const toggleAll = () => setExpanded(allExpanded ? [] : visiblePatients.map((patient) => patient.id))
@@ -169,7 +174,10 @@ export function DashboardPage() {
             </Stack>
           </Stack>
           <Menu anchorEl={sortMenuAnchor} open={Boolean(sortMenuAnchor)} onClose={() => setSortMenuAnchor(null)}><MenuItem selected={sortOrder === 'nameAsc'} onClick={() => { setSortOrder('nameAsc'); setSortMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Name A-Z</MenuItem><MenuItem selected={sortOrder === 'nameDesc'} onClick={() => { setSortOrder('nameDesc'); setSortMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Name Z-A</MenuItem></Menu>
-          <Menu anchorEl={filterMenuAnchor} open={Boolean(filterMenuAnchor)} onClose={() => setFilterMenuAnchor(null)}><MenuItem selected={statusFilter === 'all'} onClick={() => { setStatusFilter('all'); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>All Patients</MenuItem><MenuItem selected={statusFilter === 'missed'} onClick={() => { setStatusFilter('missed'); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Missed</MenuItem><MenuItem selected={statusFilter === 'completed'} onClick={() => { setStatusFilter('completed'); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Completed</MenuItem><MenuItem selected={statusFilter === 'modified'} onClick={() => { setStatusFilter('modified'); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Modified</MenuItem><MenuItem selected={statusFilter === 'scheduled'} onClick={() => { setStatusFilter('scheduled'); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Scheduled</MenuItem><MenuItem selected={statusFilter === 'unassigned'} onClick={() => { setStatusFilter('unassigned'); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Unassigned this week</MenuItem></Menu>
+          <Menu anchorEl={filterMenuAnchor} open={Boolean(filterMenuAnchor)} onClose={() => setFilterMenuAnchor(null)}>
+            {([['all', 'All Patients'], ...routineStatusOrder.map((status) => [status, routineStatusLabels[status]]), ['modified', 'Modified'], ['unassigned', 'Unassigned this week']] as [StatusFilter, string][]).map(([value, label]) =>
+              <MenuItem key={value} selected={statusFilter === value} onClick={() => { setStatusFilter(value); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>{label}</MenuItem>)}
+          </Menu>
           {visiblePatients.length ? visiblePatients.map((patient) => <PatientRow key={`${patient.profileId}/${weekDates[0]}`} patient={patient} expanded={expanded.includes(patient.id)} onToggle={() => togglePatient(patient.id)} assignments={assignments[patient.profileId] ?? {}} weekDates={weekDates} policy={policy} occupied={occupied[patient.profileId] ?? []} loading={assignmentsLoading} error={assignmentsError} onRetry={retryAssignments} onAssign={(dayIndex) => openSchedule(patient, weekDates[dayIndex])} />) : <Card sx={{ p: 5, textAlign: 'center', border: `4px solid ${border}`, bgcolor: surface, color: text }}><Typography variant="h6" fontFamily="Georgia, serif">No patients found</Typography></Card>}
         </Stack>
       </Box>

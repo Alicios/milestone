@@ -319,6 +319,10 @@ type RoutineAssignmentRow = {
   scheduled_date: string
   status: RoutineAssignmentStatus
   routine_name_snapshot: string
+  patient_in_progress?: boolean
+  patient_issue_severity?: 'none' | 'noncritical' | 'critical'
+  patient_comment?: string | null
+  patient_result_source?: 'patient' | 'demo' | null
 }
 type AssignmentExerciseRow = {
   id: string; routine_assignment_id: string; exercise_name_snapshot: string; position: number
@@ -470,17 +474,20 @@ export async function saveRoutine(routineId: string | null, name: string, exerci
 export async function loadRoutineAssignments(profileIds: string[], startDate: string, endDate: string): Promise<RoutineAssignment[]> {
   try {
     if (!profileIds.length) return []
-    const { data: assignments, error: assignmentError, status: assignmentErrorStatus } = await supabase
-      .from('routine_assignments')
-      .select('id, patient_profile_id, routine_id, scheduled_date, status, routine_name_snapshot')
-      .in('patient_profile_id', profileIds)
-      .gte('scheduled_date', startDate)
-      .lte('scheduled_date', endDate)
-      .neq('status', 'cancelled')
-      .order('scheduled_date')
+    const fields = 'id, patient_profile_id, routine_id, scheduled_date, status, routine_name_snapshot'
+    const resultFields = ['patient_in_progress', 'patient_issue_severity', 'patient_comment', 'patient_result_source']
+    const read = (columns: string) => supabase.from('routine_assignments').select(columns)
+      .in('patient_profile_id', profileIds).gte('scheduled_date', startDate).lte('scheduled_date', endDate)
+      .neq('status', 'cancelled').order('scheduled_date')
+    let result = await read(`${fields}, ${resultFields.join(', ')}`)
+    // Older deployments still show assignments. Permission/network failures
+    // surface rather than silently hiding feedback.
+    if (isMissingSchemaObject(result.error, resultFields)) result = await read(fields)
+    const { data: assignments, error: assignmentError, status: assignmentErrorStatus } = result
     if (assignmentError) throw normalizeError(assignmentError, { operation: 'loadRoutineAssignments', status: assignmentErrorStatus })
 
-    const rows = (assignments ?? []) as RoutineAssignmentRow[]
+    // The column list is dynamic to support pre-migration deployments.
+    const rows = (assignments ?? []) as unknown as RoutineAssignmentRow[]
     if (!rows.length) return []
     const assignmentIds = rows.map((assignment) => assignment.id)
     const [exercises, followUps] = await Promise.all([
@@ -513,6 +520,12 @@ export async function loadRoutineAssignments(profileIds: string[], startDate: st
       routineName: assignment.routine_name_snapshot,
       exercises: exercisesByAssignment.get(assignment.id) ?? [],
       followUp: followUpByAssignment.get(assignment.id),
+      ...('patient_in_progress' in assignment ? { patientResult: {
+        inProgress: assignment.patient_in_progress === true,
+        issue: assignment.patient_issue_severity === 'noncritical' || assignment.patient_issue_severity === 'critical' ? assignment.patient_issue_severity : undefined,
+        comment: assignment.patient_comment ?? null,
+        source: assignment.patient_result_source ?? null,
+      } } : {}),
     }))
   } catch (error) {
     throw normalizeError(error, { operation: 'loadRoutineAssignments' })

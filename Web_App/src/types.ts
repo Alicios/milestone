@@ -94,4 +94,12 @@ export interface RoutineAssignment {
   routineName: string
   exercises: RoutineExercise[]
   followUp?: FollowUpAppointment
+  patientResult?: RoutinePatientResult
+}
+
+export interface RoutinePatientResult {
+  inProgress: boolean
+  issue?: 'noncritical' | 'critical'
+  comment: string | null
+  source: 'patient' | 'demo' | null
 }

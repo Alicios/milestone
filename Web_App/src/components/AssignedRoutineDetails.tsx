@@ -1,16 +1,22 @@
 import { Alert, Box, Button, Stack, Typography } from '@mui/material'
 import type { RoutineAssignment } from '../types'
 import { formatCalendarDate } from '../lib/week'
+import { resolveRoutineStatus, type RoutineProgressSignals } from '../lib/routineStatus'
+import { RoutineStatusLabel } from './RoutineStatus'
+import { PatientRoutineFeedback } from './PatientRoutineFeedback'
 
 // Only assignment snapshots enter this component; editable templates are not inputs.
-export function AssignedRoutineDetails({ id, assignment, loading, error, onRetry, onClose }: {
+export function AssignedRoutineDetails({ id, assignment, today, signals, loading, error, onRetry, onClose }: {
   id: string
   assignment?: RoutineAssignment
+  today?: string
+  signals?: RoutineProgressSignals
   loading: boolean
   error: string
   onRetry: () => void
   onClose: () => void
 }) {
+  const presentation = assignment && resolveRoutineStatus(assignment, today, signals)
   return <Box component="section" id={id} aria-label="Assigned routine details" aria-busy={loading && !error}
     sx={{ mt: 2, p: { xs: 1.5, sm: 2.5 }, bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 3, minWidth: 0 }}>
     <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
@@ -19,12 +25,14 @@ export function AssignedRoutineDetails({ id, assignment, loading, error, onRetry
     </Stack>
     {error ? <Alert severity="error" action={<Button color="inherit" onClick={onRetry}>Retry details</Button>}>Unable to load assigned routine details. {error}</Alert>
       : loading ? <Typography role="status">Loading assigned routine details…</Typography>
-      : !assignment ? <Alert severity="info">This assignment is no longer available in this week.</Alert>
+      : !assignment || !presentation ? <Alert severity="info">This assignment is no longer available in this week.</Alert>
       : <>
+        <RoutineStatusLabel presentation={presentation} />
         <Typography component="h3" variant="h6" sx={{ mt: 1, overflowWrap: 'anywhere' }}>{assignment.routineName}</Typography>
         <Typography component="time" dateTime={assignment.scheduledDate} color="text.secondary">
           {formatCalendarDate(assignment.scheduledDate, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </Typography>
+        <PatientRoutineFeedback assignment={assignment} />
         {!assignment.exercises.length ? <Typography role="status" sx={{ mt: 2 }}>No exercise details were recorded for this assignment.</Typography>
           : <Stack component="ol" spacing={2} sx={{ pl: 3, mb: 0 }}>
             {[...assignment.exercises].sort((a, b) => a.position - b.position).map((exercise) => <Box component="li" key={exercise.id} sx={{ pl: .5, overflowWrap: 'anywhere' }}>

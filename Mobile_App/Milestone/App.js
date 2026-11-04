@@ -5,6 +5,8 @@ import {
   AccessibilityInfo,
   Animated,
   Easing,
+  Keyboard,
+  KeyboardAvoidingView,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -145,6 +147,33 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
 
 
   const [screen, setScreen] = useState('home');
+  const [reviewKeyboardVisible, setReviewKeyboardVisible] = useState(false);
+  const reviewScroll = useRef(null);
+  const explanationInput = useRef(null);
+  const explanationFocused = useRef(false);
+  const scrollToFeedback = useCallback(() => {
+    if (explanationFocused.current && explanationInput.current) {
+      // Scroll the field itself into view, even when the Next button is below
+      // the visible area in a short landscape window.
+      reviewScroll.current?.scrollResponderScrollNativeHandleToKeyboard(
+        explanationInput.current, 12, true,
+      );
+    }
+  }, []);
+  useEffect(() => {
+    if (screen !== 'review') return;
+    setReviewKeyboardVisible(Keyboard.isVisible());
+    const show = Keyboard.addListener('keyboardDidShow', () => {
+      setReviewKeyboardVisible(true);
+      scrollToFeedback();
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setReviewKeyboardVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+      explanationFocused.current = false;
+    };
+  }, [screen, scrollToFeedback]);
   const messaging = usePatientMessages({ enabled: isUnlocked, patientId: databasePatientId, visible: screen === 'messages' });
   const [routineScreen, setRoutineScreen] = useState('exerciseIntro');
   const [expandedExerciseIndex, setExpandedExerciseIndex] = useState(null);
@@ -696,10 +725,14 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
 
   if (screen === 'review') {
     return (
+      <KeyboardAvoidingView style={styles.safeArea} behavior="padding">
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <ScrollView
+          ref={reviewScroll}
           keyboardShouldPersistTaps="handled"
-          automaticallyAdjustKeyboardInsets
+          keyboardDismissMode="on-drag"
+          onLayout={scrollToFeedback}
+          onContentSizeChange={scrollToFeedback}
           style={styles.screenScroll}
           contentContainerStyle={styles.reviewScreen}
         >
@@ -734,10 +767,13 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
             </View>
           </View>
 
-          <ExerciseReviewFeedback review={exerciseReview} />
+          <ExerciseReviewFeedback review={exerciseReview} explanationRef={explanationInput}
+            onExplanationFocus={() => { explanationFocused.current = true; scrollToFeedback(); }}
+            onExplanationBlur={() => { explanationFocused.current = false; }} />
         </ScrollView>
-        {renderDock()}
+        {!reviewKeyboardVisible && renderDock()}
       </SafeAreaView>
+      </KeyboardAvoidingView>
     );
   }
 

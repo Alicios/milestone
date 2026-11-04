@@ -82,11 +82,13 @@ export function useAssignmentCalendar(providerId: string | undefined, profileIds
   useEffect(() => {
     const reload = () => { invalidate(); void refreshPolicy(); void refresh().catch(() => {}) }
     const storageChanged = (event: StorageEvent) => { if (event.key === 'milestone.schedule.changed') reload() }
+    const becameVisible = () => { if (document.visibilityState === 'visible') reload() }
     // Other tabs and returning to the tab both invalidate current assumptions.
     window.addEventListener('focus', reload)
     window.addEventListener('storage', storageChanged)
+    document.addEventListener('visibilitychange', becameVisible)
     const timer = window.setInterval(() => { if (document.visibilityState === 'visible') reload() }, 60_000)
-    return () => { window.removeEventListener('focus', reload); window.removeEventListener('storage', storageChanged); window.clearInterval(timer) }
+    return () => { window.removeEventListener('focus', reload); window.removeEventListener('storage', storageChanged); document.removeEventListener('visibilitychange', becameVisible); window.clearInterval(timer) }
   }, [refresh, refreshPolicy, invalidate])
   return { policy, weekDates, setWeek: setSelectedWeek, refreshPolicy, refresh, invalidate,
     assignments: rows?.key === key ? rows.assignments : {}, occupied: rows?.key === key ? rows.occupied : {},

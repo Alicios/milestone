@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link as RouterLink, useNavigate, useOutletContext, useParams } from 'react-router-dom'
+import { Link as RouterLink, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import AddIcon from '@mui/icons-material/Add'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
@@ -217,7 +217,13 @@ function PatientOverview({ patient }: { patient: Patient }) {
 
 export function PatientPage() {
   const { patientId } = useParams<{ patientId: string }>()
-  const { patients, patientsLoading, patientsError, retryPatients } = useOutletContext<DashboardOutletContext>()
+  const { patients, patientsLoading, patientsError, retryPatients, retryAssignments } = useOutletContext<DashboardOutletContext>()
+  const { key: navigationKey } = useLocation()
+  // The dashboard layout survives navigation, so its calendar may contain
+  // results from before the patient finished a routine on mobile.
+  const refreshAssignments = useRef(retryAssignments)
+  refreshAssignments.current = retryAssignments
+  useEffect(() => { refreshAssignments.current() }, [patientId, navigationKey])
   const patient = patients.find((item) => item.id === patientId)
 
   return <Box component="main" maxWidth={1100} mx="auto" py={{ xs: 1, md: 2 }}>

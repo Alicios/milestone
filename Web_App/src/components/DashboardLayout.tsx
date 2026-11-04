@@ -259,18 +259,28 @@ export function DashboardWorkspace() {
       </Container>
     </AppBar>
     <Container maxWidth={false} sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: isMessagesPage ? 0 : { xs: 2, md: 3 } }}>
-      {patientsLoading && <Alert severity="info" sx={{ mb: 2 }}>Loading patients from Supabase…</Alert>}
-      {patientsError && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" onClick={retryPatients}>Retry patients</Button>}>{patientsError}</Alert>}
-      {calendar.error && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" disabled={calendar.refreshing} onClick={retryAssignments}>Retry loading assignments</Button>}>{calendar.error}</Alert>}
-      {calendar.loading && !calendar.error && <Alert severity="info" sx={{ mb: 2 }}>Loading assignment calendar…</Alert>}
-      {assignmentNotice && <Alert severity="warning" sx={{ mb: 2 }} action={<Button color="inherit" disabled={calendar.refreshing} onClick={() => void calendar.refresh().then(() => setAssignmentNotice('')).catch(() => {})}>Retry loading assignments</Button>}>{assignmentNotice}</Alert>}
-      {operations.storageError && <Alert severity="error">{operations.storageError}</Alert>}
-      {operations.notice && <Alert severity="info" sx={{ mb: 2 }}>{operations.notice}</Alert>}
-      {operations.pending.map((operation) => <Alert key={operation.requestId} severity="warning" sx={{ mb: 2 }}>
-        Confirmed schedule awaiting verification for {patients.find((patient) => patient.profileId === operation.patientProfileId)?.name ?? 'a patient relationship'}: {operation.entries.map((entry) => entry.date).join(', ')}.
-        <Stack direction="row" spacing={1}><Button disabled={operations.busy.includes(operation.requestId)} onClick={() => void operations.recover(operation)}>Check receipt</Button><Button disabled={operations.busy.includes(operation.requestId)} onClick={() => void operations.recover(operation, true)}>Retry same confirmed request</Button></Stack>
-      </Alert>)}
-      {routineReloadError && <Alert severity="warning" sx={{ mb: 2 }} action={<Button color="inherit" disabled={routinesReloading} onClick={() => void reloadRoutines()}>{routinesReloading ? 'Loading…' : 'Retry loading routines'}</Button>}>{routineReloadError}</Alert>}
+      <Stack role="region" aria-label="Dashboard notifications" spacing={1} sx={{
+        position: 'fixed', top: { xs: 120, sm: 80 }, right: { xs: 16, sm: 24 },
+        width: { xs: 'calc(100% - 32px)', sm: 420 }, maxWidth: 'calc(100% - 32px)',
+        maxHeight: { xs: 'calc(100dvh - 136px)', sm: 'calc(100dvh - 96px)' }, overflowY: 'auto',
+        zIndex: (theme) => theme.zIndex.appBar + 1, pointerEvents: 'none',
+        '& .MuiAlert-root': { pointerEvents: 'auto', boxShadow: 3, flexShrink: 0, overflowWrap: 'anywhere' },
+        '& .MuiAlert-message': { minWidth: 0 },
+        '& .MuiAlert-action': { alignItems: 'center' },
+      }}>
+        {patientsLoading && <Alert role="status" severity="info">Loading patients from Supabase…</Alert>}
+        {patientsError && <Alert severity="error" action={<Button color="inherit" onClick={retryPatients}>Retry patients</Button>}>{patientsError}</Alert>}
+        {calendar.error && <Alert severity="error" action={<Button color="inherit" disabled={calendar.refreshing} onClick={retryAssignments}>Retry loading assignments</Button>}>{calendar.error}</Alert>}
+        {calendar.loading && !calendar.error && <Alert role="status" severity="info">Loading assignment calendar…</Alert>}
+        {assignmentNotice && <Alert severity="warning" action={<Button color="inherit" disabled={calendar.refreshing} onClick={() => void calendar.refresh().then(() => setAssignmentNotice('')).catch(() => {})}>Retry loading assignments</Button>}>{assignmentNotice}</Alert>}
+        {operations.storageError && <Alert severity="error">{operations.storageError}</Alert>}
+        {operations.notice && <Alert role="status" severity="info">{operations.notice}</Alert>}
+        {operations.pending.map((operation) => <Alert key={operation.requestId} severity="warning">
+          Confirmed schedule awaiting verification for {patients.find((patient) => patient.profileId === operation.patientProfileId)?.name ?? 'a patient relationship'}: {operation.entries.map((entry) => entry.date).join(', ')}.
+          <Stack direction="row" spacing={1}><Button disabled={operations.busy.includes(operation.requestId)} onClick={() => void operations.recover(operation)}>Check receipt</Button><Button disabled={operations.busy.includes(operation.requestId)} onClick={() => void operations.recover(operation, true)}>Retry same confirmed request</Button></Stack>
+        </Alert>)}
+        {routineReloadError && <Alert severity="warning" action={<Button color="inherit" disabled={routinesReloading} onClick={() => void reloadRoutines()}>{routinesReloading ? 'Loading…' : 'Retry loading routines'}</Button>}>{routineReloadError}</Alert>}
+      </Stack>
       <Outlet context={{ patients, patientsLoading, patientsError, retryPatients, routines, assignments, weekDates, openSchedule, policy, occupied, setWeek, assignmentsLoading: calendar.loading, assignmentsError: calendar.error, retryAssignments, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, deleteRoutine, updatePatientDetails, dischargePatient } satisfies DashboardOutletContext} />
       {target && policy && <ScheduleRoutineDialog key={`${target.patient.profileId}/${target.singleDate ?? weekDates[0]}`} patientName={target.patient.name} patientProfileId={target.patient.profileId} routines={routines} weekStart={weekDates[0]} singleDate={target.singleDate} policy={policy} onCancel={() => setTarget(null)} onConfirm={async (entries) => {
         calendar.invalidate()

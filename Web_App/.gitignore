@@ -6,3 +6,4 @@
 !tests/browser/mobileExerciseFeedback.spec.mjs
 /test-results/
 /supabase/.temp/
+!tests/browser/patientRefresh.spec.mjs

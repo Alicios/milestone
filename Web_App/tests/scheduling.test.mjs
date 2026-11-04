@@ -133,6 +133,7 @@ test('unmount during a write retains the original account recovery record', asyn
 function calendarHarness(load) {
   const hook = hooks(); let account = provider; let rangeLoads = []
   const events = new Map()
+  globalThis.document = { visibilityState: 'visible', addEventListener(name, listener) { events.set(name, listener) }, removeEventListener(name) { events.delete(name) } }
   globalThis.window = { addEventListener(name, listener) { events.set(name, listener) }, removeEventListener(name) { events.delete(name) }, setInterval() {}, clearInterval() {} }
   const { useAssignmentCalendar } = loadTs('src/hooks/useAssignmentCalendar.ts', { react: hook.react,
     '../lib/supabaseData': { loadRoutineAssignments: (...args) => { rangeLoads.push(args); return load(...args) } },
@@ -332,4 +333,19 @@ test('a normalized permission error during receipt lookup does not prove the ori
   assert.equal(await h.flush().recover(operation, true), false)
   assert.equal(h.storage.length, 1); assert.equal(h.writes.length, 0)
   h.unmount()
+})
+
+test('returning to a visible tab refreshes results and removes the visibility listener on unmount', async () => {
+  const h = calendarHarness(async () => [])
+  await tick(); h.flush(); await tick()
+  const before = h.rangeLoads.length
+  document.visibilityState = 'hidden'
+  h.emit('visibilitychange'); await tick()
+  assert.equal(h.rangeLoads.length, before)
+  document.visibilityState = 'visible'
+  h.emit('visibilitychange'); await tick()
+  assert.equal(h.rangeLoads.length, before + 1)
+  h.unmount()
+  h.emit('visibilitychange'); await tick()
+  assert.equal(h.rangeLoads.length, before + 1)
 })

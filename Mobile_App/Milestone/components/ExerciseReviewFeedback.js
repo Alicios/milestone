@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Text from './AppText';
 import { useAppTheme } from './AppTheme';
 
-export default function ExerciseReviewFeedback({ review }) {
+export default function ExerciseReviewFeedback({ review, explanationRef, onExplanationFocus, onExplanationBlur }) {
   const { colors, mode } = useAppTheme();
   const { value, change, submit, saving, error } = review;
   const ink = colors.text;
@@ -50,7 +50,8 @@ export default function ExerciseReviewFeedback({ review }) {
     </View>
     {value.feeling && value.feeling !== 'good' && <View>
       <Text style={{ color: ink, marginBottom: 6 }}>Tell your provider why (required)</Text>
-      <TextInput accessibilityLabel="Tell your provider why" value={value.explanation || ''}
+      <TextInput ref={explanationRef} accessibilityLabel="Tell your provider why" value={value.explanation || ''}
+        onFocus={onExplanationFocus} onBlur={onExplanationBlur}
         onChangeText={explanation => change({ explanation })} multiline maxLength={4000} editable={!saving}
         textAlignVertical="top" placeholder="Describe how the exercise felt" placeholderTextColor={colors.muted}
         style={[styles.explanation, { color: ink, borderColor: colors.border, backgroundColor: colors.surface }]} />
@@ -69,6 +70,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 6 }, endpoints: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 },
   painButton: { flex: 1, minHeight: 56, minWidth: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center', paddingVertical: 5 },
   number: { fontSize: 20, fontWeight: '800' }, feeling: { flex: 1, minHeight: 78, alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingVertical: 8 },
-  emoji: { fontSize: 28 }, explanation: { minHeight: 110, borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 16 },
+  emoji: { fontSize: 28 }, explanation: { minHeight: 110, maxHeight: 140, borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 16 },
   next: { minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 14, marginTop: 10 },
 });

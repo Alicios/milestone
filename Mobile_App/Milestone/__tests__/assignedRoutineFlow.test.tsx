@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import {Image, Text} from 'react-native';
+import {Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput} from 'react-native';
 import ReactTestRenderer from 'react-test-renderer';
 import type {ReactTestInstance} from 'react-test-renderer';
 import App from '../App';
@@ -133,6 +133,7 @@ beforeEach(() => {
 });
 afterEach(async () => {
   if (renderer) await ReactTestRenderer.act(() => renderer.unmount());
+  jest.restoreAllMocks();
   jest.useRealTimers();
 });
 async function mount() {
@@ -156,6 +157,62 @@ test('Frank can load, start and finish both legacy named exercises', async () =>
   await finishExercise(1);
   await press('Next exercise');
   expect(hasText('ROUTINE COMPLETE!')).toBe(true);
+});
+
+test.each(['ios', 'android'] as const)('keeps %s exercise feedback accessible while typing and preserves the response', async platform => {
+  jest.replaceProperty(Platform, 'OS', platform);
+  const callbacks: Record<string, Function[]> = {};
+  jest.spyOn(Keyboard, 'addListener').mockImplementation((event, callback) => {
+    (callbacks[event] ||= []).push(callback);
+    return {remove: jest.fn()};
+  });
+  const scrollToInput = jest.spyOn(ScrollView.prototype, 'scrollResponderScrollNativeHandleToKeyboard').mockImplementation(() => {});
+  await mount();
+  await press('Start routine');
+  await press('Start exercise');
+  await finishExercise(1);
+  await press('Pain 3 out of 10');
+  await press('Exercise felt difficult');
+  const input = () => renderer.root.findByType(TextInput);
+  await ReactTestRenderer.act(() => {
+    input().props.onFocus();
+    input().props.onChangeText('My knee felt sore.');
+  });
+  const avoider = renderer.root.findByType(KeyboardAvoidingView);
+  const layout = async (height: number) => {
+    await ReactTestRenderer.act(async () => avoider.instance._onLayout({persist: jest.fn(), nativeEvent: {layout: {x: 0, y: 0, width: 390, height}}}));
+  };
+  const keyboardEvent = async (visible: boolean, screenY = 360) => {
+    const event = {endCoordinates: {screenY, height: 844 - screenY}};
+    await ReactTestRenderer.act(async () => {
+      for (const phase of ['Will', 'Did']) {
+        (callbacks[`keyboard${phase}${visible ? 'Show' : 'Hide'}`] || []).forEach(callback => callback(event));
+      }
+    });
+  };
+  await layout(844);
+  scrollToInput.mockClear();
+  await keyboardEvent(true);
+  expect(avoider.instance.state.bottom).toBe(484);
+  expect(scrollToInput).toHaveBeenCalledWith(expect.anything(), 12, true);
+  expect(hasText('Home')).toBe(false);
+  expect(input().props.value).toBe('My knee felt sore.');
+  // A short landscape window and Android adjustResize must not add duplicate insets.
+  await layout(390);
+  await keyboardEvent(true, 180);
+  expect(avoider.instance.state.bottom).toBe(210);
+  if (platform === 'android') {
+    await layout(180);
+    expect(avoider.instance.state.bottom).toBe(0);
+  }
+  await keyboardEvent(false);
+  expect(avoider.instance.state.bottom).toBe(0);
+  expect(hasText('Home')).toBe(true);
+  expect(input().props.value).toBe('My knee felt sore.');
+  await ReactTestRenderer.act(async () => button('Next exercise').props.onPress());
+  expect(require('../lib/exerciseFeedback').saveExerciseFeedback).toHaveBeenCalledWith(
+    'snapshot-0', expect.objectContaining({explanation: 'My knee felt sore.', feeling: 'difficult', painScore: 3}),
+  );
 });
 test('prescribed duration_seconds runs a countdown and preserves sets', async () => {
   mockExercises = [{exercise_id: 'leg', name: 'Leg Stretch', sets: 2, reps: 3, duration_seconds: 30}];

@@ -221,6 +221,31 @@ an unguarded older writer or overwrite newer data with a stale recovery export.
 
 ## Hosted routine record update log
 
+### 2026-11-03 — Frank exercise boxes and requested pain examples
+
+- At the user's request, each patient-page exercise now has one separate box
+  containing its name, assigned sets/reps and feedback. Pain is displayed as a
+  colored numeric badge. Provider notes/duration stay out of this compact view.
+- The user clarified that Frank is a sample patient and feedback should display
+  normally without “sample data”/“demo result” labels. Those labels were removed
+  from routine feedback; stored routine provenance was preserved.
+- Inserted four requested exercise responses in `lwldkhrsngwtuhztlmul` using
+  `seed_frank_exercise_feedback.sql`, after checking exact snapshot identity,
+  completed demo assignments, provider ownership, and absence of existing ratings:
+  - October 26, Toe Spreading: **2/10**, Good (green).
+  - October 26, Therapy Putty Grip: **3/10**, Good (green).
+  - October 27, Toe Spreading: **5/10**, Neutral (amber), with a comment about
+    tightness and taking a break.
+  - October 27, Feet-Together Balance: **8/10**, Difficult (red), with a comment
+    about needing support and requesting review.
+- Did not rate the two exercises in the missed October 28 assignment. No existing
+  response was overwritten. The seed follows patient → relationship → assignment
+  lock order, rejects reapplication/changed rows, and uses server reporting time.
+- Hosted readback confirmed all four scores. Every routine assignment matched its
+  pre-change fingerprint; all feedback outside the four requested snapshots was
+  unchanged. No schema, API, assignment status, prescription, or routine-template
+  change was needed.
+
 ### 2026-11-03 — Per-exercise pain and feeling feedback
 
 - Applied `20261104022812_exercise_pain_feedback` and

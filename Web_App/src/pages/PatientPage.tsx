@@ -110,7 +110,7 @@ function PatientOverview({ patient }: { patient: Patient }) {
 
         <Card component="section" aria-labelledby="patient-routines-heading" sx={{ p: { xs: 2.5, sm: 3 } }}>
           <Typography id="patient-routines-heading" component="h2" variant="h6">Assigned routines</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: .5, mb: 2.5 }}>Dated routine prescriptions for the selected week. Assigned exercises remain unchanged if the template is edited later.</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: .5, mb: 2.5 }}>Assigned routines and patient feedback for the selected week.</Typography>
           <CalendarWeekNavigation dates={weekDates} policy={policy} onChange={setWeek} />
           <Button variant="outlined" disabled={!policy || !weekDates.some((date) => withinHorizon(date, policy)) || assignmentsLoading} onClick={() => openSchedule(patient)}>Schedule week</Button>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -131,17 +131,21 @@ function PatientOverview({ patient }: { patient: Patient }) {
                 <Stack spacing={1.5} sx={{ mt: dayAssignments.length ? 1.25 : 0 }}>
                   {dayAssignments.map((assignment) => <RoutineStatusCard key={assignment.id} presentation={resolveRoutineStatus(assignment, policy?.today)!}>
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between">
-                      <Box minWidth={0}>
+                      <Box minWidth={0} flex={1}>
                         <Typography fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>{assignment.routineName}</Typography>
                         <PatientRoutineFeedback assignment={assignment} />
                         {assignment.exerciseFeedbackError && <Alert severity="warning" sx={{ mt: 1 }} action={<Button color="inherit" onClick={retryAssignments}>Retry feedback</Button>}>{assignment.exerciseFeedbackError}</Alert>}
                         {!assignment.exercises.length && <Typography variant="body2">No exercises listed</Typography>}
-                        {assignment.exercises.map((exercise) => <Box key={exercise.id} sx={{ mt: .5 }}>
-                          <Typography variant="body2">{exercise.name}{prescriptionSummary(exercise) && ` · ${prescriptionSummary(exercise)}`}</Typography>
-                          {exercise.notes && <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>Provider notes: {exercise.notes}</Typography>}
-                          <ExercisePatientFeedback feedback={exercise.patientFeedback} unavailable={Boolean(assignment.exerciseFeedbackError)} />
-                        </Box>)}
-                        {assignment.followUp?.status === 'scheduled' ? <Typography variant="body2" sx={{ mt: 1 }}><strong>Follow-up:</strong> {new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(assignment.followUp.scheduledAt))}</Typography> : assignment.followUp?.status === 'completed' ? <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>Follow-up completed</Typography> : <Typography variant="body2" color="warning.main" sx={{ mt: 1 }}>Follow-up needs scheduling</Typography>}
+                        <Stack spacing={1.25} sx={{ mt: assignment.exercises.length ? 1.5 : 0 }}>
+                        {assignment.exercises.map((exercise) => {
+                          const setsAndReps = prescriptionSummary({ sets: exercise.sets, reps: exercise.reps })
+                          return <Box component="section" key={exercise.id} aria-label={`Assigned exercise: ${exercise.name}`} data-assigned-exercise={exercise.id}
+                            sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper', color: 'text.primary', minWidth: 0 }}>
+                            <Typography component="h3" variant="body2" fontWeight={700}>{exercise.name}{setsAndReps && ` · ${setsAndReps}`}</Typography>
+                            <ExercisePatientFeedback feedback={exercise.patientFeedback} unavailable={Boolean(assignment.exerciseFeedbackError)} embedded />
+                          </Box>
+                        })}
+                        </Stack>
                       </Box>
                       <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={.75} sx={{ flexShrink: 0 }}>
                         {assignment.followUp?.status !== 'completed' && <Button size="small" startIcon={<EventOutlinedIcon />} onClick={() => setFollowUpAssignment(assignment)}>{assignment.followUp?.status === 'scheduled' ? 'Reschedule' : 'Schedule follow-up'}</Button>}

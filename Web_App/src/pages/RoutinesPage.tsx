@@ -377,10 +377,10 @@ export function RoutinesPage() {
     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} justifyContent="space-between" sx={{ mb: 3 }}>
       <Box>
         <Typography component="h1" variant="h4" sx={{ fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>Routines</Typography>
-        <Typography color="text.secondary">{showDemo ? 'Preview the expanded routine editor with sample data.' : 'Your saved provider routines.'}</Typography>
+        <Typography color="text.secondary">{showDemo ? 'Add exercise instructions, pictures, and videos in the advanced editor.' : 'Your saved provider routines.'}</Typography>
       </Box>
       <Stack direction="row" spacing={1}>
-        <Button variant={showDemo ? 'contained' : 'outlined'} onClick={() => setShowDemo(true)}>Editor demo</Button>
+        <Button variant={showDemo ? 'contained' : 'outlined'} onClick={() => setShowDemo(true)}>Advanced editor</Button>
         <Button variant={showDemo ? 'outlined' : 'contained'} onClick={() => setShowDemo(false)}>Saved routines</Button>
       </Stack>
     </Stack>

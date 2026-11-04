@@ -37,7 +37,7 @@ const sampleRoutines: DemoRoutine[] = [
     id: 'demo-lower-body',
     name: 'Lower Body Mobility',
     description: 'A gentle mobility routine to prepare for walking and daily movement.',
-    media: [{ id: 'demo-photo', kind: 'image', url: publicAsset('physical-therapy.webp'), caption: 'Routine overview', name: 'Example picture' }],
+    media: [{ id: 'demo-photo', kind: 'image', url: publicAsset('physical-therapy.webp'), caption: 'Routine overview', name: 'Routine overview image' }],
     exercises: [
       { id: 'demo-squat', name: 'Supported Sit to Stand', description: 'Rise from a chair with controlled movement. Use the armrests if needed.', sets: '2', repetitions: '8', duration: '', rest: '60', notes: 'Stop if pain increases.', media: [] },
       { id: 'demo-raise', name: 'Standing Heel Raise', description: 'Hold a stable surface and lift both heels slowly.', sets: '2', repetitions: '10', duration: '', rest: '45', notes: '', media: [] },
@@ -201,7 +201,7 @@ function MediaGallery({ media, editing, onChange }: { media: DemoMedia[]; editin
         <TextField size="small" label="YouTube or Vimeo link" value={link} onChange={(event) => setLink(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addLink() } }} sx={{ flex: 1 }} />
         <Button variant="outlined" startIcon={<LinkIcon />} onClick={addLink} disabled={!link.trim() || media.length >= MAX_ITEMS}>Add link</Button>
       </Stack>
-      <Typography variant="caption" color="text.secondary">Demo files preview in this browser only. Pictures: up to 10 MB. Videos: up to 50 MB.</Typography>
+      <Typography variant="caption" color="text.secondary">Files stay in this browser. Pictures: up to 10 MB. Videos: up to 50 MB.</Typography>
     </>}
   </Stack>
 }
@@ -258,15 +258,15 @@ export function RoutineDemo() {
     setDraft(null)
     setError('')
     setValidationAttempted(false)
-    setNotice('Saved to the demo only. Refreshing the page resets these changes.')
+    setNotice('Changes saved in this browser session. Refreshing the page resets these changes.')
   }
 
   return <Stack spacing={2.5}>
-    <Alert severity="info">Demo mode uses sample data and temporary browser previews. Creating, editing, and archiving here do not change your saved routines or upload files.</Alert>
+    <Alert severity="info">This editor keeps changes in the current browser session. Changes reset on refresh, and selected files are not uploaded.</Alert>
     {notice && <Alert severity="success" onClose={() => setNotice('')}>{notice}</Alert>}
     {draft ? <>
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1} alignItems={{ sm: 'center' }}>
-        <Typography component="h2" variant="h5">{routines.some((routine) => routine.id === draft.id) ? 'Edit routine demo' : 'New routine demo'}</Typography>
+        <Typography component="h2" variant="h5">{routines.some((routine) => routine.id === draft.id) ? 'Edit routine' : 'New routine'}</Typography>
         <Button onClick={() => { setDraft(null); setError(''); setValidationAttempted(false) }}>Cancel</Button>
       </Stack>
       {error && <Alert severity="error">{error}</Alert>}
@@ -311,16 +311,16 @@ export function RoutineDemo() {
       </Stack></CardContent></Card>)}
       <Stack direction="row" justifyContent="flex-end" spacing={1.5}>
         <Button variant="outlined" onClick={() => { setDraft(null); setError(''); setValidationAttempted(false) }}>Cancel</Button>
-        <Button variant="contained" onClick={save}>Save demo routine</Button>
+        <Button variant="contained" onClick={save}>Save changes</Button>
       </Stack>
     </> : <>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between">
-        <TextField size="small" label="Search demo routines" value={query} onChange={(event) => setQuery(event.target.value)} sx={{ minWidth: { sm: 280 }, '& .MuiOutlinedInput-root': { height: 50 }, '& .MuiInputLabel-outlined.MuiInputLabel-sizeSmall:not(.MuiInputLabel-shrink)': { top: '50%', transform: 'translate(14px, -50%) scale(1)' } }} />
+        <TextField size="small" label="Search routines" value={query} onChange={(event) => setQuery(event.target.value)} sx={{ minWidth: { sm: 280 }, '& .MuiOutlinedInput-root': { height: 50 }, '& .MuiInputLabel-outlined.MuiInputLabel-sizeSmall:not(.MuiInputLabel-shrink)': { top: '50%', transform: 'translate(14px, -50%) scale(1)' } }} />
         <Button variant="contained" startIcon={<AddIcon />} sx={{ height: 50 }} onClick={() => { setDraft({ id: crypto.randomUUID(), name: '', description: '', media: [], exercises: [newExercise()] }); setNotice(''); setError(''); setValidationAttempted(false) }}>New routine</Button>
       </Stack>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 300px) minmax(0, 1fr)' }, gap: 2.5, alignItems: 'start' }}>
         <Stack spacing={1}>
-          {filtered.length === 0 && <Typography color="text.secondary">No matching demo routines.</Typography>}
+          {filtered.length === 0 && <Typography color="text.secondary">No matching routines.</Typography>}
           {filtered.map((routine) => <Card key={routine.id} variant="outlined" sx={{ borderColor: selected?.id === routine.id ? 'primary.main' : 'divider', borderWidth: selected?.id === routine.id ? 2 : 1 }}>
             <Button fullWidth onClick={() => setSelectedId(routine.id)} sx={{ justifyContent: 'flex-start', textAlign: 'left', p: 1.5, color: 'text.primary', textTransform: 'none' }}>
               <Box><Typography fontWeight={700}>{routine.name}</Typography><Typography variant="body2" color="text.secondary">{routine.exercises.length} exercises · {routine.media.length + routine.exercises.reduce((count, exercise) => count + exercise.media.length, 0)} media items</Typography></Box>
@@ -330,7 +330,7 @@ export function RoutineDemo() {
         {selected ? <Card variant="outlined"><CardContent><Stack spacing={2.5}>
           <Stack direction="row" spacing={1} justifyContent="flex-end">
             <Button size="small" startIcon={<EditIcon />} onClick={() => { setDraft(structuredClone(selected)); setNotice(''); setError(''); setValidationAttempted(false) }}>Edit</Button>
-            <Button size="small" color="error" onClick={() => { setRoutines((current) => current.filter((routine) => routine.id !== selected.id)); setNotice('Archived in the demo only. Refreshing restores sample routines.') }}>Archive</Button>
+            <Button size="small" color="error" onClick={() => { setRoutines((current) => current.filter((routine) => routine.id !== selected.id)); setNotice('Archived for this browser session. Refreshing restores the routine.') }}>Archive</Button>
           </Stack>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1.1fr) minmax(0, .9fr)' }, gap: 3 }}>
             <Box minWidth={0}><Typography component="h2" variant="h5" sx={{ fontFamily: 'Georgia, serif' }}>{selected.name}</Typography><Typography color="text.secondary" sx={{ mt: .75, whiteSpace: 'pre-wrap' }}>{selected.description || 'No routine description yet.'}</Typography></Box>

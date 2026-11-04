@@ -304,7 +304,8 @@ Result metadata was added by `routine_patient_results` on November 3, 2026
 (America/Los_Angeles). Existing provider-scoped SELECT policies protect the new
 columns. Browser clients have no INSERT/UPDATE grant; this phase adds no patient
 submission API and does not change mobile RPC return shapes. Provider views show
-comments read-only and explicitly label seeded feedback as demo results.
+comments read-only. Feedback is displayed normally for the demonstration patient;
+routine-level provenance remains recorded in `patient_result_source`.
 
 ### `routine_assignment_exercise_feedback`
 
@@ -332,7 +333,9 @@ Saves lock patient → relationship → assignment, recheck ownership/active car
 and reject future dates using the server scheduling timezone and cancelled
 assignments. This order serializes with cancellation and discharge. Patient reads
 can retrieve their historical feedback; only active care accepts new submissions.
-No historical or demo pain scores were inserted during deployment.
+The initial schema deployment inserted no scores. Four pain responses were later
+added to Frank's completed October 26–27 routines at the user's request; see the
+hosted routine update log. Missed exercises remain unrated.
 
 ### `routine_exercises`
 

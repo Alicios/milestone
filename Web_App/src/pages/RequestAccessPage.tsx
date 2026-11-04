@@ -81,7 +81,7 @@ export function RequestAccessPage() {
             </Typography>
           </Stack>
         </Paper>
-        <Typography textAlign="center" mt={3} variant="caption" color="text.secondary">Milestone prototype • No real patient data is used</Typography>
+        <Typography textAlign="center" mt={3} variant="caption" color="text.secondary">Milestone provider portal</Typography>
       </Container>
     </Box>
   )

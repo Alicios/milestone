@@ -1,5 +1,8 @@
 # Keep the routine status regression coverage reviewable under the root test ignores.
 !tests/routineStatus.test.mjs
 !tests/browser/routineStatus.spec.mjs
+!tests/exerciseFeedback.test.mjs
+!tests/browser/exerciseFeedback.spec.mjs
+!tests/browser/mobileExerciseFeedback.spec.mjs
 /test-results/
 /supabase/.temp/

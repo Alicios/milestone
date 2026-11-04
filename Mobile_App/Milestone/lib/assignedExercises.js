@@ -39,7 +39,8 @@ export function normalizeAssignedExercises(list, catalog, accents) {
     const durationSeconds = positiveInteger(item.duration_seconds ?? item.timer, 'duration', null);
     const detail = item.notes ?? details?.desc ?? '';
     return {
-      id: `${index}:${item.exercise_id ?? name}`,
+      id: item.assignmentExerciseId ?? `${index}:${item.exercise_id ?? name}`,
+      assignmentExerciseId: item.assignmentExerciseId ?? null,
       name,
       detail,
       overview: detail,

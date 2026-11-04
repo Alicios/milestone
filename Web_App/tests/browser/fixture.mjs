@@ -22,7 +22,7 @@ export async function setup(context, options = {}) {
       { id: routineA, name: 'Catalog A', exercise_list: [{ exercise_id: exercise, name: 'Catalog exercise', sets: 3, reps: 12, duration_seconds: 30, notes: 'Move slowly' }] },
       { id: routineB, name: 'Catalog B', exercise_list: [{ exercise_id: exercise, name: 'Catalog exercise', sets: 2, reps: 8, duration_seconds: null, notes: null }] },
     ],
-    assignments: [], snapshots: [], receipts: new Map(), writes: [], previews: [], cancellations: [], reads: [],
+    assignments: [], snapshots: [], exerciseFeedback: [], failExerciseFeedback: false, receipts: new Map(), writes: [], previews: [], cancellations: [], reads: [],
     lostResponse: false, rejectBatch: null, failReload: false, failReceipt: false, cancelledResponseLost: false,
     foreignDates: [], holdRead: null, ...options,
   }
@@ -115,6 +115,10 @@ export async function setup(context, options = {}) {
       if (state.holdSnapshots) await state.holdSnapshots()
       if (state.failSnapshots) return failure('42501', 'Snapshot access denied')
       return reply(state.snapshots)
+    }
+    if (name === 'routine_assignment_exercise_feedback') {
+      if (state.failExerciseFeedback) return failure('42501', 'Feedback access denied')
+      return reply(state.exerciseFeedback)
     }
     return reply([])
   })

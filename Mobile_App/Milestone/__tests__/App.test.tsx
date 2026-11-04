@@ -15,11 +15,13 @@ import * as Haptics from 'expo-haptics';
 jest.mock('../lib/supabase', () => ({ isSupabaseConfigured: true, supabase: {} }));
 jest.mock('../lib/usePatientMessages', () => ({ __esModule: true, default: () => ({ conversations: [], messages: [], loading: false, error: '', unread: 0 }) }));
 jest.mock('../lib/patientRoutine', () => ({ loadPatientRoutine: async () => ({ routine: { name: 'Daily routine' }, exercises: require('../lib/assignedExercises').normalizeAssignedExercises([
-  {name: 'Push Ups', sets: 3, reps: 5, notes: 'A simple upper-body exercise that strengthens your chest, shoulders, and arms. Keep your body straight and move at a comfortable pace.'},
-  {name: 'Sit Ups', sets: 3, reps: 5, notes: 'A core-strengthening exercise that works your abdominal muscles. Move slowly and avoid pulling on your neck.'},
-  {name: 'Quad Stretch', sets: 1, duration_seconds: 30, notes: 'A lower-body stretch that helps improve flexibility in the front of your thigh.'},
-  {name: 'Leg Stretch', sets: 1, duration_seconds: 30, notes: 'A gentle stretch for the legs that helps improve mobility and flexibility.'}
+  {assignmentExerciseId: '00000000-0000-0000-0000-000000000001', name: 'Push Ups', sets: 3, reps: 5, notes: 'A simple upper-body exercise that strengthens your chest, shoulders, and arms. Keep your body straight and move at a comfortable pace.'},
+  {assignmentExerciseId: '00000000-0000-0000-0000-000000000002', name: 'Sit Ups', sets: 3, reps: 5, notes: 'A core-strengthening exercise that works your abdominal muscles. Move slowly and avoid pulling on your neck.'},
+  {assignmentExerciseId: '00000000-0000-0000-0000-000000000003', name: 'Quad Stretch', sets: 1, duration_seconds: 30, notes: 'A lower-body stretch that helps improve flexibility in the front of your thigh.'},
+  {assignmentExerciseId: '00000000-0000-0000-0000-000000000004', name: 'Leg Stretch', sets: 1, duration_seconds: 30, notes: 'A gentle stretch for the legs that helps improve mobility and flexibility.'}
 ], [], ['#8BC0BC']) }) }));
+
+jest.mock('../lib/exerciseFeedback', () => ({ saveExerciseFeedback: jest.fn(async (_id, value) => ({ ...value, reportedAt: '2026-11-03T18:00:00Z' })) }));
 
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(async () => {}),
@@ -98,6 +100,10 @@ function button(label: string) {
 }
 
 async function press(label: string) {
+  if (label === 'Next exercise') {
+    await ReactTestRenderer.act(() => button('Pain 3 out of 10').props.onPress());
+    await ReactTestRenderer.act(() => button('Exercise felt good').props.onPress());
+  }
   await ReactTestRenderer.act(() => button(label).props.onPress());
 }
 

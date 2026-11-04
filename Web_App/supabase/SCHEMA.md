@@ -306,6 +306,34 @@ columns. Browser clients have no INSERT/UPDATE grant; this phase adds no patient
 submission API and does not change mobile RPC return shapes. Provider views show
 comments read-only and explicitly label seeded feedback as demo results.
 
+### `routine_assignment_exercise_feedback`
+
+Latest patient-submitted response for an immutable assigned exercise snapshot.
+This is independent of routine completion, routine issues and routine-level
+comments. Exercise names/catalog UUIDs are not feedback identity keys.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| `routine_assignment_exercise_id` | `uuid` | Primary key and FK to `routine_assignment_exercises.id`, with deletion restricted. |
+| `pain_score` | `smallint` | Required integer 1–10. Display bands: 1–3 green, 4–6 amber, 7–10 red; no automatic clinical flag or routine status change. |
+| `feeling` | `text` | Required `good`, `neutral`, or `difficult`. |
+| `explanation` | `text`, nullable | Required nonblank plain text for Neutral/Difficult, at most 4000 characters; null for Good. Space/tab/newline-only explanations are rejected. |
+| `reported_at` | `timestamptz` | Server-generated time of the latest saved response. Repeat submissions update the same row. |
+
+Provider SELECT uses relationship-scoped RLS; client roles have no direct DML.
+Patients use `get_my_routine_exercise_feedback(p_routine_assignment_id uuid)` and
+`save_my_routine_exercise_feedback(p_routine_assignment_exercise_id uuid,
+p_pain_score integer, p_feeling text, p_explanation text default null)`.
+Both return feedback rows. Public wrappers are SECURITY INVOKER, with protected
+ownership-checked implementations in the non-exposed `milestone_exercise_feedback`
+schema. Anonymous execution is revoked. Identity comes only from `auth.uid()`.
+
+Saves lock patient → relationship → assignment, recheck ownership/active care,
+and reject future dates using the server scheduling timezone and cancelled
+assignments. This order serializes with cancellation and discharge. Patient reads
+can retrieve their historical feedback; only active care accepts new submissions.
+No historical or demo pain scores were inserted during deployment.
+
 ### `routine_exercises`
 
 Legacy normalized template exercises retained for historical compatibility.

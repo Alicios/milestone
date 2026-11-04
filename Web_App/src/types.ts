@@ -67,6 +67,14 @@ export interface RoutineExercise extends ExercisePrescription {
   id: string
   name: string
   position: number
+  patientFeedback?: ExercisePatientFeedback
+}
+
+export interface ExercisePatientFeedback {
+  painScore: number
+  feeling: 'good' | 'neutral' | 'difficult'
+  explanation: string | null
+  reportedAt: string
 }
 
 export interface Routine {
@@ -95,6 +103,7 @@ export interface RoutineAssignment {
   exercises: RoutineExercise[]
   followUp?: FollowUpAppointment
   patientResult?: RoutinePatientResult
+  exerciseFeedbackError?: string
 }
 
 export interface RoutinePatientResult {

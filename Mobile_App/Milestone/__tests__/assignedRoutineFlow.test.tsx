@@ -12,6 +12,8 @@ import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-au
 import { Accelerometer } from 'expo-sensors';
 import * as Haptics from 'expo-haptics';
 
+jest.mock('../lib/exerciseFeedback', () => ({ saveExerciseFeedback: jest.fn(async (_id, value) => ({ ...value, reportedAt: '2026-11-03T18:00:00Z' })) }));
+
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(async () => {}),
   ImpactFeedbackStyle: { Light: 'light' },
@@ -89,7 +91,11 @@ function button(label: string) {
 }
 
 async function press(label: string) {
-  await ReactTestRenderer.act(() => button(label).props.onPress());
+  if (label === 'Next exercise') {
+    await ReactTestRenderer.act(() => button('Pain 3 out of 10').props.onPress());
+    await ReactTestRenderer.act(() => button('Exercise felt good').props.onPress());
+  }
+  await ReactTestRenderer.act(async () => { await button(label).props.onPress(); });
 }
 
 async function advanceTime(milliseconds: number) {
@@ -115,7 +121,7 @@ jest.mock('../lib/supabase', () => ({ isSupabaseConfigured: true, supabase: {} }
 jest.mock('../lib/usePatientMessages', () => ({ __esModule: true, default: () => ({ conversations: [], messages: [], loading: false, error: '', unread: 0 }) }));
 jest.mock('../lib/patientRoutine', () => ({ loadPatientRoutine: async () => ({
   routine: mockAssignment ? { name: 'Lower Body' } : null,
-  exercises: mockAssignment ? require('../lib/assignedExercises').normalizeAssignedExercises(require('../lib/assignedExercises').parseExerciseList(mockExercises), mockCatalog, ['#8BC0BC']) : [],
+  exercises: mockAssignment ? require('../lib/assignedExercises').normalizeAssignedExercises(require('../lib/assignedExercises').parseExerciseList(mockExercises), mockCatalog, ['#8BC0BC']).map((exercise, index) => ({ ...exercise, assignmentExerciseId: `snapshot-${index}` })) : [],
 }) }));
 
 beforeEach(() => {
@@ -144,7 +150,7 @@ test('Frank can load, start and finish both legacy named exercises', async () =>
   await advanceTime(1000);
   expect(timerText()).toBe('00.01.00');
   await finishExercise(1);
-  expect(hasText('How did that feel?')).toBe(true);
+  expect(hasText('How did that feel? (required)')).toBe(true);
   await press('Next exercise');
   await press('Start exercise');
   await finishExercise(1);

@@ -495,10 +495,30 @@ export async function loadRoutineAssignments(profileIds: string[], startDate: st
       loadRoutineFollowUps(assignmentIds),
     ])
 
+    type FeedbackRow = { routine_assignment_exercise_id: string; pain_score: number; feeling: 'good' | 'neutral' | 'difficult'; explanation: string | null; reported_at: string }
+    let feedbackRows: FeedbackRow[] = []
+    let exerciseFeedbackError: string | undefined
+    // Feedback failure must not hide the prescription or masquerade as "Not rated".
+    if (exercises.length) {
+      try {
+        const feedback = await supabase.from('routine_assignment_exercise_feedback')
+          .select('routine_assignment_exercise_id, pain_score, feeling, explanation, reported_at')
+          .in('routine_assignment_exercise_id', exercises.map((exercise) => exercise.id))
+        if (feedback.error) throw feedback.error
+        feedbackRows = (feedback.data ?? []) as FeedbackRow[]
+      } catch {
+        exerciseFeedbackError = 'Patient exercise feedback could not be loaded.'
+      }
+    }
+    const feedbackByExercise = new Map(feedbackRows.map((feedback) => [feedback.routine_assignment_exercise_id, {
+      painScore: feedback.pain_score, feeling: feedback.feeling, explanation: feedback.explanation, reportedAt: feedback.reported_at,
+    }]))
+
     const exercisesByAssignment = new Map<string, RoutineExercise[]>()
     for (const exercise of exercises) {
       const current = exercisesByAssignment.get(exercise.routine_assignment_id) ?? []
-      current.push(toExercise(exercise))
+      const patientFeedback = feedbackByExercise.get(exercise.id)
+      current.push({ ...toExercise(exercise), ...(patientFeedback ? { patientFeedback } : {}) })
       exercisesByAssignment.set(exercise.routine_assignment_id, current)
     }
     const followUpByAssignment = new Map<string, FollowUpAppointment>()
@@ -520,6 +540,7 @@ export async function loadRoutineAssignments(profileIds: string[], startDate: st
       routineName: assignment.routine_name_snapshot,
       exercises: exercisesByAssignment.get(assignment.id) ?? [],
       followUp: followUpByAssignment.get(assignment.id),
+      ...(exerciseFeedbackError ? { exerciseFeedbackError } : {}),
       ...('patient_in_progress' in assignment ? { patientResult: {
         inProgress: assignment.patient_in_progress === true,
         issue: assignment.patient_issue_severity === 'noncritical' || assignment.patient_issue_severity === 'critical' ? assignment.patient_issue_severity : undefined,

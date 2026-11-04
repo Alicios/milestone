@@ -221,6 +221,63 @@ an unguarded older writer or overwrite newer data with a stale recovery export.
 
 ## Hosted routine record update log
 
+### 2026-11-03 — Per-exercise pain and feeling feedback
+
+- Applied `20261104022812_exercise_pain_feedback` and
+  `20261104024611_exercise_feedback_nonblank_reason` to project
+  `lwldkhrsngwtuhztlmul` (versions use UTC; this log uses America/Los_Angeles).
+- Added one latest response per assigned exercise snapshot: required pain 1–10,
+  Good/Neutral/Difficult feeling, required explanation for Neutral/Difficult,
+  and server reporting time. Good discards an earlier explanation. Pain colors
+  remain independent of routine completion/issue colors.
+- Public RPC wrappers use SECURITY INVOKER and private, ownership-checked
+  implementations. Existing assignment/prescription RPC shapes remain unchanged.
+  No client direct writes, anonymous execution, or cross-provider reads were added.
+- Provider pages and weekly routine details display read-only exercise responses
+  separately from provider notes and routine-level comments. Feedback read errors
+  retain prescriptions and offer retry rather than showing a false “Not rated”.
+- Mobile review saves before advancing, preserves failed-save drafts, restores
+  latest responses by snapshot UUID, and adds a neutral feeling option and a
+  required conditional explanation. Final overall routine review is unchanged.
+- Frank's existing demo results and every assignment matched their pre-deployment
+  fingerprint. Hosted smoke tests rolled back all probe scores; the new table was
+  empty after verification. No pain scores were invented or backfilled.
+- Verification: 74 focused provider tests; 116 mobile tests in 22 runnable suites;
+  13 provider browser scenarios plus four opt-in mobile-to-provider browser
+  scenarios using shared isolated transport fixtures. Reviewed phone/desktop,
+  light/dark screenshots. Provider production build and Expo Android/iOS/web
+  JavaScript exports passed. Provider type checks and targeted mobile lint passed
+  (mobile lint retains style warnings).
+- Disposable PostgreSQL 16.15 tests passed five groups, including both real
+  cancellation races, repeated names, upserts, invalid input, future/cancelled/
+  discharged assignments and access isolation. Hosted PostgreSQL 17 smoke tests
+  passed owner save/read, provider reads, foreign/anonymous denial and validation.
+  These test scopes are distinct from native device verification.
+- The full mobile Jest command still cannot load the unrelated
+  `ProfileSettingsPanel.test.js` and `patientSignIn.test.js` suites because their
+  current setup imports Expo SecureStore ESM through CommonJS. The 22 remaining
+  suites pass with those two excluded; the production exports load successfully.
+- Physical Android/iOS screen-reader, keyboard, and touch checks remain manual.
+  This change deployed the database only; app builds/exports were not published.
+- Security Advisor showed the existing scheduling-policy, public RPC and Auth
+  notices, with no findings on the new feedback objects. Existing RPC notice:
+  [authenticated SECURITY DEFINER calls](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable).
+
+Reproduction from `Web_App`:
+
+```sh
+node --test tests/exerciseFeedback.test.mjs tests/routineStatus.test.mjs tests/catalogRoutines.test.mjs tests/scheduling.test.mjs
+npx playwright test tests/browser/exerciseFeedback.spec.mjs tests/browser/assignmentDetails.spec.mjs tests/browser/routineStatus.spec.mjs
+python3 supabase/tests/exercise_feedback_integration.py --pg-bin /path/to/local/postgresql/bin
+```
+
+For the optional cross-app browser fixture, export the mobile web app, serve it
+on localhost, set `MILESTONE_MOBILE_EXPORT_URL` to its origin, and run
+`npx playwright test tests/browser/mobileExerciseFeedback.spec.mjs`. It blocks
+external traffic and exercises the actual app UIs against shared in-memory
+responses. `supabase/tests/exercise_feedback_hosted.sql` is a rollback-only smoke
+test with Frank's approved snapshot and should be run only against that project.
+
 ### 2026-11-03 — Frank Murgolo previous-week demo results
 
 - Project `lwldkhrsngwtuhztlmul`; only Frank's three existing active assignments

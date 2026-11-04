@@ -4,6 +4,7 @@ import { formatCalendarDate } from '../lib/week'
 import { resolveRoutineStatus, type RoutineProgressSignals } from '../lib/routineStatus'
 import { RoutineStatusLabel } from './RoutineStatus'
 import { PatientRoutineFeedback } from './PatientRoutineFeedback'
+import { ExercisePatientFeedback } from './ExercisePatientFeedback'
 
 // Only assignment snapshots enter this component; editable templates are not inputs.
 export function AssignedRoutineDetails({ id, assignment, today, signals, loading, error, onRetry, onClose }: {
@@ -33,6 +34,7 @@ export function AssignedRoutineDetails({ id, assignment, today, signals, loading
           {formatCalendarDate(assignment.scheduledDate, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </Typography>
         <PatientRoutineFeedback assignment={assignment} />
+        {assignment.exerciseFeedbackError && <Alert severity="warning" sx={{ mt: 1 }} action={<Button color="inherit" onClick={onRetry}>Retry feedback</Button>}>{assignment.exerciseFeedbackError}</Alert>}
         {!assignment.exercises.length ? <Typography role="status" sx={{ mt: 2 }}>No exercise details were recorded for this assignment.</Typography>
           : <Stack component="ol" spacing={2} sx={{ pl: 3, mb: 0 }}>
             {[...assignment.exercises].sort((a, b) => a.position - b.position).map((exercise) => <Box component="li" key={exercise.id} sx={{ pl: .5, overflowWrap: 'anywhere' }}>
@@ -47,10 +49,11 @@ export function AssignedRoutineDetails({ id, assignment, today, signals, loading
                   <Typography component="dd" sx={{ m: 0 }}>{value}</Typography>
                 </Box>)}
                 <Box sx={{ gridColumn: '1 / -1' }}>
-                  <Typography component="dt" variant="body2" color="text.secondary">Notes</Typography>
+                  <Typography component="dt" variant="body2" color="text.secondary">Provider notes</Typography>
                   <Typography component="dd" sx={{ m: 0, whiteSpace: 'pre-wrap' }}>{exercise.notes?.trim() ? exercise.notes : 'Not specified'}</Typography>
                 </Box>
               </Box>
+              <ExercisePatientFeedback feedback={exercise.patientFeedback} unavailable={Boolean(assignment.exerciseFeedbackError)} />
             </Box>)}
           </Stack>}
       </>}

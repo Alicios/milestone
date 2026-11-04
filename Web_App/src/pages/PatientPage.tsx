@@ -23,6 +23,7 @@ import type { RoutineAssignment } from '../types'
 import { resolveRoutineStatus } from '../lib/routineStatus'
 import { RoutineStatusCard, RoutineStatusLegend } from '../components/RoutineStatus'
 import { PatientRoutineFeedback } from '../components/PatientRoutineFeedback'
+import { ExercisePatientFeedback } from '../components/ExercisePatientFeedback'
 
 function Detail({ label, children }: { label: string; children?: ReactNode }) {
   return <Box sx={{ minWidth: 0 }}>
@@ -32,7 +33,7 @@ function Detail({ label, children }: { label: string; children?: ReactNode }) {
 }
 
 function PatientOverview({ patient }: { patient: Patient }) {
-  const { assignments, weekDates, policy, occupied, setWeek, assignmentsLoading, openSchedule, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, dischargePatient } = useOutletContext<DashboardOutletContext>()
+  const { assignments, weekDates, policy, occupied, setWeek, assignmentsLoading, retryAssignments, openSchedule, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, dischargePatient } = useOutletContext<DashboardOutletContext>()
   const navigate = useNavigate()
   const heading = useRef<HTMLHeadingElement>(null)
   const [selectedDay, setSelectedDay] = useState(0)
@@ -133,10 +134,12 @@ function PatientOverview({ patient }: { patient: Patient }) {
                       <Box minWidth={0}>
                         <Typography fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>{assignment.routineName}</Typography>
                         <PatientRoutineFeedback assignment={assignment} />
+                        {assignment.exerciseFeedbackError && <Alert severity="warning" sx={{ mt: 1 }} action={<Button color="inherit" onClick={retryAssignments}>Retry feedback</Button>}>{assignment.exerciseFeedbackError}</Alert>}
                         {!assignment.exercises.length && <Typography variant="body2">No exercises listed</Typography>}
                         {assignment.exercises.map((exercise) => <Box key={exercise.id} sx={{ mt: .5 }}>
                           <Typography variant="body2">{exercise.name}{prescriptionSummary(exercise) && ` · ${prescriptionSummary(exercise)}`}</Typography>
-                          {exercise.notes && <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{exercise.notes}</Typography>}
+                          {exercise.notes && <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>Provider notes: {exercise.notes}</Typography>}
+                          <ExercisePatientFeedback feedback={exercise.patientFeedback} unavailable={Boolean(assignment.exerciseFeedbackError)} />
                         </Box>)}
                         {assignment.followUp?.status === 'scheduled' ? <Typography variant="body2" sx={{ mt: 1 }}><strong>Follow-up:</strong> {new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(assignment.followUp.scheduledAt))}</Typography> : assignment.followUp?.status === 'completed' ? <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>Follow-up completed</Typography> : <Typography variant="body2" color="warning.main" sx={{ mt: 1 }}>Follow-up needs scheduling</Typography>}
                       </Box>

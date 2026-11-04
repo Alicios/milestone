@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { normalizeAssignedExercises } from './assignedExercises';
+import { loadExerciseFeedback } from './exerciseFeedback';
 
 async function rpc(name, args) {
   const { data, error } = await supabase.rpc(name, args);
@@ -16,9 +17,13 @@ export async function loadPatientRoutine(today, accents) {
     .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))[0];
   if (!assignment) return { routine: null, exercises: [] };
   const rows = await rpc('get_my_routine_assignment_prescriptions', { p_routine_assignment_id: assignment.id });
-  const list = rows.map(row => ({ name: row.exercise_name_snapshot, sets: row.sets_snapshot, reps: row.reps_snapshot, duration_seconds: row.timer_seconds_snapshot, notes: row.notes_snapshot }));
+  let feedback = new Map();
+  let feedbackError = '';
+  try { feedback = await loadExerciseFeedback(assignment.id); }
+  catch { feedbackError = 'Your saved exercise responses could not be loaded. Please retry.'; }
+  const list = rows.map(row => ({ assignmentExerciseId: row.id, name: row.exercise_name_snapshot, sets: row.sets_snapshot, reps: row.reps_snapshot, duration_seconds: row.timer_seconds_snapshot, notes: row.notes_snapshot }));
   return {
     routine: { name: assignment.routine_name_snapshot, assignmentId: assignment.id, scheduledDate: assignment.scheduled_date, status: assignment.status },
-    exercises: normalizeAssignedExercises(list, [], accents),
+    exercises: normalizeAssignedExercises(list, [], accents).map(exercise => ({ ...exercise, patientFeedback: feedback.get(exercise.assignmentExerciseId), patientFeedbackError: feedbackError })),
   };
 }

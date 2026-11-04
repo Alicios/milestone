@@ -32,6 +32,8 @@ import UnlockGate from './components/UnlockGate';
 import MessagesScreen from './components/MessagesScreen';
 import usePatientMessages from './lib/usePatientMessages';
 import { loadPatientRoutine } from './lib/patientRoutine';
+import useExerciseReview from './lib/useExerciseReview';
+import ExerciseReviewFeedback from './components/ExerciseReviewFeedback';
 import EasterEggSelector from './components/EasterEggSelector';
 import useAdaptiveLayout from './components/useAdaptiveLayout';
 import LockKeyhole from 'lucide-react-native/icons/lock-keyhole';
@@ -105,7 +107,7 @@ export default function App() {
       <AppFontsContext.Provider value={fontsLoaded}>
         <PatientSessionProvider>
         <UnlockGate>
-          {({ unlocked, onLock, profile, onOpenProfile }) => <AppContent isUnlocked={unlocked} onLock={onLock} profile={profile} onOpenProfile={onOpenProfile} />}
+          {({ unlocked, onLock, profile, onOpenProfile }) => <AppContent key={profile?.id || 'signed-out'} isUnlocked={unlocked} onLock={onLock} profile={profile} onOpenProfile={onOpenProfile} />}
         </UnlockGate>
         </PatientSessionProvider>
       </AppFontsContext.Provider>
@@ -155,6 +157,8 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
       ? 'Resume'
       : 'Start';
 
+
+  const exerciseReview = useExerciseReview({ patientId: databasePatientId, enabled: isUnlocked, assignmentId: routine?.assignmentId, exercise: activeExercise, visible: screen === 'review', onSaved: goToNextExercise });
 
   const [timerCentiseconds, setTimerCentiseconds] = useState(0);
   useEffect(() => {
@@ -661,6 +665,8 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     return (
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <ScrollView
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
           style={styles.screenScroll}
           contentContainerStyle={styles.reviewScreen}
         >
@@ -695,50 +701,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
             </View>
           </View>
 
-          <Text style={styles.feelingQuestion}>
-            How did that feel?
-          </Text>
-
-          <View style={styles.feelingRow}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Exercise felt good"
-              aria-selected={reviewRating === 'up'}
-              accessibilityState={{ selected: reviewRating === 'up' }}
-              style={[
-                styles.feelingButton,
-                reviewRating === 'up' &&
-                  styles.selectedFeelingButton,
-              ]}
-              onPress={() => setReviewRating('up')}
-            >
-              <Text style={styles.feelingEmoji}>👍</Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Exercise felt difficult"
-              aria-selected={reviewRating === 'down'}
-              accessibilityState={{ selected: reviewRating === 'down' }}
-              style={[
-                styles.feelingButton,
-                reviewRating === 'down' &&
-                  styles.selectedFeelingButton,
-              ]}
-              onPress={() => setReviewRating('down')}
-            >
-              <Text style={styles.feelingEmoji}>👎</Text>
-            </Pressable>
-          </View>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Next exercise"
-            style={styles.reviewNextButton}
-            onPress={goToNextExercise}
-          >
-            <Text style={styles.reviewNextButtonText}>NEXT</Text>
-          </Pressable>
+          <ExerciseReviewFeedback review={exerciseReview} />
         </ScrollView>
         {renderDock()}
       </SafeAreaView>

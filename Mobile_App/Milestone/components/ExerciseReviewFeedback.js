@@ -2,15 +2,13 @@ import React from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Text from './AppText';
 import { useAppTheme } from './AppTheme';
+import ReviewCard from './ReviewCard';
+import PainSlider from './PainSlider';
 
 export default function ExerciseReviewFeedback({ review, explanationRef, onExplanationFocus, onExplanationBlur }) {
-  const { colors, mode } = useAppTheme();
+  const { colors } = useAppTheme();
   const { value, change, submit, saving, error } = review;
   const ink = colors.text;
-  const painColors = score => score <= 3
-    ? { backgroundColor: mode === 'dark' ? '#204b36' : '#d4eddd', color: mode === 'dark' ? '#dcf8e7' : '#174c30' }
-    : score <= 6 ? { backgroundColor: mode === 'dark' ? '#584b1e' : '#fff1b8', color: mode === 'dark' ? '#fff2b8' : '#594400' }
-      : { backgroundColor: mode === 'dark' ? '#792333' : '#fbe0e0', color: mode === 'dark' ? '#fff1f3' : '#792d32' };
   return <View style={styles.section}>
     {Boolean(review.readError) && <View>
       <Text accessibilityRole="alert" style={{ color: colors.error }}>{review.readError}</Text>
@@ -19,24 +17,8 @@ export default function ExerciseReviewFeedback({ review, explanationRef, onExpla
         <Text style={{ color: ink }}>{review.loadingSaved ? 'LOADING?' : 'RETRY SAVED RESPONSES'}</Text>
       </Pressable>
     </View>}
-    <Text style={[styles.heading, { color: ink }]}>How much pain did you feel during this exercise?</Text>
-    <Text style={{ color: colors.muted }}>Choose a pain score (required)</Text>
-    {[0, 5].map(start => <View key={start} style={styles.row}>
-      {Array.from({ length: 5 }, (_, index) => start + index + 1).map(score => {
-        const tone = painColors(score);
-        const selected = value.painScore === score;
-        return <Pressable key={score} accessibilityRole="button" accessibilityLabel={`Pain ${score} out of 10`}
-          accessibilityState={{ selected, disabled: saving }} aria-pressed={selected} disabled={saving}
-          onPress={() => change({ painScore: score })}
-          style={[styles.painButton, { backgroundColor: tone.backgroundColor, borderColor: selected ? ink : colors.border, borderWidth: selected ? 3 : 1 }]}>
-          <Text style={[styles.number, { color: tone.color }]}>{score}</Text>
-          <Text style={{ color: tone.color, fontSize: 10 }}>{selected ? 'Selected' : ' '}</Text>
-        </Pressable>;
-      })}
-    </View>)}
-    <View style={styles.endpoints}><Text style={{ color: ink }}>1 — Least pain</Text><Text style={{ color: ink }}>10 — Most pain</Text></View>
-    <Text style={{ color: colors.muted, fontSize: 12 }}>1–3 green · 4–6 amber · 7–10 red</Text>
-    <Text style={[styles.heading, { color: ink, marginTop: 12 }]}>How did that feel? (required)</Text>
+    <ReviewCard title="How did it feel?" testID="exercise-feeling">
+    <Text style={[styles.hint, { color: colors.text }]}>Choose one (required)</Text>
     <View style={styles.row}>
       {[['good', '👍', 'Good'], ['neutral', '😐', 'Neutral'], ['difficult', '👎', 'Difficult']].map(([feeling, emoji, label]) => {
         const selected = value.feeling === feeling;
@@ -48,7 +30,7 @@ export default function ExerciseReviewFeedback({ review, explanationRef, onExpla
         </Pressable>;
       })}
     </View>
-    {value.feeling && value.feeling !== 'good' && <View>
+    {value.feeling && value.feeling !== 'good' && <View style={styles.explanationSection}>
       <Text style={{ color: ink, marginBottom: 6 }}>Tell your provider why (required)</Text>
       <TextInput ref={explanationRef} accessibilityLabel="Tell your provider why" value={value.explanation || ''}
         onFocus={onExplanationFocus} onBlur={onExplanationBlur}
@@ -57,6 +39,16 @@ export default function ExerciseReviewFeedback({ review, explanationRef, onExpla
         style={[styles.explanation, { color: ink, borderColor: colors.border, backgroundColor: colors.surface }]} />
       <Text style={{ color: colors.muted, fontSize: 12 }}>{[...(value.explanation || '')].length}/4000</Text>
     </View>}
+    </ReviewCard>
+    <ReviewCard title="Pain level" testID="exercise-pain">
+      <View style={styles.painSummary}>
+        <Text style={[styles.painPrompt, { color: ink }]}>How much pain did you feel during this exercise?</Text>
+        <Text style={[styles.score, { color: ink }]}>{value.painScore == null ? '—' : value.painScore}<Text style={styles.scoreTotal}> / 10</Text></Text>
+      </View>
+      <PainSlider value={value.painScore} disabled={saving} onChange={painScore => change({ painScore })} />
+      <View style={styles.endpoints}><Text style={{ color: ink }}>1 · Least pain</Text><Text style={{ color: ink }}>10 · Most pain</Text></View>
+      <Text style={[styles.sliderHint, { color: ink }]}>{value.painScore == null ? 'Slide to choose a pain score (required)' : `Selected: ${value.painScore} out of 10`}</Text>
+    </ReviewCard>
     {Boolean(error) && <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={{ color: colors.error }}>{error}</Text>}
     <Pressable accessibilityRole="button" accessibilityLabel="Next exercise" accessibilityState={{ disabled: saving }} disabled={saving}
       onPress={submit} style={[styles.next, { backgroundColor: colors.accent, opacity: saving ? .6 : 1 }]}>
@@ -66,10 +58,15 @@ export default function ExerciseReviewFeedback({ review, explanationRef, onExpla
 }
 
 const styles = StyleSheet.create({
-  section: { gap: 10, alignSelf: 'stretch' }, heading: { fontSize: 17, fontWeight: '700' },
+  section: { gap: 16, marginTop: 16, alignSelf: 'stretch' },
+  hint: { fontSize: 13, marginBottom: 12 },
+  explanationSection: { marginTop: 16 },
   row: { flexDirection: 'row', gap: 6 }, endpoints: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 },
-  painButton: { flex: 1, minHeight: 56, minWidth: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center', paddingVertical: 5 },
-  number: { fontSize: 20, fontWeight: '800' }, feeling: { flex: 1, minHeight: 78, alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingVertical: 8 },
+  painSummary: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
+  painPrompt: { fontSize: 14, flexGrow: 1, flexShrink: 1, flexBasis: 150 },
+  score: { fontSize: 28, fontWeight: '800' }, scoreTotal: { fontSize: 14, fontWeight: '500' },
+  sliderHint: { fontSize: 12, marginTop: 12 },
+  feeling: { flex: 1, minWidth: 0, minHeight: 78, alignItems: 'center', justifyContent: 'center', borderRadius: 12, paddingVertical: 8 },
   emoji: { fontSize: 28 }, explanation: { minHeight: 110, maxHeight: 140, borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 16 },
   next: { minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 14, marginTop: 10 },
 });

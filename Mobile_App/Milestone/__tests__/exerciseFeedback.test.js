@@ -17,6 +17,14 @@ function Harness({ patientId = 'patient-a', enabled = true, visible = true, curr
 }
 const button = label => renderer.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0];
 const press = async label => { await act(async () => { await button(label).props.onPress(); }); };
+async function choosePain(score) {
+  const slider = () => renderer.root.findByProps({testID: 'pain-slider'});
+  while (slider().props.accessibilityValue.now !== score) {
+    const current = slider().props.accessibilityValue.now;
+    await act(async () => slider().props.onAccessibilityAction({nativeEvent: {actionName: current == null || current < score ? 'increment' : 'decrement'}}));
+  }
+}
+
 async function mount(props = {}) { await act(async () => { renderer = Renderer.create(<Harness onSaved={jest.fn()} {...props} />); }); }
 beforeEach(() => { supabase.rpc.mockReset(); supabase.rpc.mockImplementation(async (name, args) => ({ data: name.startsWith('save_') ? [row(args)] : [] })); });
 afterEach(async () => { if (renderer) await act(async () => renderer.unmount()); renderer = null; });
@@ -24,7 +32,7 @@ afterEach(async () => { if (renderer) await act(async () => renderer.unmount());
 test('requires score, feeling and explanation before sending; good discards an old explanation', async () => {
   const onSaved = jest.fn(); await mount({ onSaved });
   await press('Next exercise'); expect(review.error).toMatch(/pain score/);
-  await press('Pain 6 out of 10'); await press('Next exercise'); expect(review.error).toMatch(/Choose Good/);
+  await choosePain(6); await press('Next exercise'); expect(review.error).toMatch(/Choose Good/);
   await press('Exercise felt neutral'); await press('Next exercise'); expect(review.error).toMatch(/Tell your provider why/);
   expect(supabase.rpc).not.toHaveBeenCalled();
   await act(async () => renderer.root.findByType(TextInput).props.onChangeText('Balance was hard.'));
@@ -36,7 +44,7 @@ test('requires score, feeling and explanation before sending; good discards an o
 
 test('rapid next clicks share one save; failure retains answers and retry succeeds', async () => {
   await mount();
-  await press('Pain 8 out of 10'); await press('Exercise felt difficult');
+  await choosePain(8); await press('Exercise felt difficult');
   await act(async () => renderer.root.findByType(TextInput).props.onChangeText('Please review this.'));
   let reject;
   supabase.rpc.mockImplementationOnce(() => new Promise((resolve, failure) => { reject = failure; }));
@@ -54,7 +62,7 @@ test('saved ratings hydrate by snapshot ID, including repeated names and reloade
   supabase.rpc.mockResolvedValueOnce({ data: [feedback] });
   const saved = await loadExerciseFeedback('assignment');
   await mount({ current: { ...exercise, name: 'Repeated stretch', patientFeedback: saved.get(exercise.assignmentExerciseId) } });
-  expect(button('Pain 10 out of 10').props.accessibilityState.selected).toBe(true);
+  expect(renderer.root.findByProps({testID: 'pain-slider'}).props.accessibilityValue.now).toBe(10);
   expect(button('Exercise felt neutral').props.accessibilityState.selected).toBe(true);
   expect(renderer.root.findByType(TextInput).props.value).toBe('Needed breaks.');
   await act(async () => renderer.update(<Harness patientId="patient-a" current={{ assignmentExerciseId: 'different-snapshot', name: 'Repeated stretch' }} onSaved={jest.fn()} />));
@@ -63,7 +71,7 @@ test('saved ratings hydrate by snapshot ID, including repeated names and reloade
 
 test('an account change clears the draft and a late save cannot advance the new patient', async () => {
   const onSaved=jest.fn(); await mount({ onSaved });
-  await press('Pain 2 out of 10'); await press('Exercise felt good');
+  await choosePain(2); await press('Exercise felt good');
   let resolve, submitted;
   supabase.rpc.mockImplementationOnce((name,args) => { submitted=args; return new Promise(done => { resolve=done; }); });
   let first; await act(async () => { first=button('Next exercise').props.onPress(); });
@@ -74,7 +82,7 @@ test('an account change clears the draft and a late save cannot advance the new 
 
 test('leaving review during a save does not navigate on success; returning retains the saved response', async () => {
   const onSaved=jest.fn(); await mount({ onSaved });
-  await press('Pain 1 out of 10'); await press('Exercise felt good');
+  await choosePain(1); await press('Exercise felt good');
   let resolve, submitted;
   supabase.rpc.mockImplementationOnce((name,args) => { submitted=args; return new Promise(done => { resolve=done; }); });
   let first; await act(async () => { first=button('Next exercise').props.onPress(); });
@@ -94,7 +102,7 @@ test('bounds, malformed receipts and long explanations fail without silent succe
 
 test('failed feedback reads offer retry without losing a newly entered answer', async () => {
   await mount({ current: { ...exercise, patientFeedbackError: 'Saved feedback unavailable' } });
-  await press('Pain 4 out of 10');
+  await choosePain(4);
   supabase.rpc.mockResolvedValueOnce({ data: [row({ p_routine_assignment_exercise_id: exercise.assignmentExerciseId, p_pain_score: 8, p_feeling: 'neutral', p_explanation: 'Old response' })] });
   await press('Retry saved exercise feedback');
   expect(review.readError).toBe('');

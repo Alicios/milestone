@@ -3,14 +3,10 @@
  */
 
 import React from 'react';
-import {Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput} from 'react-native';
+import {Keyboard, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput} from 'react-native';
 import ReactTestRenderer from 'react-test-renderer';
 import type {ReactTestInstance} from 'react-test-renderer';
 import App from '../App';
-import {supabase} from '../lib/supabase';
-import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { Accelerometer } from 'expo-sensors';
-import * as Haptics from 'expo-haptics';
 
 jest.mock('../lib/exerciseFeedback', () => ({ saveExerciseFeedback: jest.fn(async (_id, value) => ({ ...value, reportedAt: '2026-11-03T18:00:00Z' })) }));
 
@@ -92,7 +88,7 @@ function button(label: string) {
 
 async function press(label: string) {
   if (label === 'Next exercise') {
-    await ReactTestRenderer.act(() => button('Pain 3 out of 10').props.onPress());
+    await choosePain(3);
     await ReactTestRenderer.act(() => button('Exercise felt good').props.onPress());
   }
   await ReactTestRenderer.act(async () => { await button(label).props.onPress(); });
@@ -117,17 +113,20 @@ async function finishExercise(sets: number) {
 let mockExercises: unknown[];
 let mockCatalog: unknown[];
 let mockAssignment: unknown;
+let mockUpcoming: unknown[];
 jest.mock('../lib/supabase', () => ({ isSupabaseConfigured: true, supabase: {} }));
 jest.mock('../lib/usePatientMessages', () => ({ __esModule: true, default: () => ({ conversations: [], messages: [], loading: false, error: '', unread: 0 }) }));
 jest.mock('../lib/patientRoutine', () => ({ loadPatientRoutine: async () => ({
   routine: mockAssignment ? { name: 'Lower Body' } : null,
   exercises: mockAssignment ? require('../lib/assignedExercises').normalizeAssignedExercises(require('../lib/assignedExercises').parseExerciseList(mockExercises), mockCatalog, ['#8BC0BC']).map((exercise, index) => ({ ...exercise, assignmentExerciseId: `snapshot-${index}` })) : [],
-}) }));
+  upcoming: mockUpcoming,
+}), exercisesForAssignment: jest.fn() }));
 
 beforeEach(() => {
   jest.clearAllMocks();
   jest.useFakeTimers();
   mockAssignment = {id: 'assignment', routine_id: 'routine', scheduled_date: '2026-10-26', status: 'scheduled'};
+  mockUpcoming = [];
   mockExercises = ['Leg Stretch', 'Calf Stretch'];
   mockCatalog = [{id: 'leg', name: 'Leg Stretch', desc: 'Stretch gently'}, {id: 'calf', name: 'Calf Stretch', desc: 'Stretch your calf'}];
 });
@@ -136,6 +135,15 @@ afterEach(async () => {
   jest.restoreAllMocks();
   jest.useRealTimers();
 });
+async function choosePain(score: number) {
+  const slider = () => renderer.root.findByProps({testID: 'pain-slider'});
+  const act = ReactTestRenderer.act;
+  while (slider().props.accessibilityValue.now !== score) {
+    const current = slider().props.accessibilityValue.now;
+    await act(async () => slider().props.onAccessibilityAction({nativeEvent: {actionName: current == null || current < score ? 'increment' : 'decrement'}}));
+  }
+}
+
 async function mount() {
   await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(<App />); });
 }
@@ -151,7 +159,7 @@ test('Frank can load, start and finish both legacy named exercises', async () =>
   await advanceTime(1000);
   expect(timerText()).toBe('00.01.00');
   await finishExercise(1);
-  expect(hasText('How did that feel? (required)')).toBe(true);
+  expect(hasText('How did it feel?')).toBe(true);
   await press('Next exercise');
   await press('Start exercise');
   await finishExercise(1);
@@ -171,7 +179,7 @@ test.each(['ios', 'android'] as const)('keeps %s exercise feedback accessible wh
   await press('Start routine');
   await press('Start exercise');
   await finishExercise(1);
-  await press('Pain 3 out of 10');
+  await choosePain(3);
   await press('Exercise felt difficult');
   const input = () => renderer.root.findByType(TextInput);
   await ReactTestRenderer.act(() => {
@@ -237,4 +245,34 @@ test('no assignment remains an empty day instead of a missing routine_id error',
   mockAssignment = null;
   await mount();
   expect(hasText('No routines today')).toBe(true);
+});
+
+test.each([true, false])('upcoming routines show prescribed exercises and stats when today has a routine: %s', async hasToday => {
+  if (!hasToday) mockAssignment = null;
+  mockUpcoming = [{id: 'future', name: 'Next mobility routine', scheduledDate: '2026-11-10', status: 'scheduled'}];
+  const loadExercises = require('../lib/patientRoutine').exercisesForAssignment;
+  loadExercises.mockResolvedValue(require('../lib/assignedExercises').normalizeAssignedExercises([
+    {assignmentExerciseId: 'future-reps', name: 'Ankle circles', sets: 3, reps: 12, notes: 'Circle each ankle slowly.'},
+    {assignmentExerciseId: 'future-timer', name: 'Standing stretch', sets: 2, duration_seconds: 30},
+  ], [], ['#8BC0BC']));
+  await mount();
+  await press('Routines');
+  const label = `Next mobility routine, ${new Date('2026-11-10T00:00:00').toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'})} information`;
+  expect(button(label).props.accessibilityState.expanded).toBe(false);
+  expect(loadExercises).not.toHaveBeenCalled();
+  await press(label);
+  expect(button(label).props.accessibilityState.expanded).toBe(true);
+  expect(loadExercises).toHaveBeenCalledWith('future', expect.any(Array));
+  expect(hasText('Ankle circles')).toBe(true);
+  expect(hasText('3 Sets')).toBe(true);
+  expect(hasText('12 Reps')).toBe(true);
+  expect(hasText('2 Sets')).toBe(true);
+  expect(hasText('30 Seconds')).toBe(true);
+  await press('Ankle circles information');
+  expect(hasText('Circle each ankle slowly.')).toBe(true);
+  await press(label);
+  expect(hasText('Ankle circles')).toBe(false);
+  await press(label);
+  expect(hasText('Ankle circles')).toBe(true);
+  expect(loadExercises).toHaveBeenCalledTimes(1);
 });

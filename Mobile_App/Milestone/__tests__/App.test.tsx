@@ -101,10 +101,19 @@ function button(label: string) {
 
 async function press(label: string) {
   if (label === 'Next exercise') {
-    await ReactTestRenderer.act(() => button('Pain 3 out of 10').props.onPress());
+    await choosePain(3);
     await ReactTestRenderer.act(() => button('Exercise felt good').props.onPress());
   }
   await ReactTestRenderer.act(() => button(label).props.onPress());
+}
+
+async function choosePain(score: number) {
+  const slider = () => renderer.root.findByProps({testID: 'pain-slider'});
+  const act = ReactTestRenderer.act;
+  while (slider().props.accessibilityValue.now !== score) {
+    const current = slider().props.accessibilityValue.now;
+    await act(async () => slider().props.onAccessibilityAction({nativeEvent: {actionName: current == null || current < score ? 'increment' : 'decrement'}}));
+  }
 }
 
 async function advanceTime(milliseconds: number) {

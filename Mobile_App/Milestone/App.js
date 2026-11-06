@@ -37,6 +37,7 @@ import usePatientMessages from './lib/usePatientMessages';
 import { loadPatientRoutine, exercisesForAssignment } from './lib/patientRoutine';
 import useExerciseReview from './lib/useExerciseReview';
 import ExerciseReviewFeedback from './components/ExerciseReviewFeedback';
+import ReviewCard from './components/ReviewCard';
 import EasterEggSelector from './components/EasterEggSelector';
 import useAdaptiveLayout from './components/useAdaptiveLayout';
 import LockKeyhole from 'lucide-react-native/icons/lock-keyhole';
@@ -46,6 +47,7 @@ import MessageSquare from 'lucide-react-native/icons/message-square';
 import Play from 'lucide-react-native/icons/play';
 import RotateCcw from 'lucide-react-native/icons/rotate-ccw';
 import Info from 'lucide-react-native/icons/info';
+import ChevronDown from 'lucide-react-native/icons/chevron-down';
 
 import {isSupabaseConfigured} from './lib/supabase';
 
@@ -493,6 +495,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
             expandedId={expandedUpcomingRoutineId}
             details={upcomingRoutineDetails}
             onToggle={toggleUpcomingRoutine}
+            reduceMotion={reduceMotion}
           />
         </ScrollView>
         {renderDock('routines')}
@@ -742,9 +745,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
             You finished {activeExercise.name}
           </Text>
 
-          <View style={styles.reviewCard}>
-            <Text style={styles.reviewCardTitle}>YOUR SUMMARY</Text>
-
+          <ReviewCard title="YOUR SUMMARY" testID="exercise-summary" style={styles.reviewSummarySpacing}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Exercise</Text>
               <Text style={styles.summaryValue}>
@@ -765,7 +766,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
                 {activeExercise.reps ?? 'Not specified'}
               </Text>
             </View>
-          </View>
+          </ReviewCard>
 
           <ExerciseReviewFeedback review={exerciseReview} explanationRef={explanationInput}
             onExplanationFocus={() => { explanationFocused.current = true; scrollToFeedback(); }}
@@ -958,6 +959,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
           expandedId={expandedUpcomingRoutineId}
           details={upcomingRoutineDetails}
           onToggle={toggleUpcomingRoutine}
+          reduceMotion={reduceMotion}
         />
 
         <Text style={styles.footerText}>Move well. Feel better.</Text>
@@ -1109,9 +1111,10 @@ function ExerciseStats({ exercise }) {
 // provider relationship. Tapping an item lazily fetches its exercise list
 // (see lib/patientRoutine.js's exercisesForAssignment) rather than fetching
 // every upcoming routine's exercises up front.
-function UpcomingRoutines({ routines, expandedId, details, onToggle }) {
+function UpcomingRoutines({ routines, expandedId, details, onToggle, reduceMotion }) {
   const styles = useThemedStyles(baseStyles);
   const { mode, colors } = useAppTheme();
+  const [expandedExerciseId, setExpandedExerciseId] = useState(null);
 
   if (!routines.length) return null;
 
@@ -1138,34 +1141,54 @@ function UpcomingRoutines({ routines, expandedId, details, onToggle }) {
                 accessibilityHint={expanded ? 'Collapse routine information' : 'Expand routine information'}
                 accessibilityState={{ expanded }}
                 aria-expanded={expanded}
-                onPress={() => onToggle(item.id)}
+                onPress={() => {
+                  setExpandedExerciseId(null);
+                  onToggle(item.id);
+                }}
                 style={[styles.upcomingRow, { backgroundColor: mode === 'dark' ? colors.raised : palette.teal }]}
               >
                 <View style={styles.upcomingCopy}>
-                  <Text style={styles.listTitle} numberOfLines={1}>{item.name}</Text>
-                  <Text style={styles.listSubtitle}>{dateLabel}{item.status === 'in progress' ? ' · In progress' : ''}</Text>
+                  <Text style={styles.listTitle}>{item.name}</Text>
+                  {item.status === 'in progress' && <Text style={styles.listSubtitle}>In progress</Text>}
                 </View>
-                <Text style={[styles.chevron, expanded && styles.expandedChevron]}>›</Text>
+                <View style={styles.upcomingSchedule}>
+                  <Text style={styles.upcomingDate}>{dateLabel}</Text>
+                  <ChevronDown
+                    size={20}
+                    color={colors.text}
+                    accessible={false}
+                    style={expanded && styles.upcomingChevronExpanded}
+                  />
+                </View>
               </Pressable>
               {expanded && (
                 <View style={styles.upcomingDetail}>
                   {detail?.status === 'loading' ? (
-                    <Text style={styles.listSubtitle}>Loading exercises…</Text>
+                    <Text style={[styles.listSubtitle, styles.upcomingMessage]}>Loading exercises…</Text>
                   ) : detail?.status === 'error' ? (
-                    <Text style={styles.listSubtitle}>{detail.message}</Text>
+                    <Text style={[styles.listSubtitle, styles.upcomingMessage]}>{detail.message}</Text>
                   ) : detail?.exercises?.length ? (
-                    detail.exercises.map(exercise => (
-                      <View key={exercise.id} style={styles.upcomingDetailRow}>
-                        <Text style={styles.listSubtitle} numberOfLines={1}>{exercise.name}</Text>
-                        <Text style={styles.statsText}>
-                          {exercise.type === 'countdown'
-                            ? `${exercise.durationSeconds}s`
-                            : exercise.reps == null ? `${exercise.sets} sets` : `${exercise.sets} × ${exercise.reps}`}
-                        </Text>
-                      </View>
-                    ))
+                    detail.exercises.map((exercise, exerciseIndex) => {
+                      const exerciseExpanded = expandedExerciseId === exercise.id;
+                      return (
+                        <View
+                          key={exercise.id}
+                          style={[styles.exerciseListItem, exerciseIndex === detail.exercises.length - 1 && styles.lastExercise]}
+                        >
+                          <ExerciseRow
+                            exercise={exercise}
+                            index={exerciseIndex}
+                            showDetails={false}
+                            expanded={exerciseExpanded}
+                            onPress={() => setExpandedExerciseId(exerciseExpanded ? null : exercise.id)}
+                          />
+                          <AnimatedExerciseInfo exercise={exercise} expanded={exerciseExpanded} reduceMotion={reduceMotion} />
+                          <ExerciseStats exercise={exercise} />
+                        </View>
+                      );
+                    })
                   ) : (
-                    <Text style={styles.listSubtitle}>No exercises listed.</Text>
+                    <Text style={[styles.listSubtitle, styles.upcomingMessage]}>No exercises listed.</Text>
                   )}
                 </View>
               )}
@@ -1750,15 +1773,29 @@ const baseStyles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  upcomingDetail: {
-    paddingHorizontal: '4%',
-    paddingBottom: 14,
-    gap: 6,
-  },
-  upcomingDetailRow: {
+  upcomingSchedule: {
+    alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
+    flexShrink: 0,
+    maxWidth: '48%',
+    gap: 8,
+  },
+  upcomingDate: {
+    color: palette.ink,
+    fontSize: 12,
+    textAlign: 'right',
+    flexShrink: 1,
+  },
+  upcomingChevronExpanded: {
+    transform: [{ rotate: '180deg' }],
+  },
+  upcomingDetail: {
+    borderTopColor: palette.ink,
+    borderTopWidth: 1.4,
+  },
+  upcomingMessage: {
+    paddingHorizontal: '4%',
+    paddingVertical: 14,
   },
   primaryButton: {
     alignItems: 'center',
@@ -2031,6 +2068,7 @@ const baseStyles = StyleSheet.create({
     paddingHorizontal: '5%',
     paddingVertical: 20,
   },
+  reviewSummarySpacing: { marginTop: 32 },
   reviewCardTitle: {
     color: palette.ink,
     fontSize: 22,

@@ -7,3 +7,7 @@
 /test-results/
 /supabase/.temp/
 !tests/browser/patientRefresh.spec.mjs
+!tests/browser/patientOnboarding.spec.mjs
+!tests/browser/patientSetup.spec.mjs
+!tests/patientOnboardingServer.test.mjs
+!supabase/tests/patient_onboarding.sql

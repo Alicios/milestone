@@ -169,10 +169,12 @@ function pageHarness({ createPatientAndInvite, PatientInviteError }) {
     if (!(slot in state)) state[slot] = initial
     return [state[slot], (value) => { state[slot] = typeof value === 'function' ? value(state[slot]) : value }]
   } }
+  react.useRef = (initial) => react.useState({ current: initial })[0]
+  let refreshes = 0
   const mui = Object.fromEntries(['Alert', 'Box', 'Button', 'Card', 'Stack', 'TextField', 'Typography'].map((name) => [name, name]))
   mui.useTheme = () => ({ palette: { mode: 'light', divider: '#ddd', background: { paper: '#fff' }, text: { primary: '#000' } } })
   const { NewPatientPage } = loadTs('../src/pages/NewPatientPage.tsx', {
-    react, '@mui/material': mui, 'react-router-dom': { Link: 'Link' },
+    react, '@mui/material': mui, 'react-router-dom': { Link: 'Link', useOutletContext: () => ({ retryPatients: () => { refreshes++ } }) },
     '../lib/supabaseData': { createPatientAndInvite, PatientInviteError }, '../lib/errors': errors,
   })
   function flatten(node) {
@@ -183,6 +185,8 @@ function pageHarness({ createPatientAndInvite, PatientInviteError }) {
   function render() { cursor = 0; return flatten(NewPatientPage()) }
   const find = (predicate) => render().find((node) => node.props && predicate(node.props))
   return {
+    refreshes: () => refreshes,
+    link: (label) => find((props) => props.component === 'Link' && props.children === label)?.props,
     field: (label) => find((props) => props.label === label).props,
     change: (label, value) => find((props) => props.label === label).props.onChange({ target: { value } }),
     submit: () => find((props) => props.component === 'form').props.onSubmit({ preventDefault() {} }),
@@ -225,6 +229,8 @@ test('a successful submission shows the invited confirmation screen with the gen
   assert.match(page.text(), /Pending account created/)
   assert.match(page.text(), /Give this code to\s+Patient/)
   assert.match(page.text(), /123456/)
+  assert.equal(page.refreshes(), 1)
+  assert.equal(page.link('Open patient page').to, '/dashboard/patients/patient-id')
 })
 
 test('a PatientInviteError still shows the patient as saved, with a code-not-generated message', async () => {
@@ -238,6 +244,8 @@ test('a PatientInviteError still shows the patient as saved, with a code-not-gen
   await page.submit()
   assert.match(page.text(), /Patient saved, code unconfirmed/)
   assert.match(page.text(), /login code could not be confirmed/)
+  assert.equal(page.refreshes(), 1)
+  assert.equal(page.link('Open patient page').to, '/dashboard/patients/patient-id')
 })
 
 test('a creation failure (not an invite failure) shows the generic save error with no success screen', async () => {
@@ -333,4 +341,22 @@ for (const payload of [null, { email: 'patient@example.com', otp: '123456' }, { 
   const h = dataHarness({ rpcResponses: [{ data: 'saved-patient-id' }], fetchResponses: [jsonResponse(200, payload)] })
   await assert.rejects(h.createPatientAndInvite('Patient', 'patient@example.com', h.fetchImpl), e => e instanceof h.PatientInviteError && e.patientId === 'saved-patient-id' && e.code === 'OTP_UNCONFIRMED' && e.httpStatus === 200 && !JSON.stringify(e).includes('patient@example.com'))
   assert.equal(h.calls.length, 1); assert.equal(h.fetchCalls.length, 1)
+})
+
+
+test('patient form guards simultaneous submits and trims input before creating', async () => {
+  const { PatientInviteError } = dataHarness()
+  let release; const pending = new Promise(resolve => { release = resolve })
+  const calls = []
+  const page = pageHarness({ createPatientAndInvite: async (...args) => {
+    calls.push(args); await pending
+    return { patientId: 'saved-patient', code: samplePatientLoginCode }
+  }, PatientInviteError })
+  page.change('Patient name', '  Patient  ')
+  page.change('Patient email', '  patient@example.com  ')
+  const first = page.submit(); const second = page.submit()
+  assert.equal(page.button().disabled, true)
+  assert.deepEqual(calls, [['Patient', 'patient@example.com']])
+  release(); await Promise.all([first, second])
+  assert.equal(page.refreshes(), 1)
 })

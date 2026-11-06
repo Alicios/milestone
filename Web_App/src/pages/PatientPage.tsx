@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link as RouterLink, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom'
-import AddIcon from '@mui/icons-material/Add'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined'
 import PersonRemoveOutlinedIcon from '@mui/icons-material/PersonRemoveOutlined'
-import { Alert, Box, Button, Card, Chip, Divider, Link, MenuItem, Stack, Tab, Tabs, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, Chip, Link, Stack, Tab, Tabs, Typography } from '@mui/material'
+import { PatientWeekCalendar } from '../components/PatientWeekCalendar'
 import { CalendarWeekNavigation } from '../components/CalendarWeekNavigation'
 import { withinHorizon } from '../lib/scheduling'
 import { prescriptionSummary } from '../lib/prescriptions'
@@ -33,10 +33,10 @@ function Detail({ label, children }: { label: string; children?: ReactNode }) {
 }
 
 function PatientOverview({ patient }: { patient: Patient }) {
-  const { assignments, weekDates, policy, occupied, setWeek, assignmentsLoading, retryAssignments, openSchedule, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, dischargePatient } = useOutletContext<DashboardOutletContext>()
+  const { assignments, weekDates, policy, occupied, setWeek, assignmentsLoading, assignmentsError, retryAssignments, openSchedule, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, dischargePatient } = useOutletContext<DashboardOutletContext>()
   const navigate = useNavigate()
   const heading = useRef<HTMLHeadingElement>(null)
-  const [selectedDay, setSelectedDay] = useState(0)
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null)
   const [removal, setRemoval] = useState<RoutineAssignment | null>(null)
   const [followUpAssignment, setFollowUpAssignment] = useState<RoutineAssignment | null>(null)
   const [editingDetails, setEditingDetails] = useState(false)
@@ -92,14 +92,15 @@ function PatientOverview({ patient }: { patient: Patient }) {
       </Stack>
     </Card>
 
-    <Tabs value="overview" aria-label="Patient sections" sx={{ borderBottom: 1, borderColor: 'divider', mb: 1 }}>
+    <Tabs value="overview" variant="scrollable" scrollButtons="auto" aria-label="Patient sections" sx={{ borderBottom: 1, borderColor: 'divider', mb: 1, '& .MuiTab-root': { minWidth: 0, fontSize: { xs: '.75rem', sm: '.875rem' } } }}>
       <Tab value="overview" id="patient-overview-tab" aria-controls="patient-overview-panel" label="Overview" sx={{ px: { xs: 1, sm: 2 } }} />
       <Tab disabled label="Notes · Coming Soon" sx={{ px: { xs: 1, sm: 2 } }} />
     </Tabs>
-    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Session notes are coming soon.</Typography>
+    <Typography role="status" variant="body2" color="success.main" sx={{ my: feedback ? 1.5 : 0 }}>{feedback}</Typography>
+    {error && <Alert severity="error" sx={{ my: 2 }}>{error}</Alert>}
 
-    <Box role="tabpanel" id="patient-overview-panel" aria-labelledby="patient-overview-tab" sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1.5fr) minmax(0, 1fr)' }, gap: 2.5, alignItems: 'start' }}>
-      <Stack spacing={2.5} minWidth={0}>
+    <Box role="tabpanel" id="patient-overview-panel" aria-labelledby="patient-overview-tab">
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(3, minmax(0, 1fr))' }, gap: 2.5, mb: 2.5 }}>
         <Card component="section" aria-labelledby="patient-care-heading" sx={{ p: { xs: 2.5, sm: 3 } }}>
           <Typography id="patient-care-heading" component="h2" variant="h6" sx={{ mb: 2 }}>Care overview</Typography>
           <Stack component="dl" spacing={2.5} sx={{ m: 0 }}>
@@ -107,62 +108,6 @@ function PatientOverview({ patient }: { patient: Patient }) {
             <Detail label="Treatment focus">{patient.treatmentFocus}</Detail>
           </Stack>
         </Card>
-
-        <Card component="section" aria-labelledby="patient-routines-heading" sx={{ p: { xs: 2.5, sm: 3 } }}>
-          <Typography id="patient-routines-heading" component="h2" variant="h6">Assigned routines</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: .5, mb: 2.5 }}>Assigned routines and patient feedback for the selected week.</Typography>
-          <CalendarWeekNavigation dates={weekDates} policy={policy} onChange={setWeek} />
-          <Button variant="outlined" disabled={!policy || !weekDates.some((date) => withinHorizon(date, policy)) || assignmentsLoading} onClick={() => openSchedule(patient)}>Schedule week</Button>
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
-            <TextField select label="Routine date" value={weekDates.length ? selectedDay : ''} onChange={(event) => setSelectedDay(Number(event.target.value))} size="small" sx={{ flex: 1 }}>
-              {weekDates.map((date, index) => <MenuItem key={date} value={index}>{weekdayNames[index]}, {formatCalendarDate(date)}</MenuItem>)}
-            </TextField>
-            <Button variant="contained" startIcon={<AddIcon />} disabled={assignmentsLoading || !withinHorizon(weekDates[selectedDay], policy) || (occupied[patient.profileId] ?? []).some((entry) => entry.date === weekDates[selectedDay])} onClick={() => openSchedule(patient, weekDates[selectedDay])} sx={{ flexShrink: 0 }}>Assign Routine</Button>
-          </Stack>
-          <Typography role="status" variant="body2" color="success.main" sx={{ mt: feedback ? 1.5 : 0 }}>{feedback}</Typography>
-
-          <Stack component="ul" spacing={0} divider={<Divider component="li" role="presentation" />} sx={{ listStyle: 'none', m: 0, mt: 2, p: 0 }}>
-            {weekDates.map((date, index) => {
-              const dayAssignments = (patientAssignments[date] ?? []).filter((assignment) => assignment.status !== 'cancelled')
-              return <Box component="li" key={date} sx={{ py: 2 }}>
-                <Typography fontWeight={700}>{weekdayNames[index]}, {formatCalendarDate(date)}</Typography>
-                {!dayAssignments.length && <Typography variant="body2" color="text.secondary" sx={{ mt: .5 }}>{assignmentsLoading ? 'Loading…' : (occupied[patient.profileId] ?? []).some((entry) => entry.date === date) ? 'This date already has an active assignment. Contact the assigning provider before replacing it.' : 'No routine assigned'}</Typography>}
-                <Stack spacing={1.5} sx={{ mt: dayAssignments.length ? 1.25 : 0 }}>
-                  {dayAssignments.map((assignment) => <RoutineStatusCard key={assignment.id} presentation={resolveRoutineStatus(assignment, policy?.today)!}>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between">
-                      <Box minWidth={0} flex={1}>
-                        <Typography fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>{assignment.routineName}</Typography>
-                        <PatientRoutineFeedback assignment={assignment} />
-                        {assignment.exerciseFeedbackError && <Alert severity="warning" sx={{ mt: 1 }} action={<Button color="inherit" onClick={retryAssignments}>Retry feedback</Button>}>{assignment.exerciseFeedbackError}</Alert>}
-                        {!assignment.exercises.length && <Typography variant="body2">No exercises listed</Typography>}
-                        <Stack spacing={1.25} sx={{ mt: assignment.exercises.length ? 1.5 : 0 }}>
-                        {assignment.exercises.map((exercise) => {
-                          const setsAndReps = prescriptionSummary({ sets: exercise.sets, reps: exercise.reps })
-                          return <Box component="section" key={exercise.id} aria-label={`Assigned exercise: ${exercise.name}`} data-assigned-exercise={exercise.id}
-                            sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper', color: 'text.primary', minWidth: 0 }}>
-                            <Typography component="h3" variant="body2" fontWeight={700}>{exercise.name}{setsAndReps && ` · ${setsAndReps}`}</Typography>
-                            <ExercisePatientFeedback feedback={exercise.patientFeedback} unavailable={Boolean(assignment.exerciseFeedbackError)} embedded />
-                          </Box>
-                        })}
-                        </Stack>
-                      </Box>
-                      <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={.75} sx={{ flexShrink: 0 }}>
-                        {assignment.followUp?.status !== 'completed' && <Button size="small" startIcon={<EventOutlinedIcon />} onClick={() => setFollowUpAssignment(assignment)}>{assignment.followUp?.status === 'scheduled' ? 'Reschedule' : 'Schedule follow-up'}</Button>}
-                        {assignment.followUp?.status === 'scheduled' && <><Button size="small" color="success" onClick={() => void completeFollowUp(assignment.id).then(() => setFeedback('Follow-up marked complete.')).catch((followUpError: Error) => setError(errorMessage(followUpError, 'The follow-up could not be updated.')))}>Mark follow-up complete</Button><Button size="small" color="warning" onClick={() => void cancelFollowUp(assignment.id).then(() => setFeedback('Follow-up cancelled.')).catch((followUpError: Error) => setError(errorMessage(followUpError, 'The follow-up could not be updated.')))}>Cancel follow-up</Button></>}
-                        <Button size="small" color="error" onClick={() => setRemoval(assignment)}>Cancel assignment</Button>
-                      </Stack>
-                    </Stack>
-                  </RoutineStatusCard>)}
-                </Stack>
-              </Box>
-            })}
-          </Stack>
-          <RoutineStatusLegend />
-        </Card>
-      </Stack>
-
-      <Stack spacing={2.5} minWidth={0}>
         <Card component="section" aria-labelledby="patient-contact-heading" sx={{ p: { xs: 2.5, sm: 3 } }}>
           <Typography id="patient-contact-heading" component="h2" variant="h6" sx={{ mb: 2 }}>Patient information</Typography>
           <Stack component="dl" spacing={2.5} sx={{ m: 0 }}>
@@ -172,7 +117,7 @@ function PatientOverview({ patient }: { patient: Patient }) {
           </Stack>
         </Card>
         <Card component="section" aria-labelledby="patient-actions-heading" sx={{ p: { xs: 2.5, sm: 3 } }}>
-          <Typography id="patient-actions-heading" component="h2" variant="h6" sx={{ mb: 1 }}>Patient actions</Typography>
+          <Typography id="patient-actions-heading" component="h2" variant="h6" sx={{ mb: 1 }}>Patient controls</Typography>
           <Stack spacing={1.5} sx={{ mb: 2 }}>
             {patient.hasAccount && <Typography variant="body2" color="success.main">This patient has an account.</Typography>}
             <Typography variant="body2" color="text.secondary">
@@ -191,8 +136,60 @@ function PatientOverview({ patient }: { patient: Patient }) {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Discharge this patient to hide them from active care while retaining their clinical history.</Typography>
           <Button variant="outlined" color="error" startIcon={<PersonRemoveOutlinedIcon />} onClick={() => setConfirmDischarge(true)}>Discharge Patient</Button>
         </Card>
-      </Stack>
+      </Box>
+      <Card component="section" aria-labelledby="patient-routines-heading" sx={{ p: { xs: 2.5, sm: 3 } }}>
+        <Typography id="patient-routines-heading" component="h2" variant="h6">Assigned routines</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: .5, mb: 2.5 }}>Assigned routines and patient feedback for the selected week.</Typography>
+        <CalendarWeekNavigation dates={weekDates} policy={policy} onChange={setWeek} />
+        <Button variant="outlined" disabled={!policy || !weekDates.some((date) => withinHorizon(date, policy)) || assignmentsLoading} onClick={() => openSchedule(patient)}>Schedule week</Button>
+        <Box sx={{ bgcolor: '#4b9da9', border: 1, borderColor: 'divider', borderRadius: 3, p: 1, mt: 2 }}>
+          <PatientWeekCalendar patient={patient} assignments={patientAssignments} weekDates={weekDates} policy={policy}
+            occupied={occupied[patient.profileId] ?? []} loading={assignmentsLoading} selectedAssignmentId={selectedAssignmentId}
+            detailsId="patient-assignment-details" onSelect={(id) => setSelectedAssignmentId((current) => current === id ? null : id)}
+            onAssign={(index) => openSchedule(patient, weekDates[index])} />
+        </Box>
+        <RoutineStatusLegend />
+        {assignmentsError && <Alert severity="error" sx={{ mt: 2 }} action={<Button onClick={retryAssignments}>Retry details</Button>}>{assignmentsError}</Alert>}
+        <Box id="patient-assignment-details">
+          {weekDates.map((date, index) => {
+            const dayAssignments = (patientAssignments[date] ?? []).filter((assignment) => assignment.status !== 'cancelled' && assignment.id === selectedAssignmentId)
+            if (!dayAssignments.length) return null
+            return <Box component="section" key={date} sx={{ py: 2 }}>
+              <Typography fontWeight={700}>{weekdayNames[index]}, {formatCalendarDate(date)}</Typography>
+              <Stack spacing={1.5} sx={{ mt: dayAssignments.length ? 1.25 : 0 }}>
+                {dayAssignments.map((assignment) => <RoutineStatusCard key={assignment.id} presentation={resolveRoutineStatus(assignment, policy?.today)!}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between">
+                    <Box minWidth={0} flex={1}>
+                      <Typography fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>{assignment.routineName}</Typography>
+                      <PatientRoutineFeedback assignment={assignment} />
+                      {assignment.exerciseFeedbackError && <Alert severity="warning" sx={{ mt: 1 }} action={<Button color="inherit" onClick={retryAssignments}>Retry feedback</Button>}>{assignment.exerciseFeedbackError}</Alert>}
+                      {!assignment.exercises.length && <Typography variant="body2">No exercises listed</Typography>}
+                      <Stack spacing={1.25} sx={{ mt: assignment.exercises.length ? 1.5 : 0 }}>
+                      {assignment.exercises.map((exercise) => {
+                        const setsAndReps = prescriptionSummary({ sets: exercise.sets, reps: exercise.reps })
+                        return <Box component="section" key={exercise.id} aria-label={`Assigned exercise: ${exercise.name}`} data-assigned-exercise={exercise.id}
+                          sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper', color: 'text.primary', minWidth: 0 }}>
+                          <Typography component="h3" variant="body2" fontWeight={700}>{exercise.name}{setsAndReps && ` · ${setsAndReps}`}</Typography>
+                          <ExercisePatientFeedback feedback={exercise.patientFeedback} unavailable={Boolean(assignment.exerciseFeedbackError)} embedded />
+                        </Box>
+                      })}
+                      </Stack>
+                    </Box>
+                    <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={.75} sx={{ flexShrink: 0 }}>
+                      {assignment.followUp?.status !== 'completed' && <Button size="small" startIcon={<EventOutlinedIcon />} onClick={() => setFollowUpAssignment(assignment)}>{assignment.followUp?.status === 'scheduled' ? 'Reschedule' : 'Schedule follow-up'}</Button>}
+                      {assignment.followUp?.status === 'scheduled' && <><Button size="small" color="success" onClick={() => void completeFollowUp(assignment.id).then(() => setFeedback('Follow-up marked complete.')).catch((followUpError: Error) => setError(errorMessage(followUpError, 'The follow-up could not be updated.')))}>Mark follow-up complete</Button><Button size="small" color="warning" onClick={() => void cancelFollowUp(assignment.id).then(() => setFeedback('Follow-up cancelled.')).catch((followUpError: Error) => setError(errorMessage(followUpError, 'The follow-up could not be updated.')))}>Cancel follow-up</Button></>}
+                      <Button size="small" color="error" onClick={() => setRemoval(assignment)}>Cancel assignment</Button>
+                    </Stack>
+                  </Stack>
+                </RoutineStatusCard>)}
+              </Stack>
+            </Box>
+          })}
+        </Box>
+      </Card>
     </Box>
+
+
 
     {removal && <RemoveRoutineDialog patientName={patient.name} weekday={formatCalendarDate(removal.scheduledDate)} routineName={removal.routineName} onCancel={() => setRemoval(null)} onRemove={async () => {
       await cancelAssignment(removal.id)
@@ -226,7 +223,7 @@ export function PatientPage() {
   useEffect(() => { refreshAssignments.current() }, [patientId, navigationKey])
   const patient = patients.find((item) => item.id === patientId)
 
-  return <Box component="main" maxWidth={1100} mx="auto" py={{ xs: 1, md: 2 }}>
+  return <Box component="main" sx={{ width: '100%', minWidth: 0 }} py={{ xs: 1, md: 2 }}>
     <Button component={RouterLink} to="/dashboard/patients" startIcon={<ArrowBackIcon />} sx={{ mb: 2 }}>Back to Patients</Button>
     {patientsLoading ? <Alert severity="info">Loading patient…</Alert>
       : patientsError ? <Alert severity="error" action={<Button color="inherit" onClick={retryPatients}>Retry patients</Button>}>{patientsError}</Alert>

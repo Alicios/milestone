@@ -46,6 +46,12 @@ npm run dev
 
 Open the local URL shown by Vite, typically `http://localhost:3000`.
 
+Patient invitation and setup correction endpoints also run under `npm run dev`.
+To use those endpoints against Supabase, set `SUPABASE_SERVICE_ROLE_KEY` in
+`.env.local` and restart Vite. This key is read only by the local server; never
+give it a `VITE_` prefix or include it in browser code. Use the same server-only
+variable for the deployed API functions.
+
 ## Available routes
 
 ### Public routes
@@ -58,7 +64,8 @@ Open the local URL shown by Vite, typically `http://localhost:3000`.
 
 - `/dashboard` — Provider patient dashboard
 - `/dashboard/patients` — Patient management view
-- `/dashboard/patients/new` — Add a pending patient locally
+- `/dashboard/patients/new` — Save a patient and generate their app login code
+- `/dashboard/patients/:patientId/setup` — Correct onboarding name/email and generate a replacement login code
 - `/dashboard/patients/:patientId` — Individual patient overview, weekly routines, and patient actions
 - `/dashboard/routines` — Exercise routine management
 - `/dashboard/appointments` — Appointment placeholder
@@ -67,6 +74,26 @@ Open the local URL shown by Vite, typically `http://localhost:3000`.
 - `/dashboard/settings` — Provider settings
 
 Routes under the dashboard require an active Supabase authentication session.
+
+The dashboard's Patient setup box lists patients who have not yet signed in.
+Account creation alone does not complete setup. Email corrections synchronize
+the linked sign-in account and clear the previous displayed code; generating a
+replacement code is a separate action. No invitation email is sent.
+
+Focused verification:
+
+```bash
+node --test tests/patientOnboardingServer.test.mjs tests/patientCreation.test.mjs
+npx playwright test tests/browser/patientSetup.spec.mjs tests/browser/patientOnboarding.spec.mjs
+```
+
+With the local server and server credentials configured, run
+`node scripts/verify-patient-onboarding.mjs` for real Auth/API verification using
+disposable synthetic accounts. It checks corrected-email sign-in, old-code
+rejection, name-only edits, collisions and setup completion, then removes the
+test accounts and patient. Database-only checks in
+`supabase/tests/patient_onboarding.sql` must run inside a transaction followed by
+`ROLLBACK`.
 
 ## Demo authentication
 

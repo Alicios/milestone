@@ -1,28 +1,22 @@
-import { errorMessage } from '../lib/errors'
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import AddIcon from '@mui/icons-material/Add'
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline'
+import { PatientWeekCalendar } from '../components/PatientWeekCalendar'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import FilterListIcon from '@mui/icons-material/FilterList'
 import SearchIcon from '@mui/icons-material/Search'
 import SortIcon from '@mui/icons-material/Sort'
-import { Alert, Box, Button, Card, Collapse, Divider, Fade, Grow, IconButton, InputAdornment, Menu, MenuItem, OutlinedInput, Stack, Typography, useTheme } from '@mui/material'
+import { Box, Button, Card, Collapse, Fade, IconButton, InputAdornment, Menu, MenuItem, OutlinedInput, Stack, Typography, useTheme } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 import { CalendarWeekNavigation } from '../components/CalendarWeekNavigation'
 import { AssignedRoutineDetails } from '../components/AssignedRoutineDetails'
-import { withinHorizon, type OccupiedDate, type SchedulingPolicy } from '../lib/scheduling'
+import { type OccupiedDate, type SchedulingPolicy } from '../lib/scheduling'
 import { PatientAvatar } from '../components/PatientAvatar'
 import type { DashboardOutletContext, DayAssignments } from '../components/DashboardLayout'
-import { weekdayNames, type Patient } from '../data/mockPatients'
+import { type Patient } from '../data/mockPatients'
 import { resolveRoutineStatus, routineStatusLabels, routineStatusOrder, type RoutineVisualStatus } from '../lib/routineStatus'
-import { RoutineStatusButton, RoutineStatusLegend } from '../components/RoutineStatus'
-import { formatCalendarDate } from '../lib/week'
-import { useAuth } from '../auth/AuthContext'
-import { loadMessageConversations } from '../lib/messages'
-import { supabase } from '../lib/supabase'
+import { RoutineStatusLegend } from '../components/RoutineStatus'
+import { PatientSetupBox } from '../components/PatientSetupBox'
 
-const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 type SortOrder = 'nameAsc' | 'nameDesc'
 type StatusFilter = 'all' | RoutineVisualStatus | 'modified' | 'unassigned'
 
@@ -46,13 +40,8 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
   const selectedAssignment = Object.values(assignments).flat().find((assignment) => assignment.id === selectedAssignmentId)
   useEffect(() => { if (!expanded) setSelectedAssignmentId(null) }, [expanded])
   const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
   const border = theme.palette.divider
-  const surface = theme.palette.background.paper
-  const text = theme.palette.text.primary
   const accentText = '#102b34'
-  const assignableSurface = isDark ? '#29454d' : '#d9d9d9'
-  const neutralSurface = isDark ? '#526970' : '#777777'
 
   return <Card sx={{ bgcolor: 'transparent', boxShadow: 'none', border: 0, overflow: 'visible', mb: 1.5 }}>
     <Stack direction="row" alignItems="center" sx={{ position: 'relative', zIndex: 1, bgcolor: '#91c8c0', border: `4px solid ${border}`, borderRadius: '10px' }}>
@@ -66,32 +55,9 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
     </Stack>
     <Collapse id={`patient-week-${patient.id}`} in={expanded} timeout={260}>
       <Box sx={{ bgcolor: '#4b9da9', border: `4px solid ${border}`, borderTop: 0, borderRadius: '0 0 28px 28px', mt: -2, pt: 3, px: { xs: .5, sm: 1 }, pb: 1 }}>
-      <Box sx={{ overflowX: 'auto' }}>
-        <Stack direction="row" spacing={{ xs: .25, sm: .75 }} justifyContent="center" sx={{ minWidth: 616 }}>
-          {weekDates.map((date, index) => {
-            const day = days[index]
-            const dayAssignments = (assignments[weekDates[index]] ?? []).filter((assignment) => assignment.status !== 'cancelled')
-            const isOccupied = dayAssignments.length > 0 || occupied.some((entry) => entry.date === date)
-
-            return <Box key={weekDates[index]} sx={{ flex: 1, minWidth: 0, textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-              <Typography sx={{ bgcolor: weekDates[index] === policy?.today ? '#eb681d' : neutralSurface, color: 'white', border: `3px solid ${border}`, borderRadius: '28px', py: { xs: 1, sm: 1.5 }, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 700, fontSize: { xs: '.65rem', sm: '1.05rem' } }}>{day}<br />{formatCalendarDate(weekDates[index])}</Typography>
-              <Stack sx={{ mt: .5, bgcolor: isOccupied ? surface : assignableSurface, border: `3px solid ${border}`, borderRadius: '24px', minHeight: { xs: 112, sm: 132 }, flexGrow: 1, p: .5 }} spacing={.5}>
-                {dayAssignments.map((assignment) => <Grow in key={assignment.id} timeout={220}><Box>
-                  <RoutineStatusButton name={assignment.routineName} date={assignment.scheduledDate}
-                    presentation={resolveRoutineStatus(assignment, policy?.today)!}
-                    expanded={selectedAssignmentId === assignment.id} controls={detailsId}
-                    onClick={() => setSelectedAssignmentId((current) => current === assignment.id ? null : assignment.id)} />
-                </Box></Grow>)}
-                {isOccupied ? <Typography variant="caption" color="text.secondary" sx={{ py: .75 }}>Occupied</Typography> :
-                <Button disabled={loading || !withinHorizon(date, policy)} onClick={() => onAssign(index)} aria-label={`Assign routine to ${patient.name} on ${weekdayNames[index]}`} sx={{ minWidth: 0, width: '100%', flexGrow: 1, p: .5, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: .5, color: text, borderRadius: '18px', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '.7rem', sm: '.8rem' }, lineHeight: 1.2, '&:hover': { bgcolor: isDark ? '#35545c' : '#c8deda' }, '&.Mui-focusVisible': { outline: `3px solid ${border}`, outlineOffset: -2 } }}>
-                  <Box component="span" sx={{ width: 38, height: 38, flexShrink: 0, borderRadius: '50%', bgcolor: '#4b9da9', border: `3px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><AddIcon sx={{ color: 'white', fontSize: 28 }} /></Box>
-                  <Box component="span">Assign<br />Routine</Box>
-                </Button>}
-              </Stack>
-            </Box>
-          })}
-        </Stack>
-      </Box>
+      <PatientWeekCalendar patient={patient} assignments={assignments} weekDates={weekDates} policy={policy}
+        occupied={occupied} loading={loading} selectedAssignmentId={selectedAssignmentId} detailsId={detailsId}
+        onSelect={(id) => setSelectedAssignmentId((current) => current === id ? null : id)} onAssign={onAssign} />
       </Box>
       {expanded && selectedAssignmentId && <AssignedRoutineDetails id={detailsId} assignment={selectedAssignment}
         today={policy?.today} loading={loading} error={error} onRetry={onRetry} onClose={() => setSelectedAssignmentId(null)} />}
@@ -101,7 +67,6 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
 }
 
 export function DashboardPage() {
-  const { user } = useAuth()
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
   const surface = theme.palette.background.paper
@@ -113,30 +78,7 @@ export function DashboardPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [sortMenuAnchor, setSortMenuAnchor] = useState<null | HTMLElement>(null)
   const [filterMenuAnchor, setFilterMenuAnchor] = useState<null | HTMLElement>(null)
-  const [unreadMessages, setUnreadMessages] = useState<number | null>(null)
-  const [messagesError, setMessagesError] = useState('')
   const { patients, assignments, weekDates, openSchedule, policy, occupied, setWeek, assignmentsLoading, assignmentsError, retryAssignments } = useOutletContext<DashboardOutletContext>()
-  useEffect(() => {
-    if (!user) return
-    let active = true
-    const refreshUnread = () => {
-      void loadMessageConversations(user.id)
-        .then((threads) => { if (active) { setUnreadMessages(threads.reduce((count, thread) => count + thread.unread, 0)); setMessagesError('') } })
-        .catch((error) => { if (active) { setUnreadMessages(null); setMessagesError(errorMessage(error, 'Unread messages could not be loaded.')) } })
-    }
-    refreshUnread()
-    const channel = supabase.channel(`dashboard-message-count-${user.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, refreshUnread)
-      .subscribe((status) => { if (status === 'SUBSCRIBED') refreshUnread() })
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') refreshUnread() }, 15000)
-    window.addEventListener('focus', refreshUnread)
-    return () => {
-      window.clearInterval(timer)
-      active = false
-      window.removeEventListener('focus', refreshUnread)
-      void supabase.removeChannel(channel)
-    }
-  }, [user])
   const visiblePatients = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
     return [...patients]
@@ -159,7 +101,7 @@ export function DashboardPage() {
   const toggleAll = () => setExpanded(allExpanded ? [] : visiblePatients.map((patient) => patient.id))
 
   return <>
-    {messagesError && <Alert severity="warning">{messagesError}</Alert>}
+    <Typography component="h1" variant="h4" sx={{ mb: 2 }}>Patients</Typography>
     <CalendarWeekNavigation dates={weekDates} policy={policy} onChange={setWeek} />
     <Fade in appear timeout={320}>
       <Stack className="dashboard-overview" direction={{ xs: 'column', lg: 'row' }} spacing={{ xs: 2, lg: 5 }} alignItems="stretch">
@@ -181,7 +123,7 @@ export function DashboardPage() {
           {visiblePatients.length ? visiblePatients.map((patient) => <PatientRow key={`${patient.profileId}/${weekDates[0]}`} patient={patient} expanded={expanded.includes(patient.id)} onToggle={() => togglePatient(patient.id)} assignments={assignments[patient.profileId] ?? {}} weekDates={weekDates} policy={policy} occupied={occupied[patient.profileId] ?? []} loading={assignmentsLoading} error={assignmentsError} onRetry={retryAssignments} onAssign={(dayIndex) => openSchedule(patient, weekDates[dayIndex])} />) : <Card sx={{ p: 5, textAlign: 'center', border: `4px solid ${border}`, bgcolor: surface, color: text }}><Typography variant="h6" fontFamily="Georgia, serif">No patients found</Typography></Card>}
         </Stack>
       </Box>
-      <Box sx={{ width: { xs: '100%', lg: 250 }, display: 'flex', flexDirection: { xs: 'row', lg: 'column' }, justifyContent: 'center', gap: { xs: 2, lg: 6 }, alignItems: 'center' }}><Button component={RouterLink} to="/dashboard/patients/new" sx={{ color: 'white', display: 'flex', flexDirection: 'column', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.65rem', transition: 'transform 180ms ease', '&:hover': { bgcolor: 'transparent', transform: 'translateY(-4px)' } }}><Box className="dashboard-shortcut-orb" sx={{ width: { xs: 110, sm: 170 }, height: { xs: 110, sm: 170 }, borderRadius: '50%', bgcolor: '#4b9da9', border: '4px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 180ms ease, box-shadow 180ms ease' }}><AddIcon sx={{ color: 'white', fontSize: { xs: 70, sm: 120 } }} /></Box><Box component="span" mt={1}>New Patient</Box></Button><Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', lg: 'block' }, borderColor: 'black', borderWidth: 2 }} /><Button component={RouterLink} to="/dashboard/messages" sx={{ color: 'white', display: 'flex', flexDirection: 'column', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.65rem', transition: 'transform 180ms ease', '&:hover': { bgcolor: 'transparent', transform: 'translateY(-4px)' } }}><Box className="dashboard-shortcut-orb" sx={{ position: 'relative', width: { xs: 110, sm: 170 }, height: { xs: 110, sm: 170 }, borderRadius: '50%', bgcolor: '#4b9da9', border: '4px solid black', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 180ms ease, box-shadow 180ms ease' }}><ChatBubbleOutlineIcon sx={{ color: 'white', fontSize: { xs: 65, sm: 95 } }} />{unreadMessages !== null && unreadMessages > 0 && <Box sx={{ position: 'absolute', top: -2, right: -2, width: 46, height: 46, bgcolor: '#ef1640', borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Georgia, serif', fontStyle: 'normal', fontWeight: 700 }}>{unreadMessages}</Box>}</Box><Box component="span" mt={1}>Messages</Box></Button></Box>
+      <PatientSetupBox />
       </Stack>
     </Fade>
   </>

@@ -67,7 +67,8 @@ for (const width of [1280, 390]) for (const theme of ['light', 'dark']) {
     await go(page, `/dashboard/patients/${patient}`)
     await expect(page.locator('[data-routine-status="missed"]')).toContainText('Routine past')
     await expect(page.locator('[data-routine-status="completed"]')).toContainText('Routine complete')
-    const difficultyCard = page.locator('[data-routine-status="issue"]')
+    await page.getByRole('button', { name: /View assigned routine Routine difficulty/ }).click()
+    const difficultyCard = page.locator('#patient-assignment-details [data-routine-status="issue"]')
     await expect(difficultyCard).toContainText('Routine difficulty')
     await expect(difficultyCard.getByRole('region', { name: 'Patient routine feedback' })).toContainText('Please review <exercise> next visit.')
     await expect(difficultyCard.getByRole('textbox')).toHaveCount(0)
@@ -77,7 +78,8 @@ for (const width of [1280, 390]) for (const theme of ['light', 'dark']) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 
     await page.reload()
-    await expect(page.locator('[data-routine-status="issue"]')).toContainText('Please review <exercise> next visit.')
+    await page.getByRole('button', { name: /View assigned routine Routine difficulty/ }).click()
+    await expect(page.locator('#patient-assignment-details [data-routine-status="issue"]')).toContainText('Please review <exercise> next visit.')
 
     await go(page, '/dashboard/routine-status-preview')
     await expect(page.getByRole('heading', { name: 'Routine status preview', exact: true })).toBeVisible()

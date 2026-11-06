@@ -48,6 +48,7 @@ export async function setup(context, options = {}) {
     }
     const name = url.pathname.split('/').at(-1)
     if (url.pathname.includes('/rpc/')) {
+      if (name === 'get_patient_onboarding_statuses') return reply([])
       if (name === 'get_routine_scheduling_policy') return reply(policy)
       if (name === 'get_patient_schedule_occupancy') return reply([
         ...state.assignments.filter((a) => a.status !== 'cancelled' && a.scheduled_date >= body.p_start_date && a.scheduled_date <= body.p_end_date)

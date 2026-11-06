@@ -65,6 +65,7 @@ export function DashboardLayout() {
 export function DashboardWorkspace() {
   const { user, logout } = useAuth()
   const location = useLocation()
+  const isPatientDetailPage = /^\/dashboard\/patients\/[^/]+$/.test(location.pathname) && !location.pathname.endsWith('/new')
   const isMessagesPage = location.pathname === '/dashboard/messages'
   const isPatientsPage = location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/patients')
   const [menuOpen, setMenuOpen] = useState(false)
@@ -258,7 +259,7 @@ export function DashboardWorkspace() {
         </Box>}
       </Container>
     </AppBar>
-    <Container maxWidth={false} sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: isMessagesPage ? 0 : { xs: 2, md: 3 } }}>
+    <Container maxWidth={false} sx={{ width: isPatientDetailPage ? '100%' : { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: isMessagesPage ? 0 : { xs: 2, md: 3 } }}>
       <Stack role="region" aria-label="Dashboard notifications" spacing={1} sx={{
         position: 'fixed', top: { xs: 120, sm: 80 }, right: { xs: 16, sm: 24 },
         width: { xs: 'calc(100% - 32px)', sm: 420 }, maxWidth: 'calc(100% - 32px)',

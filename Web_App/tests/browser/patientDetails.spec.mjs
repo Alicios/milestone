@@ -40,7 +40,27 @@ for (const width of [390, 1365]) {
       if (writes.length !== 1) throw Error('Duplicate save was not guarded');
       await expect(page.getByRole('heading', { name: 'Updated Synthetic Patient', exact: true })).toBeVisible();
       await expect(page.getByRole('link', { name: 'saved@example.invalid' })).toBeVisible();
+      const care = page.getByRole('region', { name: 'Care overview', exact: true });
+      const details = page.getByRole('region', { name: 'Patient information', exact: true });
+      const routines = page.getByRole('region', { name: 'Assigned routines', exact: true });
+      const controls = page.getByRole('region', { name: 'Patient controls', exact: true });
+      const controlsBox = await controls.boundingBox();
+      const careBox = await care.boundingBox(); const detailsBox = await details.boundingBox(); const routinesBox = await routines.boundingBox();
+      if (width > 900) {
+        expect(Math.abs(careBox.y - detailsBox.y)).toBeLessThan(2);
+        expect(detailsBox.x).toBeGreaterThan(careBox.x + careBox.width);
+        expect(Math.abs(controlsBox.y - detailsBox.y)).toBeLessThan(2);
+        expect(controlsBox.x).toBeGreaterThan(detailsBox.x + detailsBox.width);
+      } else {
+        expect(detailsBox.y).toBeGreaterThan(careBox.y);
+        expect(controlsBox.y).toBeGreaterThan(detailsBox.y + detailsBox.height);
+      }
+      expect(routinesBox.y).toBeGreaterThan(controlsBox.y + controlsBox.height);
+      expect(routinesBox.width).toBeGreaterThan(width - 60);
+      await expect(page.getByRole('tab', { name: 'Patient actions', exact: true })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Invite to App' })).toBeEnabled();
+      await expect(care).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Discharge Patient', exact: true })).toBeVisible();
       await page.reload();
       await expect(page.getByRole('heading', { name: 'Updated Synthetic Patient', exact: true })).toBeVisible();
       await page.getByRole('button', { name: 'Edit patient details', exact: true }).click();

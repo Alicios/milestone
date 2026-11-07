@@ -9,7 +9,7 @@ import { PatientWeekCalendar } from '../components/PatientWeekCalendar'
 import { CalendarWeekNavigation } from '../components/CalendarWeekNavigation'
 import { withinHorizon } from '../lib/scheduling'
 import { prescriptionSummary } from '../lib/prescriptions'
-import { inviteExistingPatient } from '../lib/supabaseData'
+import { inviteExistingPatient, type PatientLoginCode } from '../lib/supabaseData'
 import { errorMessage } from '../lib/errors'
 import type { DashboardOutletContext } from '../components/DashboardLayout'
 import { PatientDetailsDialog } from '../components/PatientDetailsDialog'
@@ -44,19 +44,30 @@ function PatientOverview({ patient }: { patient: Patient }) {
   const [feedback, setFeedback] = useState('')
   const [error, setError] = useState('')
   const [inviting, setInviting] = useState(false)
-  const [inviteMessage, setInviteMessage] = useState<{ text: string; severity: 'success' | 'error' } | null>(null)
-  const [otp, setOtp] = useState(patient.pendingOtpCode ?? '')
-
-  const otpExpired = Boolean(patient.pendingOtpExpiresAt) && new Date(patient.pendingOtpExpiresAt as string).getTime() <= Date.now()
-  const displayedOtp = otp || (!otpExpired ? patient.pendingOtpCode ?? '' : '')
+  const [inviteMessage, setInviteMessage] = useState<{ text: string; severity: 'success' | 'warning' | 'error' } | null>(null)
+  const [generatedCode, setGeneratedCode] = useState<PatientLoginCode | null>(null)
+  const [now, setNow] = useState(Date.now)
+  const codeExpiry = Date.parse(generatedCode?.expiresAt ?? patient.pendingOtpExpiresAt ?? '')
+  const displayedOtp = codeExpiry > now ? generatedCode?.otp ?? patient.pendingOtpCode ?? '' : ''
+  useEffect(() => { setGeneratedCode(null) }, [patient.email, patient.pendingOtpCode, patient.pendingOtpExpiresAt])
+  useEffect(() => {
+    let timer: number | undefined
+    function checkExpiry() {
+      const current = Date.now()
+      setNow(current)
+      if (codeExpiry > current) timer = window.setTimeout(checkExpiry, Math.min(codeExpiry - current, 2147483647))
+    }
+    checkExpiry()
+    return () => window.clearTimeout(timer)
+  }, [codeExpiry])
 
   async function invitePatient() {
     setInviting(true)
     setInviteMessage(null)
     try {
       const code = await inviteExistingPatient(patient.id)
-      setOtp(code.otp)
-      setInviteMessage({ text: 'Login code generated below.', severity: 'success' })
+      setGeneratedCode(code)
+      setInviteMessage({ text: 'Login code generated below. Give it directly to the patient.', severity: 'success' })
     } catch (inviteError) {
       setInviteMessage({ text: errorMessage(inviteError, 'The code could not be generated.'), severity: 'error' })
     } finally {
@@ -130,7 +141,7 @@ function PatientOverview({ patient }: { patient: Patient }) {
               <Typography variant="body2" color="text.secondary">They'll enter it in the Milestone app. It clears here once they verify, or expires in about an hour.</Typography>
             </Card>}
             <Button variant="outlined" startIcon={<VpnKeyOutlinedIcon />} disabled={!patient.email || inviting} onClick={() => void invitePatient()} sx={{ alignSelf: 'flex-start' }}>
-              {inviting ? 'Generating…' : patient.hasAccount ? 'Send New Login Code' : 'Invite to App'}
+              {inviting ? 'Generating…' : 'Generate login code'}
             </Button>
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Discharge this patient to hide them from active care while retaining their clinical history.</Typography>

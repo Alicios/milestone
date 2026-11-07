@@ -259,13 +259,13 @@ export class PatientInviteError extends AppError {
   }
 }
 
-export type PatientLoginCode = { email: string; otp: string; expiresAt: string }
+export type PatientLoginCode = { email: string; otp: string; expiresAt: string; emailStatus?: import('./patientCodeEmail').EmailStatus }
 
 // Calls the Vercel serverless function in api/invite-patient.ts, which holds
 // the service_role key server-side — the browser can never call Supabase's
-// Admin API (generateLink) directly. Returns the raw one-time code: no email
-// is sent, so the provider must relay it to the patient directly.
-export async function inviteExistingPatient(patientId: string, fetchImpl: typeof fetch = fetch): Promise<PatientLoginCode> {
+// Admin API (generateLink) directly. Patient-page generation only displays the
+// code; new-patient signup explicitly requests email delivery as well.
+export async function inviteExistingPatient(patientId: string, fetchImpl: typeof fetch = fetch, sendEmail = false): Promise<PatientLoginCode> {
   try {
     const { data: { session }, error } = await supabase.auth.getSession()
     if (error) throw error
@@ -273,7 +273,7 @@ export async function inviteExistingPatient(patientId: string, fetchImpl: typeof
     const response = await fetchImpl('/api/invite-patient', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ patientId }),
+      body: JSON.stringify({ patientId, ...(sendEmail ? { sendEmail: true } : {}) }),
     })
     let result: unknown
     try { result = await response.json() }
@@ -289,7 +289,9 @@ export async function inviteExistingPatient(patientId: string, fetchImpl: typeof
       || !('expiresAt' in result) || typeof result.expiresAt !== 'string' || !Number.isFinite(Date.parse(result.expiresAt))) {
       throw new AppError('OTP_UNCONFIRMED', { cause: result, httpStatus: response.status })
     }
-    return { email: result.email, otp: result.otp, expiresAt: result.expiresAt }
+    const emailStatus = 'emailStatus' in result && ['sent', 'failed', 'not_configured'].includes(String(result.emailStatus))
+      ? result.emailStatus as import('./patientCodeEmail').EmailStatus : undefined
+    return { email: result.email, otp: result.otp, expiresAt: result.expiresAt, ...(emailStatus ? { emailStatus } : {}) }
   } catch (error) {
     throw new PatientInviteError(patientId, error)
   }
@@ -297,7 +299,7 @@ export async function inviteExistingPatient(patientId: string, fetchImpl: typeof
 
 export async function createPatientAndInvite(name: string, email: string, fetchImpl: typeof fetch = fetch) {
   const patientId = await createPatient(name, email)
-  const code = await inviteExistingPatient(patientId, fetchImpl)
+  const code = await inviteExistingPatient(patientId, fetchImpl, true)
   return { patientId, code }
 }
 

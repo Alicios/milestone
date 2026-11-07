@@ -1,4 +1,5 @@
-// Real Auth/API integration against disposable synthetic accounts. No email is sent.
+// Real Auth/API integration against disposable synthetic accounts. When mail is
+// configured, the endpoint attempts delivery to these synthetic addresses too.
 // Requires SUPABASE_SERVICE_ROLE_KEY in .env.local and npm run dev on port 3000.
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
@@ -42,8 +43,10 @@ async function login(email, otp) {
 }
 try {
   const password = `${randomUUID()}Aa1!`
+  const practice = checked(await admin.from('medical_practices').select('id').limit(1))[0]
+  assert.ok(practice?.id, 'An existing medical practice is required for the synthetic provider')
   providerId = checked(await admin.auth.admin.createUser({ email: providerEmail, password, email_confirm: true,
-    user_metadata: { name: 'Synthetic onboarding verification provider' } })).user.id
+    user_metadata: { name: 'Synthetic onboarding verification provider', medical_practice_id: practice.id } })).user.id
   bearer = checked(await provider.auth.signInWithPassword({ email: providerEmail, password })).session.access_token
   patientId = checked(await provider.rpc('create_patient', { patient_name: 'Synthetic onboarding verification patient', patient_phone: null, patient_email: wrongEmail }))
   const firstCode = await post('invite-patient', { patientId })

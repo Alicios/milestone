@@ -8,7 +8,7 @@ const newProfile = '00000000-0000-0000-0000-000000000081'
 // accounts or login codes are created by these browser tests.
 async function onboarding(context, options = {}) {
   await setup(context)
-  const state = { creates: [], invites: [], rows: [], failCreate: false, failInvite: false, ...options }
+  const state = { creates: [], invites: [], rows: [], failCreate: false, failInvite: false, emailStatus: 'sent', codeExpiresAt: '2099-01-01T00:00:00Z', ...options }
   await context.route('**/rest/v1/provider_patient_profiles?*', route => route.fulfill({ json: [
     { id: profile, patient_id: patient }, ...state.rows.map((row, index) => ({ id: index === 0 ? newProfile : `00000000-0000-0000-0000-${String(100 + index).padStart(12, '0')}`, patient_id: row.id })),
   ] }))
@@ -29,8 +29,9 @@ async function onboarding(context, options = {}) {
     if (state.failInvite) return route.fulfill({ status: 502, json: { error: 'Synthetic invitation rejection' } })
     const row = state.rows.find(row => row.id === route.request().postDataJSON().patientId)
     row.pending_otp_code = '123456'
-    row.pending_otp_expires_at = '2099-01-01T00:00:00Z'
-    return route.fulfill({ json: { email: row.email, otp: '123456', expiresAt: '2099-01-01T00:00:00Z' } })
+    row.pending_otp_expires_at = state.codeExpiresAt
+    return route.fulfill({ json: { email: row.email, otp: '123456', expiresAt: state.codeExpiresAt,
+      ...(route.request().postDataJSON().sendEmail === true ? { emailStatus: state.emailStatus } : {}) } })
   })
   return state
 }
@@ -60,8 +61,9 @@ for (const width of [390, 1365]) {
     await page.locator('form').evaluate(form => { form.requestSubmit(); form.requestSubmit() })
     await expect(page.getByRole('heading', { name: 'Pending account created' })).toBeVisible()
     await expect(page.getByText('123456', { exact: true })).toBeVisible()
+    await expect(page.getByText(/Login code emailed to the patient/)).toBeVisible()
     expect(state.creates).toEqual([{ patient_name: 'New Synthetic Patient', patient_phone: null, patient_email: 'new-patient@example.invalid' }])
-    expect(state.invites).toEqual([{ patientId: newPatient }])
+    expect(state.invites).toEqual([{ patientId: newPatient, sendEmail: true }])
     await page.screenshot({ path: info.outputPath('patient-added.png'), fullPage: true })
     await page.getByRole('link', { name: 'Open patient page' }).click()
     await expect(page.getByRole('heading', { name: 'New Synthetic Patient', exact: true })).toBeVisible()
@@ -96,7 +98,7 @@ test('cancel, reset, creation retry and invitation recovery preserve the saved p
   await page.getByRole('link', { name: 'Open patient page' }).click()
   await expect(page.getByRole('heading', { name: 'New Synthetic Patient', exact: true })).toBeVisible()
   state.failInvite = false
-  await page.getByRole('button', { name: 'Invite to App', exact: true }).click()
+  await page.getByRole('button', { name: 'Generate login code', exact: true }).click()
   await expect(page.getByText('123456', { exact: true })).toBeVisible()
   expect(state.creates).toHaveLength(2) // One rejected attempt and one saved patient.
   expect(state.rows).toHaveLength(1)
@@ -109,4 +111,36 @@ test('cancel, reset, creation retry and invitation recovery preserve the saved p
   await expect(page.getByRole('textbox', { name: 'Patient name' })).toHaveValue('')
   await expect(page.getByRole('textbox', { name: 'Patient email' })).toHaveValue('')
   await expect(page.getByRole('button', { name: 'Create & Invite Patient' })).toBeDisabled()
+})
+
+for (const emailStatus of ['failed', 'not_configured']) test(`email ${emailStatus} preserves a usable code for new and existing patients`, async ({ context, page }) => {
+  const state = await onboarding(context, { emailStatus })
+  await page.goto('/dashboard/patients/new')
+  await page.getByRole('textbox', { name: 'Patient name' }).fill('Mail Fallback Patient')
+  await page.getByRole('textbox', { name: 'Patient email' }).fill('mail-fallback@example.invalid')
+  await page.getByRole('button', { name: 'Create & Invite Patient' }).click()
+  await expect(page.getByRole('heading', { name: 'Pending account created' })).toBeVisible()
+  await expect(page.getByText('123456', { exact: true })).toBeVisible()
+  await expect(page.getByText(/Give this code directly to the patient/)).toBeVisible()
+  await expect(page.getByText(/Login code emailed/)).toHaveCount(0)
+  await page.getByRole('link', { name: 'Open patient page' }).click()
+  await page.getByRole('button', { name: 'Generate login code', exact: true }).click()
+  await expect(page.getByText('Login code generated below. Give it directly to the patient.')).toBeVisible()
+  expect(state.invites.at(-1)).toEqual({ patientId: newPatient })
+  await expect(page.getByText(/Email delivery/)).toHaveCount(0)
+  await expect(page.getByText('123456', { exact: true })).toBeVisible()
+})
+
+test('patient page hides an expired stored code and expires a regenerated code while open', async ({ context, page }) => {
+  await page.clock.install()
+  const state = await onboarding(context, { rows: [{ id: newPatient, name: 'Expired Code Patient', email: 'expired@example.invalid',
+    care_status: 'pending', auth_user_id: 'existing-account', pending_otp_code: '111111', pending_otp_expires_at: '2000-01-01T00:00:00Z' }] })
+  await page.goto(`/dashboard/patients/${newPatient}`)
+  await expect(page.getByRole('heading', { name: 'Expired Code Patient', exact: true })).toBeVisible()
+  await expect(page.getByText('111111', { exact: true })).toHaveCount(0)
+  state.codeExpiresAt = await page.evaluate(() => new Date(Date.now() + 5000).toISOString())
+  await page.getByRole('button', { name: 'Generate login code', exact: true }).click()
+  await expect(page.getByText('123456', { exact: true })).toBeVisible()
+  await page.clock.fastForward(5001)
+  await expect(page.getByText('123456', { exact: true })).toHaveCount(0)
 })

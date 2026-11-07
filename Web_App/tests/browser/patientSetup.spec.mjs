@@ -28,7 +28,7 @@ async function setupFlow(context) {
   })
   await context.route('**/api/invite-patient', route => {
     state.codes++; state.code = '654321'; state.codeExpiresAt = '2099-01-01T00:00:00Z'; state.status = 'awaiting_code'
-    return route.fulfill({ json: { email: state.email, otp: state.code, expiresAt: state.codeExpiresAt } })
+    return route.fulfill({ json: { email: state.email, otp: state.code, expiresAt: state.codeExpiresAt, emailStatus: 'sent' } })
   })
   return state
 }

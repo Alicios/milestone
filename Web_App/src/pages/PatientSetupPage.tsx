@@ -45,7 +45,11 @@ function PatientSetupEditor({ patientId }: { patientId: string }) {
   async function generate() {
     if (pending.current || dirty || needsRepair || data?.needsReconciliation) return
     pending.current = true; setBusy('code'); setError(''); setNotice('')
-    try { await generateOnboardingCode(patientId); retryPatients(); await refresh(); setNotice('New login code generated. Give it directly to the patient.') }
+    try {
+      await generateOnboardingCode(patientId)
+      retryPatients(); await refresh()
+      setNotice('New login code generated. Give it directly to the patient.')
+    }
     catch (caught) { failure(caught); await refresh() }
     finally { pending.current = false; setBusy(null) }
   }
@@ -78,7 +82,7 @@ function PatientSetupEditor({ patientId }: { patientId: string }) {
             {!dirty && !needsRepair && !data.needsReconciliation && data.code && data.codeExpiresAt && Date.parse(data.codeExpiresAt) > Date.now() && <Alert severity="info">
               <Typography>Give this code directly to the patient:</Typography>
               <Typography sx={{ fontWeight: 800, fontSize: '2rem', letterSpacing: 4 }}>{data.code}</Typography>
-              <Typography variant="body2">No email is sent. The code expires in about an hour after generation.</Typography>
+              <Typography variant="body2">The code expires in about an hour after generation.</Typography>
             </Alert>}
             <Button variant="outlined" disabled={Boolean(busy) || dirty || needsRepair || data.needsReconciliation || !data.email}
               onClick={() => void generate()}>{busy === 'code' ? 'Generating…' : 'Generate new login code'}</Button>

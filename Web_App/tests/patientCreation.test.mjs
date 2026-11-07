@@ -19,6 +19,7 @@ function loadTs(path, mocks = {}) {
   const dependency = (name) => {
     if (Object.hasOwn(mocks, name)) return mocks[name]
     if (name === './errors' || name === '../lib/errors') return errors
+    if (name === '../lib/patientCodeEmail') return loadTs('../src/lib/patientCodeEmail.ts')
     if (name === './supabase' || name === '../lib/supabaseData') throw new Error('Live Supabase imports are forbidden in tests')
     if (name.startsWith('@mui/icons-material/')) return { default: 'Icon' }
     return require(name)
@@ -127,6 +128,7 @@ test('createPatientAndInvite creates the patient, then invites them, returning t
   const result = await createPatientAndInvite('Patient', 'patient@example.com', fetchImpl)
   assert.equal(result.patientId, 'patient-id')
   assert.equal(result.code.otp, '123456')
+  assert.deepEqual(JSON.parse(fetchCalls[0].options.body), { patientId: 'patient-id', sendEmail: true })
   assert.equal(calls.length, 1)
   assert.equal(fetchCalls.length, 1)
 })

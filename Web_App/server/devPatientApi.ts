@@ -1,12 +1,12 @@
 import type { Plugin } from 'vite'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import invitePatient from '../api/invite-patient'
-import updateOnboarding from '../api/update-patient-onboarding'
+import invitePatient from '../api/invite-patient.js'
+import updateOnboarding from '../api/update-patient-onboarding.js'
 
 // Match the deployed endpoints during `npm run dev`. Server credentials stay
 // in process.env and are never added to Vite's browser environment.
 export function devPatientApi(env: Record<string, string>): Plugin {
-  for (const key of ['VITE_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) {
+  for (const key of ['VITE_SUPABASE_URL', 'VITE_SUPABASE_PUBLISHABLE_KEY', 'VITE_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'RESEND_API_KEY', 'PATIENT_EMAIL_FROM']) {
     if (!process.env[key] && env[key]) process.env[key] = env[key]
   }
   return {

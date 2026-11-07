@@ -47,10 +47,16 @@ npm run dev
 Open the local URL shown by Vite, typically `http://localhost:3000`.
 
 Patient invitation and setup correction endpoints also run under `npm run dev`.
-To use those endpoints against Supabase, set `SUPABASE_SERVICE_ROLE_KEY` in
-`.env.local` and restart Vite. This key is read only by the local server; never
-give it a `VITE_` prefix or include it in browser code. Use the same server-only
-variable for the deployed API functions.
+With only the project URL and publishable key configured, those endpoints
+forward the signed-in provider's session to the project's `patient-onboarding`
+Supabase Edge Function. The function uses its built-in server credentials and
+verifies the provider and active patient relationship. Local code generation
+does not require copying an admin key into `.env.local`.
+
+If `SUPABASE_SERVICE_ROLE_KEY` is configured, the API executes the same shared
+onboarding operations directly on the local/deployment server. Never give this
+key a `VITE_` prefix or include it in browser code. Deploy the Edge Function
+from `supabase/functions/patient-onboarding` when changing the shared backend.
 
 ## Available routes
 
@@ -78,7 +84,17 @@ Routes under the dashboard require an active Supabase authentication session.
 The dashboard's Patient setup box lists patients who have not yet signed in.
 Account creation alone does not complete setup. Email corrections synchronize
 the linked sign-in account and clear the previous displayed code; generating a
-replacement code is a separate action. No invitation email is sent.
+replacement code is a separate action. Codes generated on patient care and
+setup pages are displayed for the provider to relay directly, without email.
+New-patient signup emails its code through Resend using the same code displayed
+to the provider. Set
+`RESEND_API_KEY` and `PATIENT_EMAIL_FROM` (a sender on a verified Resend domain)
+in the Supabase Edge Function secrets when using the hosted function, or in
+`.env.local` and the deployment's server environment when using a local server
+key. Restart local Vite after changing local values. None of
+these server secrets should have a `VITE_` prefix. If email is unavailable,
+the UI warns the provider to relay the saved code directly. An accepted email
+request does not guarantee inbox delivery.
 
 Focused verification:
 

@@ -8,6 +8,7 @@ import { Link as RouterLink, useOutletContext } from 'react-router-dom'
 import type { DashboardOutletContext } from '../components/DashboardLayout'
 import { createPatientAndInvite, PatientInviteError } from '../lib/supabaseData'
 import { errorMessage } from '../lib/errors'
+import { patientCodeEmailMessage, type EmailStatus } from '../lib/patientCodeEmail'
 
 const fontSx = { fontFamily: 'Georgia, serif', fontStyle: 'italic' }
 const teal = '#4b9da9'
@@ -34,6 +35,7 @@ export function NewPatientPage() {
   const [submitted, setSubmitted] = useState(false)
   const [inviteFailed, setInviteFailed] = useState(false)
   const [otp, setOtp] = useState('')
+  const [emailStatus, setEmailStatus] = useState<EmailStatus>()
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [patientId, setPatientId] = useState('')
@@ -55,6 +57,7 @@ export function NewPatientPage() {
       retryPatients()
       setInviteFailed(false)
       setOtp(code.otp)
+      setEmailStatus(code.emailStatus)
       setSubmitted(true)
     } catch (error) {
       if (error instanceof PatientInviteError) {
@@ -82,6 +85,7 @@ export function NewPatientPage() {
     setSubmitted(false)
     setInviteFailed(false)
     setOtp('')
+    setEmailStatus(undefined)
     setPatientId('')
   }
 
@@ -92,10 +96,11 @@ export function NewPatientPage() {
       <Typography sx={{ ...fontSx, fontSize: '1.25rem', mb: 3 }}>{name} has been added to your patient list.</Typography>
       {inviteFailed
         ? <Alert icon={<VpnKeyOutlinedIcon />} severity="warning" sx={{ mb: 3, border: `3px solid ${border}`, borderRadius: '18px', color: text, ...fontSx, textAlign: 'left' }}>{saveError} The patient record is saved. Check their patient page before generating another code; do not create this patient again.</Alert>
-        : <Alert icon={<VpnKeyOutlinedIcon />} severity="info" sx={{ mb: 3, border: `3px solid ${border}`, borderRadius: '18px', bgcolor: infoSurface, color: text, ...fontSx, textAlign: 'left' }}>
+        : <Alert icon={<VpnKeyOutlinedIcon />} severity={emailStatus === 'sent' ? 'info' : 'warning'} sx={{ mb: 3, border: `3px solid ${border}`, borderRadius: '18px', bgcolor: infoSurface, color: text, ...fontSx, textAlign: 'left' }}>
             <Typography sx={{ ...fontSx, fontWeight: 700 }}>Give this code to {name}:</Typography>
             <Typography sx={{ ...fontSx, fontSize: '2rem', fontWeight: 800, letterSpacing: '4px', my: .5 }}>{otp}</Typography>
-            <Typography sx={{ ...fontSx }}>They'll enter it in the Milestone app to sign in. No email was sent — relay this code to them directly, and it expires in about an hour.</Typography>
+            <Typography sx={{ ...fontSx }}>{patientCodeEmailMessage(emailStatus)}</Typography>
+            <Typography sx={{ ...fontSx }}>They'll enter it in the Milestone app to sign in. It expires in about an hour.</Typography>
           </Alert>}
       <Button component={RouterLink} to={`/dashboard/patients/${encodeURIComponent(patientId)}`} variant="contained" sx={{ mb: 2, bgcolor: teal, '&:hover': { bgcolor: '#3b818c' } }}>Open patient page</Button>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Continue to their patient page to add care details and schedule routines.</Typography>
@@ -109,7 +114,7 @@ export function NewPatientPage() {
     <Card component="form" onSubmit={submit} aria-busy={saving} sx={{ border: `4px solid ${border}`, borderRadius: '30px', bgcolor: surface, color: text, p: { xs: 2.5, sm: 4 } }}>
       {saveError && <Alert severity="error" sx={{ mb: 2 }}>{saveError}</Alert>}
       <Stack spacing={2.5}><TextField label="Patient name" autoComplete="name" autoFocus disabled={saving} value={name} onChange={(event) => setName(event.target.value)} required placeholder="Enter full name" sx={{ '& .MuiOutlinedInput-root': { ...fontSx, borderRadius: '18px', '& fieldset': { border: `3px solid ${border}` } }, '& .MuiInputLabel-root': fontSx }} /><TextField label="Patient email" autoComplete="email" disabled={saving} value={email} onChange={(event) => { setEmail(event.target.value); setEmailError('') }} error={Boolean(emailError)} helperText={emailError || 'Used to generate their login code and identify their account.'} placeholder="patient@example.com" type="email" required sx={{ '& .MuiOutlinedInput-root': { ...fontSx, borderRadius: '18px', '& fieldset': { border: `3px solid ${border}` } }, '& .MuiInputLabel-root': fontSx, '& .MuiFormHelperText-root': { ...fontSx, ml: 0 } }} />
-        <Box sx={{ bgcolor: noteSurface, border: `3px solid ${border}`, borderRadius: '18px', p: 2 }}><Typography sx={{ ...fontSx, fontWeight: 700 }}>What happens next?</Typography><Typography sx={{ ...fontSx }}>The patient is added to your list right away, and a one-time login code is generated for you to give them directly — no email is sent.</Typography></Box>
+        <Box sx={{ bgcolor: noteSurface, border: `3px solid ${border}`, borderRadius: '18px', p: 2 }}><Typography sx={{ ...fontSx, fontWeight: 700 }}>What happens next?</Typography><Typography sx={{ ...fontSx }}>The patient is added to your list right away. We generate a one-time login code and email it to them. You can also give them the code shown here.</Typography></Box>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="flex-end"><Button component={RouterLink} to="/dashboard" disabled={saving} sx={{ ...fontSx, color: text, border: `3px solid ${border}`, borderRadius: '20px', px: 3 }}>Cancel</Button><Button type="submit" disabled={!name.trim() || !email.trim() || saving} sx={{ ...fontSx, bgcolor: orange, color: 'white', border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#d15a17' }, '&.Mui-disabled': { bgcolor: '#d6b39f', color: 'white' } }}>{saving ? 'Saving…' : 'Create & Invite Patient'}</Button></Stack>
       </Stack>
     </Card>

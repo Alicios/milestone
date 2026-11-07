@@ -45,6 +45,6 @@ async function request(path: string, body: object) {
 export async function savePatientOnboarding(patientId: string, name: string, email: string): Promise<{ name: string; email: string; emailChanged: boolean }> {
   return request('/api/update-patient-onboarding', { patientId, name: name.trim(), email: email.trim().toLowerCase() })
 }
-export async function generateOnboardingCode(patientId: string): Promise<void> {
-  await request('/api/invite-patient', { patientId })
+export async function generateOnboardingCode(patientId: string): Promise<import('./supabaseData').PatientLoginCode> {
+  return request('/api/invite-patient', { patientId })
 }

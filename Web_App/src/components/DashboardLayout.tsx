@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Alert, AppBar, Avatar, Box, Button, Container, Divider, IconButton, Menu, MenuItem, Stack, Toolbar, Typography } from '@mui/material'
-import MenuIcon from '@mui/icons-material/Menu'
+import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
+import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined'
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined'
+import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined'
 import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import type { Patient } from '../data/mockPatients'
@@ -68,7 +71,6 @@ export function DashboardWorkspace() {
   const isPatientDetailPage = /^\/dashboard\/patients\/[^/]+$/.test(location.pathname) && !location.pathname.endsWith('/new')
   const isMessagesPage = location.pathname === '/dashboard/messages'
   const isPatientsPage = location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/patients')
-  const [menuOpen, setMenuOpen] = useState(false)
   const [profileMenuAnchor, setProfileMenuAnchor] = useState<null | HTMLElement>(null)
   const [patients, setPatients] = useState<Patient[]>([])
   const [patientsLoading, setPatientsLoading] = useState(true)
@@ -226,21 +228,31 @@ export function DashboardWorkspace() {
     calendar.invalidate()
   }
 
-  const buttonSx = { color: 'black', border: '4px solid black', borderRadius: '18px', px: { xs: 2, sm: 3 }, py: 0.75, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '1.2rem', sm: '1.7rem' }, '&:hover': { bgcolor: '#eb681d', color: 'white' } }
+  const navItems = [
+    { label: 'Patients', to: '/dashboard/patients', active: isPatientsPage, icon: <PeopleAltOutlinedIcon /> },
+    { label: 'Routines', to: '/dashboard/routines', active: location.pathname === '/dashboard/routines', icon: <AssignmentOutlinedIcon /> },
+    { label: 'Appointments', to: '/dashboard/appointments', active: location.pathname === '/dashboard/appointments', icon: <EventNoteOutlinedIcon /> },
+    { label: 'Messages', to: '/dashboard/messages', active: isMessagesPage, icon: <ForumOutlinedIcon /> },
+  ]
+  const buttonSx = {
+    minWidth: 0, minHeight: { xs: 42, sm: 48 }, px: { xs: .5, sm: 1.25 }, py: 0.5,
+    display: 'flex', flexDirection: 'row', gap: 0, borderRadius: '14px', whiteSpace: 'nowrap',
+    color: 'black', bgcolor: aqua, fontFamily: 'inherit', fontSize: { xs: '.61rem', sm: '.78rem' },
+    fontWeight: 700, lineHeight: 1.15, '& .MuiButton-startIcon': { m: 0, mr: { xs: .35, sm: .75 }, '& > *:nth-of-type(1)': { fontSize: { xs: 17, sm: 21 } } },
+    '&:hover': { bgcolor: '#eb681d', color: 'white' },
+  }
 
   return <Box className={isMessagesPage ? 'dashboard-shell messages-shell' : 'dashboard-shell modern-dashboard-shell'} sx={{ minHeight: '100vh', bgcolor: 'background.default', color: 'text.primary', fontFamily: 'Georgia, Times New Roman, serif' }}>
     <AppBar className="dashboard-header" position="sticky" elevation={0} sx={{ bgcolor: teal, color: 'white', borderRadius: { xs: 0, md: '0 0 16px 16px' }, zIndex: (theme) => theme.zIndex.appBar }}>
       <Container maxWidth="xl">
-        <Toolbar disableGutters sx={{ minHeight: { xs: 96, sm: 124 }, justifyContent: 'space-between', gap: 2, alignItems: 'center', flexWrap: { xs: 'wrap', sm: 'nowrap' }, py: { xs: .5, sm: 0 } }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1, sm: 2 }} alignItems={{ xs: 'stretch', sm: 'center' }}>
-            <Button component={RouterLink} to="/dashboard" onClick={() => setMenuOpen(false)} aria-current={isPatientsPage ? 'page' : undefined} sx={{ ...buttonSx, bgcolor: isPatientsPage ? '#eb681d' : aqua, color: isPatientsPage ? 'white' : 'black' }}>Patients</Button>
-            <Button component={RouterLink} to="/dashboard/routines" onClick={() => setMenuOpen(false)} sx={{ ...buttonSx, bgcolor: location.pathname === '/dashboard/routines' ? '#eb681d' : aqua }}>Routines</Button>
-            <Button component={RouterLink} to="/dashboard/messages" onClick={() => setMenuOpen(false)} sx={{ ...buttonSx, bgcolor: location.pathname === '/dashboard/messages' ? '#eb681d' : aqua, color: location.pathname === '/dashboard/messages' ? 'white' : 'black' }}>Messages</Button>
+        <Toolbar disableGutters sx={{ minHeight: { xs: 72, sm: 124 }, justifyContent: 'space-between', gap: { xs: .5, sm: 2 }, alignItems: 'center', flexWrap: 'nowrap', py: { xs: .5, sm: 0 }, position: 'relative' }}>
+          <Stack component="nav" aria-label="Provider pages" direction="row" spacing={{ xs: .35, sm: 1 }} justifyContent="center" sx={{ flex: { xs: 1, md: 'initial' }, minWidth: 0, position: { md: 'absolute' }, left: { md: '50%' }, transform: { md: 'translateX(-50%)' }, zIndex: 1 }}>
+            {navItems.map((item) => <Button key={item.to} component={RouterLink} to={item.to} aria-current={item.active ? 'page' : undefined} startIcon={item.icon} sx={{ ...buttonSx, flex: { xs: 1, md: 'initial' }, bgcolor: item.active ? '#eb681d' : aqua, color: item.active ? 'white' : 'black' }}>{item.label}</Button>)}
           </Stack>
-          <Stack direction="row" spacing={{ xs: 1, sm: 2 }} alignItems="center" sx={{ ml: 'auto' }}>
-            <Typography sx={{ display: { xs: 'none', sm: 'block' }, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 700, fontSize: { sm: '1.7rem', md: '2.4rem' }, whiteSpace: 'nowrap' }}>Welcome, {user?.name.split(' ')[0]}!</Typography>
+          <Stack direction="row" spacing={{ xs: .5, sm: 2 }} alignItems="center" sx={{ ml: { md: 'auto' }, flexShrink: 0 }}>
+            <Typography sx={{ display: { xs: 'none', lg: 'block' }, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 700, fontSize: { sm: '1.7rem', md: '2.4rem' }, whiteSpace: 'nowrap' }}>Welcome, {user?.name.split(' ')[0]}!</Typography>
             <IconButton id="profile-menu-button" aria-label="Open profile menu" aria-haspopup="menu" aria-expanded={Boolean(profileMenuAnchor) ? 'true' : undefined} onClick={(event) => setProfileMenuAnchor(event.currentTarget)} sx={{ p: 0, borderRadius: '50%' }}>
-              <Avatar alt={`${user?.name ?? 'User'} profile picture`} src={user?.avatarUrl} sx={{ width: { xs: 50, sm: 80 }, height: { xs: 50, sm: 80 }, bgcolor: aqua, color: 'black', border: '3px solid black', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '1.1rem', sm: '1.9rem' } }}>{user?.initials}</Avatar>
+              <Avatar alt={`${user?.name ?? 'User'} profile picture`} src={user?.avatarUrl} sx={{ width: { xs: 38, sm: 80 }, height: { xs: 38, sm: 80 }, bgcolor: aqua, color: 'black', border: '3px solid black', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '.9rem', sm: '1.9rem' } }}>{user?.initials}</Avatar>
             </IconButton>
             <Menu anchorEl={profileMenuAnchor} open={Boolean(profileMenuAnchor)} onClose={() => setProfileMenuAnchor(null)} MenuListProps={{ 'aria-labelledby': 'profile-menu-button' }} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
               <Box sx={{ px: 2, py: 1 }}><Typography sx={{ fontWeight: 700, fontFamily: 'Georgia, serif' }}>{user?.name}</Typography>{(user?.professionalTitle || user?.medicalPracticeName) && <Typography variant="body2" color="text.secondary">{[user.professionalTitle, user.medicalPracticeName].filter(Boolean).join(' · ')}</Typography>}<Typography variant="body2" color="text.secondary">{user?.email}</Typography></Box>
@@ -249,14 +261,8 @@ export function DashboardWorkspace() {
               <MenuItem component={RouterLink} to="/dashboard/settings" onClick={() => setProfileMenuAnchor(null)} sx={{ fontFamily: 'Georgia, serif' }}>Settings</MenuItem>
               <MenuItem onClick={() => { setProfileMenuAnchor(null); void logout() }} sx={{ fontFamily: 'Georgia, serif' }}>Logout</MenuItem>
             </Menu>
-            <IconButton aria-label="Open dashboard menu" onClick={() => setMenuOpen((open) => !open)} sx={{ display: { xs: 'flex', md: 'none' }, color: 'white' }}><MenuIcon /></IconButton>
           </Stack>
         </Toolbar>
-        {menuOpen && <Box sx={{ display: { xs: 'block', md: 'none' }, pb: 2 }}>
-          <Button component={RouterLink} to="/dashboard/patients" sx={{ color: 'white', fontFamily: 'Georgia, serif' }}>Patients</Button>
-          <Button component={RouterLink} to="/dashboard/appointments" sx={{ color: 'white', fontFamily: 'Georgia, serif' }}>Appointments</Button>
-          <Button component={RouterLink} to="/dashboard/messages" sx={{ color: 'white', fontFamily: 'Georgia, serif' }}>Messages</Button>
-        </Box>}
       </Container>
     </AppBar>
     <Container maxWidth={false} sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: isMessagesPage ? 0 : { xs: 2, md: 3 } }}>

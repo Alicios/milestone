@@ -15,7 +15,14 @@ export type DemoExercise = {
   notes: string
   media: DemoMedia[]
 }
-export type DemoRoutine = { id: string; name: string; description: string; exercises: DemoExercise[]; source?: 'provider' }
+export type DemoRoutine = { id: string; name: string; description: string; exercises: DemoExercise[]; source?: 'provider' | 'template' }
+
+export function copyPrototypeRoutine(routine: DemoRoutine): DemoRoutine {
+  const copy = structuredClone(routine)
+  return { ...copy, id: crypto.randomUUID(), name: `${routine.name} (copy)`, source: 'provider',
+    exercises: copy.exercises.map((exercise) => ({ ...exercise, id: crypto.randomUUID(), media: exercise.media.map((item) => ({ ...item, id: crypto.randomUUID() })) })),
+  }
+}
 
 export function providerPrototypeRoutines(routines: Routine[], catalog: CatalogExercise[]): DemoRoutine[] {
   const byId = new Map(catalog.map((exercise) => [exercise.id, exercise]))
@@ -63,7 +70,7 @@ export function buildPrototypeRoutines(catalog: CatalogExercise[]) {
   const byName = new Map(catalog.map((exercise) => [exercise.name.toLowerCase(), exercise]))
   const missing: string[] = []
   const routines = routineTemplates.map((template): DemoRoutine => ({
-    id: `prototype-${template.id}`, name: template.name, description: template.description,
+    id: `prototype-${template.id}`, name: template.name, description: template.description, source: 'template',
     exercises: template.names.flatMap((name, index) => {
       const exercise = byName.get(name.toLowerCase())
       if (!exercise) { missing.push(name); return [] }

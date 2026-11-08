@@ -5,14 +5,15 @@ import EditIcon from '@mui/icons-material/Edit'
 import LinkIcon from '@mui/icons-material/Link'
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
-import { Alert, Autocomplete, Box, Button, Card, CardContent, Chip, Divider, Stack, TextField, Typography, useTheme } from '@mui/material'
+import { Alert, Box, Button, Card, CardContent, Chip, Divider, Stack, TextField, Typography, useTheme } from '@mui/material'
 import { alpha } from '@mui/material/styles'
 import { loadExercises } from '../lib/exerciseData'
 import { exerciseMedia } from '../lib/exerciseMedia'
 import { errorMessage } from '../lib/errors'
 import { publicVideoPreview, videoPreviewPoster, type VideoPreview } from '../lib/videoPreview'
+import { exerciseTags, exerciseTagOptions, matchesExerciseTags, type ExerciseTag } from '../lib/exerciseTags'
 import type { CatalogExercise, Routine } from '../types'
-import { buildPrototypeRoutines, catalogExercise, providerPrototypeRoutines, type DemoExercise, type DemoMedia, type DemoRoutine } from '../lib/routinePrototype'
+import { buildPrototypeRoutines, catalogExercise, copyPrototypeRoutine, providerPrototypeRoutines, type DemoExercise, type DemoMedia, type DemoRoutine } from '../lib/routinePrototype'
 
 const MAX_ITEMS = 5
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -157,6 +158,16 @@ function invalidDosage(value: string) {
   return value !== '' && (!/^\d+$/.test(value) || Number(value) > 9999)
 }
 
+type RoutineSearchOption =
+  | { kind: 'routine'; id: string; name: string; routine: DemoRoutine }
+  | { kind: 'exercise'; id: string; name: string; exercise: CatalogExercise }
+
+function optionMatches(option: RoutineSearchOption, query: string, tags: ExerciseTag[]) {
+  const names = option.kind === 'exercise' ? [option.name] : option.routine.exercises.map((exercise) => exercise.name)
+  const text = option.kind === 'routine' ? [option.name, option.routine.description, ...names] : [option.name, option.exercise.description]
+  return matchesExerciseTags(names, tags) && text.some((value) => value.toLowerCase().includes(query.trim().toLowerCase()))
+}
+
 export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
   const theme = useTheme()
   const invalidInputSx = { '& .MuiOutlinedInput-root': { bgcolor: alpha(theme.palette.error.main, theme.palette.mode === 'dark' ? 0.22 : 0.14) } }
@@ -171,19 +182,30 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
   const [pickedExercise, setPickedExercise] = useState<CatalogExercise | null>(null)
   const [draft, setDraft] = useState<DemoRoutine | null>(null)
   const [query, setQuery] = useState('')
+  const [selectedTags, setSelectedTags] = useState<ExerciseTag[]>([])
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [validationAttempted, setValidationAttempted] = useState(false)
   const objectUrls = useRef(new Set<string>())
+  const resultsRef = useRef<HTMLElement>(null)
+  const isBuilding = draft !== null
   const providerRoutines = useMemo(() => providerPrototypeRoutines(savedRoutines, catalog), [savedRoutines, catalog])
   const allRoutines = useMemo(() => [
     ...providerRoutines.filter((routine) => !routines.some((local) => local.id === routine.id)),
     ...routines,
   ].filter((routine) => !archivedIds.has(routine.id)), [providerRoutines, routines, archivedIds])
-  const selected = allRoutines.find((routine) => routine.id === selectedId) ?? allRoutines[0]
-  const filtered = useMemo(() => allRoutines.filter((routine) => [routine.name, routine.description, ...routine.exercises.map((exercise) => exercise.name)].some((text) => text.toLowerCase().includes(query.toLowerCase()))), [allRoutines, query])
+  const filtered = useMemo(() => allRoutines.filter((routine) => optionMatches({ kind: 'routine', id: routine.id, name: routine.name, routine }, query, selectedTags)), [allRoutines, query, selectedTags])
+  const selected = filtered.find((routine) => routine.id === selectedId) ?? (!draft && !pickedExercise && !query.trim() && selectedTags.length === 0 ? filtered[0] : undefined)
+  const filteredExercises = useMemo(() => catalog.filter((exercise) => optionMatches({ kind: 'exercise', id: exercise.id, name: exercise.name, exercise }, query, selectedTags)), [catalog, query, selectedTags])
+
+  function toggleTag(tag: ExerciseTag) {
+    const next = selectedTags.includes(tag) ? selectedTags.filter((current) => current !== tag) : [...selectedTags, tag]
+    setSelectedTags(next)
+    if (pickedExercise && !matchesExerciseTags([pickedExercise.name], next)) { setPickedExercise(null); setQuery('') }
+  }
 
   useEffect(() => () => { objectUrls.current.forEach((url) => URL.revokeObjectURL(url)) }, [])
+  useEffect(() => { if (resultsRef.current) resultsRef.current.scrollTop = 0 }, [isBuilding])
 
   useEffect(() => {
     let active = true
@@ -202,16 +224,25 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
     return () => { active = false }
   }, [catalogAttempt])
 
-  function addCatalogExercise() {
-    if (!pickedExercise) return
-    const exercise = catalogExercise(pickedExercise)
+  function addCatalogExercise(entry: CatalogExercise) {
+    const exercise = catalogExercise(entry)
     setDraft((current) => current
       ? { ...current, exercises: [...current.exercises, exercise] }
-      : { id: crypto.randomUUID(), name: '', description: '', exercises: [exercise] })
-    setPickedExercise(null)
-    setNotice('')
+      : { id: crypto.randomUUID(), name: '', description: '', source: 'provider', exercises: [exercise] })
+    setSelectedId('')
+    setNotice(`Added ${entry.name} to your routine.`)
     setError('')
     setValidationAttempted(false)
+  }
+
+  function useRoutine(routine: DemoRoutine) {
+    const copy = copyPrototypeRoutine(routine)
+    setDraft((current) => current ? { ...current, exercises: [...current.exercises, ...copy.exercises] } : copy)
+    setPickedExercise(null)
+    setSelectedId('')
+    setError('')
+    setValidationAttempted(false)
+    setNotice(draft ? `Added ${routine.exercises.length} exercises to your routine.` : 'Created an independent copy for you to customize.')
   }
 
   function updateMedia(owner: string, next: DemoMedia[]) {
@@ -230,42 +261,105 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
     if (!draft) return
     setValidationAttempted(true)
     if (!draft.name.trim()) { setError('Enter a routine name.'); return }
+    if (draft.exercises.length === 0) { setError('Add at least one exercise.'); return }
     if (draft.exercises.some((exercise) => !exercise.name.trim())) { setError('Name each exercise or remove the empty one.'); return }
     if (draft.exercises.some((exercise) => [exercise.sets, exercise.repetitions, exercise.duration, exercise.rest].some(invalidDosage))) {
       setError('Use whole numbers from 0 to 9999 for sets, repetitions, duration, and rest.')
       return
     }
-    const cleaned = { ...draft, name: draft.name.trim(), exercises: draft.exercises.map((exercise) => ({ ...exercise, name: exercise.name.trim() })) }
+    const ownedDraft = draft.source === 'template' ? copyPrototypeRoutine(draft) : draft
+    const cleaned = { ...ownedDraft, source: 'provider' as const, name: draft.name.trim(), exercises: ownedDraft.exercises.map((exercise) => ({ ...exercise, name: exercise.name.trim() })) }
     setRoutines((current) => current.some((routine) => routine.id === cleaned.id) ? current.map((routine) => routine.id === cleaned.id ? cleaned : routine) : [...current, cleaned])
     setSelectedId(cleaned.id)
     setDraft(null)
+    setPickedExercise(null)
+    setQuery('')
+    setSelectedTags([])
     setError('')
     setValidationAttempted(false)
     setNotice('Changes saved in this browser session. Refreshing the page resets these changes.')
   }
 
+  const routineResults = (
+    <Box key="routine-results" component="section" aria-label="Routine results">
+          <Typography component="h3" variant="subtitle1" fontWeight={700}>Routines ({filtered.length})</Typography>
+          <Stack spacing={1} sx={{ maxHeight: { xs: 180, md: 260 }, overflowY: 'auto', pr: .5 }}>
+            {filtered.length === 0 && <Typography variant="body2" color="text.secondary">No matching routines.</Typography>}
+            {(['provider', 'template'] as const).map((source) => {
+              const matches = filtered.filter((routine) => (routine.source === 'template' ? 'template' : 'provider') === source)
+              return matches.length > 0 && <Box key={source}>
+                <Typography variant="caption" color="text.secondary">{source === 'template' ? 'Templates' : 'Your routines'}</Typography>
+                <Stack spacing={1} sx={{ mt: .5 }}>{matches.map((routine) => <Card key={routine.id} variant="outlined" sx={{ flexShrink: 0, borderColor: !pickedExercise && selected?.id === routine.id ? 'primary.main' : 'divider' }}>
+                  <Button fullWidth aria-label={`View ${source === 'template' ? 'template' : 'my routine'}: ${routine.name}`} onClick={() => { setSelectedId(routine.id); setPickedExercise(null) }} sx={{ justifyContent: 'flex-start', textAlign: 'left', p: 1.25, color: 'text.primary', textTransform: 'none' }}>
+                    <Box minWidth={0}><Typography variant="body2" fontWeight={700}>{routine.name}</Typography><Stack direction="row" spacing={1} alignItems="center" sx={{ mt: .5 }}><Chip size="small" label={source === 'template' ? 'Template' : 'My routine'} /><Typography variant="caption">{routine.exercises.length} exercises</Typography></Stack></Box>
+                  </Button>
+                </Card>)}</Stack>
+              </Box>
+            })}
+          </Stack>
+        </Box>
+  )
+  const exerciseResults = (
+    <Box key="exercise-results" component="section" aria-label="Exercise results">
+          <Typography component="h3" variant="subtitle1" fontWeight={700}>Individual exercises ({filteredExercises.length})</Typography>
+          <Stack spacing={1} sx={{ maxHeight: { xs: 260, md: 420 }, overflowY: 'auto', pr: .5 }}>
+            {filteredExercises.length === 0 && <Typography variant="body2" color="text.secondary">No matching exercises. Try another search or choose All.</Typography>}
+            {filteredExercises.map((exercise) => <Card key={exercise.id} variant="outlined" sx={{ flexShrink: 0, borderColor: pickedExercise?.id === exercise.id ? 'primary.main' : 'divider' }}>
+              <Stack direction="row" alignItems="center" spacing={.5}>
+                <Button aria-label={`Preview exercise: ${exercise.name}`} onClick={() => setPickedExercise(exercise)} sx={{ flex: 1, minWidth: 0, justifyContent: 'flex-start', textAlign: 'left', p: 1.25, color: 'text.primary', textTransform: 'none' }}>
+                  <Box minWidth={0}><Typography variant="body2" fontWeight={700}>{exercise.name}</Typography><Chip size="small" label="Exercise" sx={{ my: .5 }} /><Typography variant="caption" color="text.secondary" display="block">{exerciseTags(exercise.name).map((tag) => exerciseTagOptions.find((entry) => entry.id === tag)?.label).join(' · ')}</Typography></Box>
+                </Button>
+                <Button size="small" variant="outlined" aria-label={`Add ${exercise.name} to routine`} onClick={() => addCatalogExercise(exercise)} sx={{ flexShrink: 0, mr: '8px !important' }} startIcon={<AddIcon />}>Add</Button>
+              </Stack>
+            </Card>)}
+          </Stack>
+        </Box>
+  )
+
   return <Stack spacing={2.5}>
     <Alert severity="info">Advanced editor prototype. Changes last until you leave this editor or refresh. Review routine selections and prescribe sets, reps, and timing before use. Exercise demonstrations are shown alongside their instructions.</Alert>
     {catalogLoading && <Alert severity="info">Loading the database exercise catalog...</Alert>}
     {catalogError && <Alert severity="error" action={<Button onClick={() => setCatalogAttempt((value) => value + 1)}>Retry catalog</Button>}>{catalogError}</Alert>}
-    {!catalogLoading && !catalogError && <Typography variant="body2" color="text.secondary">{catalog.length} database exercises · {allRoutines.filter((routine) => routine.source === 'provider').length} provider routines · {allRoutines.filter((routine) => routine.source !== 'provider').length} prototype routines · Original catalog names and instructions</Typography>}
+    {!catalogLoading && !catalogError && <Typography variant="body2" color="text.secondary">{catalog.length} database exercises · {allRoutines.filter((routine) => routine.source === 'provider').length} provider routines · {allRoutines.filter((routine) => routine.source === 'template').length} templates · Original catalog names and instructions</Typography>}
     {missing.length > 0 && <Alert severity="warning">Some template exercises are unavailable in the catalog and were omitted: {missing.join(', ')}.</Alert>}
     <Card variant="outlined"><CardContent><Stack spacing={1.5}>
-      <Typography component="h2" variant="h6">Exercise catalog</Typography>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-        <Autocomplete options={catalog} value={pickedExercise} onChange={(_, value) => setPickedExercise(value)} getOptionLabel={(option) => option.name} isOptionEqualToValue={(option, value) => option.id === value.id} loading={catalogLoading} disabled={catalogLoading || Boolean(catalogError)} sx={{ flex: 1, minWidth: 0 }} renderInput={(params) => <TextField {...params} label="Find a database exercise" size="small" />} />
-        <Button variant="outlined" startIcon={<AddIcon />} disabled={!pickedExercise} onClick={addCatalogExercise}>{draft ? 'Add to routine' : 'Start routine with exercise'}</Button>
+      <Typography component="h2" variant="h6">Find routines and exercises</Typography>
+      <Typography variant="body2" fontWeight={700}>Filter by area or activity</Typography>
+      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" role="group" aria-label="Exercise filters">
+        <Chip label="All" clickable aria-pressed={selectedTags.length === 0} color={selectedTags.length === 0 ? 'primary' : 'default'} variant={selectedTags.length === 0 ? 'filled' : 'outlined'} onClick={() => setSelectedTags([])} />
+        {exerciseTagOptions.map((tag) => <Chip key={tag.id} label={tag.label} clickable aria-pressed={selectedTags.includes(tag.id)} color={selectedTags.includes(tag.id) ? 'primary' : 'default'} variant={selectedTags.includes(tag.id) ? 'filled' : 'outlined'} onClick={() => toggleTag(tag.id)} />)}
       </Stack>
-      {pickedExercise && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) minmax(0, 1fr)' }, gap: 2 }}>
-        <Typography sx={{ whiteSpace: 'pre-wrap' }}>{pickedExercise.description || 'No instructions stored for this exercise.'}</Typography>
-        <MediaGallery media={exerciseMedia(pickedExercise.name)} />
-      </Box>}
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+        <TextField fullWidth label="Search routines or exercises" size="small" value={query} onChange={(event) => setQuery(event.target.value)} sx={{ flex: 1, '& .MuiOutlinedInput-root': { height: 50 }, '& .MuiInputLabel-outlined.MuiInputLabel-sizeSmall:not(.MuiInputLabel-shrink)': { top: '50%', transform: 'translate(14px, -50%) scale(1)' } }} />
+        {!draft && <Button variant="contained" disabled={catalogLoading} startIcon={<AddIcon />} sx={{ height: 50, flexShrink: 0 }} onClick={() => { setDraft({ id: crypto.randomUUID(), name: '', description: '', source: 'provider', exercises: [] }); setSelectedId(''); setPickedExercise(null); setNotice(''); setError(''); setValidationAttempted(false) }}>New routine</Button>}
+      </Stack>
+      {!catalogLoading && !catalogError && <Typography variant="caption" color="text.secondary" role="status">{filtered.length} matching routines · {filteredExercises.length} matching exercises{selectedTags.length > 0 && ' · Matches any selected tag'}</Typography>}
     </Stack></CardContent></Card>
-    {notice && <Alert severity="success" onClose={() => setNotice('')}>{notice}</Alert>}
-    {draft ? <>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(260px, 330px) minmax(0, 1fr)' }, gap: 2.5, alignItems: 'start' }}>
+      <Card component="aside" ref={resultsRef} variant="outlined" aria-label="Search results" sx={{ minWidth: 0, position: { md: 'sticky' }, top: { md: 96 }, maxHeight: { md: 'calc(100dvh - 112px)' }, overflowY: 'auto' }}><CardContent><Stack spacing={2}>
+        <Typography component="h2" variant="h6">Search results</Typography>
+        {draft ? exerciseResults : routineResults}
+        <Divider />
+        {draft ? routineResults : exerciseResults}
+      </Stack></CardContent></Card>
+      <Stack spacing={2.5} minWidth={0}>
+        {notice && <Alert severity="success" onClose={() => setNotice('')}>{notice}</Alert>}
+        {pickedExercise && <Card component="section" aria-label="Exercise preview" variant="outlined"><CardContent><Stack spacing={2}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between"><Typography component="h2" variant="h6">Exercise preview</Typography><Button size="small" onClick={() => setPickedExercise(null)}>Close exercise preview</Button></Stack>
+          <Box><Chip label="Individual exercise" size="small" /><Typography component="h3" variant="h6" sx={{ mt: 1 }}>{pickedExercise.name}</Typography></Box>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => addCatalogExercise(pickedExercise)} sx={{ alignSelf: 'flex-start' }}>{draft ? 'Add to routine' : 'Start custom routine'}</Button>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) minmax(0, 1fr)' }, gap: 2 }}><Typography sx={{ whiteSpace: 'pre-wrap' }}>{pickedExercise.description || 'No instructions stored for this exercise.'}</Typography><MediaGallery media={exerciseMedia(pickedExercise.name)} /></Box>
+        </Stack></CardContent></Card>}
+        {draft && selected && !pickedExercise && <Card variant="outlined"><CardContent><Stack spacing={1.5}>
+          <Chip label={selected.source === 'template' ? 'Template' : 'My routine'} size="small" sx={{ alignSelf: 'flex-start' }} /><Typography component="h2" variant="h6">{selected.name}</Typography><Typography variant="body2">{selected.description || `${selected.exercises.length} exercises`}</Typography>
+          <Button variant="outlined" onClick={() => useRoutine(selected)}>Add {selected.source === 'template' ? 'template' : 'routine'} exercises</Button>
+          <Typography variant="caption" color="text.secondary">Adds independent copies to your current draft.</Typography>
+        </Stack></CardContent></Card>}
+        {draft ? <Stack component="section" aria-label="Routine builder" spacing={2.5}>
+
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1} alignItems={{ sm: 'center' }}>
-        <Typography component="h2" variant="h5">{allRoutines.some((routine) => routine.id === draft.id) ? 'Edit routine' : 'New routine'}</Typography>
-        <Button onClick={() => { setDraft(null); setError(''); setValidationAttempted(false) }}>Cancel</Button>
+        <Typography component="h2" variant="h5">{allRoutines.some((routine) => routine.id === draft.id) ? 'Edit your routine' : 'Build your routine'}</Typography>
+        <Button onClick={() => { setDraft(null); setPickedExercise(null); setError(''); setValidationAttempted(false) }}>Cancel</Button>
       </Stack>
       {error && <Alert severity="error">{error}</Alert>}
       <Card variant="outlined"><CardContent><Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 3 }}>
@@ -279,6 +373,7 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
         <Typography component="h3" variant="h6">Exercises</Typography>
         <Button startIcon={<AddIcon />} onClick={() => setDraft({ ...draft, exercises: [...draft.exercises, newExercise()] })}>Add exercise</Button>
       </Stack>
+      {draft.exercises.length === 0 && <Alert severity="info">Choose Add beside an exercise in the results to build your routine.</Alert>}
       {draft.exercises.map((exercise, index) => <Card key={exercise.id} variant="outlined"><CardContent><Stack spacing={2}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Typography component="h4" variant="h6">Exercise {index + 1}</Typography>
@@ -304,32 +399,22 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
         </Box>
       </Stack></CardContent></Card>)}
       <Stack direction="row" justifyContent="flex-end" spacing={1.5}>
-        <Button variant="outlined" onClick={() => { setDraft(null); setError(''); setValidationAttempted(false) }}>Cancel</Button>
+        <Button variant="outlined" onClick={() => { setDraft(null); setPickedExercise(null); setError(''); setValidationAttempted(false) }}>Cancel</Button>
         <Button variant="contained" onClick={save}>Save changes</Button>
       </Stack>
-    </> : <>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between">
-        <TextField size="small" label="Search routines or exercises" value={query} onChange={(event) => setQuery(event.target.value)} sx={{ minWidth: { sm: 280 }, '& .MuiOutlinedInput-root': { height: 50 }, '& .MuiInputLabel-outlined.MuiInputLabel-sizeSmall:not(.MuiInputLabel-shrink)': { top: '50%', transform: 'translate(14px, -50%) scale(1)' } }} />
-        <Button variant="contained" disabled={catalogLoading} startIcon={<AddIcon />} sx={{ height: 50 }} onClick={() => { setDraft({ id: crypto.randomUUID(), name: '', description: '', exercises: [newExercise()] }); setNotice(''); setError(''); setValidationAttempted(false) }}>New routine</Button>
-      </Stack>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 300px) minmax(0, 1fr)' }, gap: 2.5, alignItems: 'start' }}>
-        <Stack spacing={1}>
-          {filtered.length === 0 && <Typography color="text.secondary">No matching routines.</Typography>}
-          {filtered.map((routine) => <Card key={routine.id} variant="outlined" sx={{ borderColor: selected?.id === routine.id ? 'primary.main' : 'divider', borderWidth: selected?.id === routine.id ? 2 : 1 }}>
-            <Button fullWidth onClick={() => setSelectedId(routine.id)} sx={{ justifyContent: 'flex-start', textAlign: 'left', p: 1.5, color: 'text.primary', textTransform: 'none' }}>
-              <Box><Typography fontWeight={700}>{routine.name}</Typography>{routine.source === 'provider' && <Chip size="small" label="Provider routine" sx={{ my: .5 }} />}<Typography variant="body2" color="text.secondary">{routine.exercises.length} exercises</Typography></Box>
-            </Button>
-          </Card>)}
-        </Stack>
-        {selected ? <Card variant="outlined"><CardContent><Stack spacing={2.5}>
-          <Stack direction="row" spacing={1} justifyContent="flex-end">
-            <Button size="small" startIcon={<EditIcon />} onClick={() => { setDraft(structuredClone(selected)); setNotice(''); setError(''); setValidationAttempted(false) }}>Edit</Button>
-            <Button size="small" color="error" onClick={() => { setArchivedIds((current) => new Set([...current, selected.id])); setNotice('Archived in this prototype only. Refreshing restores the routine.') }}>Archive</Button>
-          </Stack>
+
+        </Stack> : !pickedExercise && (selected ? <Card component="section" aria-label="Routine preview" variant="outlined"><CardContent><Stack spacing={2.5}>
+          <Chip label={selected.source === 'template' ? 'Template' : 'My routine'} size="small" sx={{ alignSelf: 'flex-start' }} />
           <Box minWidth={0}><Typography component="h2" variant="h5" sx={{ fontFamily: 'Georgia, serif' }}>{selected.name}</Typography>{selected.description && <Typography color="text.secondary" sx={{ mt: .75, whiteSpace: 'pre-wrap' }}>{selected.description}</Typography>}</Box>
-          <Divider />
-          <Typography component="h3" variant="h6">Exercises</Typography>
-          {selected.exercises.length === 0 && <Typography color="text.secondary">No exercises added.</Typography>}
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Button variant="contained" onClick={() => useRoutine(selected)}>{selected.source === 'template' ? 'Use template' : 'Make a copy'}</Button>
+            {selected.source !== 'template' && <>
+              <Button size="small" startIcon={<EditIcon />} onClick={() => { setDraft(structuredClone(selected)); setSelectedId(''); setNotice(''); setError(''); setValidationAttempted(false) }}>Edit</Button>
+              <Button size="small" color="error" onClick={() => { setArchivedIds((current) => new Set([...current, selected.id])); setNotice('Archived in this prototype only. Refreshing restores the routine.') }}>Archive</Button>
+            </>}
+          </Stack>
+          {selected.source === 'template' && <Typography variant="body2" color="text.secondary">Use this template to create your own routine. Customizing your copy leaves the template and other providers' routines unchanged.</Typography>}
+          <Divider /><Typography component="h3" variant="h6">Exercises</Typography>
           {selected.exercises.map((exercise, index) => <Box key={exercise.id}>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1.1fr) minmax(0, .9fr)' }, gap: 3 }}>
               <Box minWidth={0}>
@@ -342,8 +427,8 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
             </Box>
             {index < selected.exercises.length - 1 && <Divider sx={{ mt: 2 }} />}
           </Box>)}
-        </Stack></CardContent></Card> : <Card variant="outlined"><CardContent><Typography color="text.secondary">Select a routine or create a new one.</Typography></CardContent></Card>}
-      </Box>
-    </>}
+        </Stack></CardContent></Card> : <Card variant="outlined"><CardContent><Typography>Select a result to preview it, or create a new routine.</Typography></CardContent></Card>)}
+      </Stack>
+    </Box>
   </Stack>
 }

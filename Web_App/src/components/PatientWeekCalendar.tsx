@@ -8,6 +8,7 @@ import { withinHorizon, type OccupiedDate, type SchedulingPolicy } from '../lib/
 import { formatCalendarDate } from '../lib/week'
 import { resolveRoutineStatus } from '../lib/routineStatus'
 import { RoutineStatusButton } from './RoutineStatus'
+import { CalendarWeekNavigation } from './CalendarWeekNavigation'
 
 const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 
@@ -21,7 +22,7 @@ function monthHeading(dates: string[]) {
   return `${formatCalendarDate(first, { month: 'long', year: 'numeric' })}–${formatCalendarDate(last, { month: 'long', year: 'numeric' })}`
 }
 
-export function PatientWeekCalendar({ patient, assignments, weekDates, policy, occupied, loading, selectedAssignmentId, detailsId, onSelect, onAssign }: {
+export function PatientWeekCalendar({ patient, assignments, weekDates, policy, occupied, loading, selectedAssignmentId, detailsId, onSelect, onAssign, onWeekChange }: {
   patient: Patient
   assignments: DayAssignments
   weekDates: string[]
@@ -32,6 +33,7 @@ export function PatientWeekCalendar({ patient, assignments, weekDates, policy, o
   detailsId: string
   onSelect: (id: string) => void
   onAssign: (dayIndex: number) => void
+  onWeekChange: (week: string) => void
 }) {
   const theme = useTheme()
   const headingId = useId()
@@ -42,8 +44,9 @@ export function PatientWeekCalendar({ patient, assignments, weekDates, policy, o
     <Box component="section" aria-label={`Weekly calendar for ${patient.name}`} sx={{ minWidth: 0, width: '100%', bgcolor: 'background.paper', color: 'text.primary', border: 1, borderColor: 'divider', borderRadius: '12px', overflow: 'hidden',
       '& .MuiButton-root': { fontFamily: 'inherit', fontStyle: 'normal', fontSize: '.8125rem', borderRadius: '10px', boxShadow: 'none', p: 1, textAlign: 'left', alignItems: 'flex-start' },
       '& [data-routine-status] .MuiTypography-root': { maxWidth: '100%', boxSizing: 'border-box', fontSize: '.6875rem', letterSpacing: 0, overflowWrap: 'normal' } }}>
-      <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography id={headingId} component="h3" sx={{ fontWeight: 700, fontSize: '1rem' }}>{monthHeading(weekDates)}</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, px: { xs: 1, sm: 2 }, py: 1, borderBottom: 1, borderColor: 'divider' }}>
+        <Typography id={headingId} component="h3" sx={{ minWidth: 0, overflowWrap: 'anywhere', fontWeight: 700, fontSize: { xs: '.875rem', sm: '1rem' } }}>{monthHeading(weekDates)}</Typography>
+        <CalendarWeekNavigation dates={weekDates} policy={policy} onChange={onWeekChange} />
       </Box>
       <Box role="region" aria-label={`Days and routines for ${patient.name}`} tabIndex={0} sx={{ overflowX: 'auto', overscrollBehaviorX: 'contain', '&:focus-visible': { outline: '3px solid #eb681d', outlineOffset: -3 } }}>
         <Box component="table" aria-labelledby={headingId} sx={{ width: '100%', minWidth: 784, tableLayout: 'fixed', borderCollapse: 'collapse',

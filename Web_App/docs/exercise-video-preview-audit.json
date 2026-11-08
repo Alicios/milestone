@@ -1,0 +1,952 @@
+{
+  "reviewedOn": "2026-11-08",
+  "scope": "Advanced editor prototype only; patient integration awaits approval",
+  "exerciseCount": 248,
+  "exercisesWithInlineVisuals": 248,
+  "inlineVideoEntries": 99,
+  "generatedIllustrations": 29,
+  "unavailableVideosReplacedWithPictures": 113,
+  "remotePicturesChecked": 165,
+  "livePlaybackAndThumbnailChecks": [
+    {
+      "name": "Quadriceps Set",
+      "initialFrame": {
+        "ready": 4,
+        "time": 0.1
+      },
+      "player": {
+        "time": 0.226195,
+        "duration": 14.24,
+        "ready": 4,
+        "paused": false
+      }
+    },
+    {
+      "name": "Shoulder Flexion Table Slide",
+      "thumbnail": {
+        "width": 480,
+        "height": 360
+      },
+      "player": {
+        "time": 0.34554,
+        "duration": 11.621,
+        "ready": 4,
+        "paused": false
+      }
+    },
+    {
+      "name": "Bench Thoracic Extension",
+      "thumbnail": {
+        "width": 640,
+        "height": 360
+      },
+      "player": {
+        "time": 0.321527,
+        "duration": 18.28,
+        "ready": 4,
+        "paused": false
+      }
+    }
+  ],
+  "pictureReplacements": [
+    {
+      "exercise": "Abdominal Bracing",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/transverse-abdominis-activation/",
+      "source": "PocketPhysio",
+      "title": "Transverse abdominis activation",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Abdominal Curl-Up",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/curl-up/",
+      "source": "PocketPhysio",
+      "title": "Curl up",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Active Ankle Inversion and Eversion",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/active-ankle-inversion/",
+      "source": "PocketPhysio",
+      "title": "Active ankle inversion",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Active Ankle Inversion and Eversion",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/active-ankle-eversion/",
+      "source": "PocketPhysio",
+      "title": "Active ankle eversion",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Alternating Step Taps",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/step-taps/",
+      "source": "PocketPhysio",
+      "title": "Step taps",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Ankle Pumps",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/ankle-pumps/",
+      "source": "PocketPhysio",
+      "title": "Ankle pumps",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Backward Walking",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/backward-walking/",
+      "source": "PocketPhysio",
+      "title": "Backward walking",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Bed Rolling",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/rolling-onto-your-side-in-bed/",
+      "source": "PocketPhysio",
+      "title": "Rolling onto your side in bed",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Bent-Knee Fallout",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/bent-knee-fall-out/",
+      "source": "PocketPhysio",
+      "title": "Bent knee fall out",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Eccentric Heel Lowering",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/eccentric-calf-raise/",
+      "source": "PocketPhysio",
+      "title": "Eccentric calf raise",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Elbow Flexion and Extension",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/elbow-flexion-and-extension/",
+      "source": "PocketPhysio",
+      "title": "Elbow flexion and extension",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Feet-Together Balance",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/standing-with-feet-together/",
+      "source": "PocketPhysio",
+      "title": "Standing with feet together",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Finger Tendon Glides",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/tendon-glides/",
+      "source": "PocketPhysio",
+      "title": "Tendon glides",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Floor-to-Stand Transfer",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/getting-up-from-the-floor/",
+      "source": "PocketPhysio",
+      "title": "Getting up from the floor",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Foam Surface Balance",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/standing-balance-on-a-foam-pad/",
+      "source": "PocketPhysio",
+      "title": "Standing balance on a foam pad",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Forearm Plank",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/plank/",
+      "source": "PocketPhysio",
+      "title": "Plank",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Forearm Pronation Stretch",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/pronator-stretch/",
+      "source": "PocketPhysio",
+      "title": "Pronator stretch",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Forearm Supination Stretch",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/forearm-supinator-stretch/",
+      "source": "PocketPhysio",
+      "title": "Forearm supinator stretch",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Forward and Backward Weight Shift",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/forward-and-backward-weight-shift/",
+      "source": "PocketPhysio",
+      "title": "Forward and backward weight shift",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Grapevine Cross-Stepping",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/grapevine/",
+      "source": "PocketPhysio",
+      "title": "Grapevine drill",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Heel Prop Knee Extension",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/knee-extension-stretch/",
+      "source": "PocketPhysio",
+      "title": "Knee extension stretch",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Hip Adduction Ball Squeeze",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/adductor-ball-squeeze/",
+      "source": "PocketPhysio",
+      "title": "Adductor ball squeeze",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Hooklying March",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/supine-marching/",
+      "source": "PocketPhysio",
+      "title": "Supine marching",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Isometric Ankle Dorsiflexion",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/isometric-ankle-dorsiflexion/",
+      "source": "PocketPhysio",
+      "title": "Isometric ankle dorsiflexion",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Isometric Ankle Eversion",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/isometric-ankle-eversion/",
+      "source": "PocketPhysio",
+      "title": "Isometric ankle eversion",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Isometric Ankle Inversion",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/isometric-ankle-inversion/",
+      "source": "PocketPhysio",
+      "title": "Isometric ankle inversion",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Isometric Shoulder Abduction",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/isometric-shoulder-abduction/",
+      "source": "PocketPhysio",
+      "title": "Isometric shoulder abduction",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Isometric Shoulder Extension",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/isometric-shoulder-extension/",
+      "source": "PocketPhysio",
+      "title": "Isometric shoulder extension",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Isometric Shoulder External Rotation",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/isometric-shoulder-external-rotation/",
+      "source": "PocketPhysio",
+      "title": "Isometric shoulder external rotation",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Isometric Shoulder Flexion",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/isometric-shoulder-flexion/",
+      "source": "PocketPhysio",
+      "title": "Isometric shoulder flexion",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Isometric Shoulder Internal Rotation",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/isometric-shoulder-internal-rotation/",
+      "source": "PocketPhysio",
+      "title": "Isometric shoulder internal rotation",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Isometric Wrist Extension",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/isometric-wrist-extension/",
+      "source": "PocketPhysio",
+      "title": "Isometric wrist extension",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Isometric Wrist Flexion",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/isometric-wrist-flexion/",
+      "source": "PocketPhysio",
+      "title": "Isometric wrist flexion",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Lateral Lunge",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/lateral-lunge/",
+      "source": "PocketPhysio",
+      "title": "Lateral lunge",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Lateral Resistance Band Walk",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/lateral-band-walk/",
+      "source": "PocketPhysio",
+      "title": "Lateral band walk",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Lateral Weight Shift",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/side-to-side-weight-shift/",
+      "source": "PocketPhysio",
+      "title": "Side to side weight shift",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Leg Press",
+      "url": "https://www.mayoclinic.org/healthy-lifestyle/fitness/multimedia/leg-press/vid-20084684",
+      "source": "Mayo Clinic",
+      "kind": "video-link",
+      "title": "Seated leg press with weight machine"
+    },
+    {
+      "exercise": "Levator Scapulae Stretch",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/levator-scapulae-stretch/",
+      "source": "PocketPhysio",
+      "title": "Levator scapulae stretch",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Mini Squat",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/mini-squat/",
+      "source": "PocketPhysio",
+      "title": "Mini squat",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Prone Hip Internal and External Rotation",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/prone-hip-rotation/",
+      "source": "PocketPhysio",
+      "title": "Prone hip rotation",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Prone Press-Up",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/cobra-stretch/",
+      "source": "PocketPhysio",
+      "title": "Cobra stretch",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Prone Thoracic Extension",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/prone-back-extension/",
+      "source": "PocketPhysio",
+      "title": "Prone back extension",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Prone W Raise",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/prone-w-raise/",
+      "source": "PocketPhysio",
+      "title": "Prone W raise",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Quadruped Arm Lift",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/quadruped-arm-lift/",
+      "source": "PocketPhysio",
+      "title": "Quadruped arm lift",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Resistance Band Ankle Dorsiflexion",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/ankle-dorsiflexion-with-band/",
+      "source": "PocketPhysio",
+      "title": "Ankle dorsiflexion with band",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Resistance Band Ankle Plantar Flexion",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/ankle-plantar-flexion-with-band/",
+      "source": "PocketPhysio",
+      "title": "Ankle plantar flexion with band",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Resistance Band D1 Shoulder Flexion",
+      "url": "https://library.theprehabguys.com/vimeo-video/d1-shoulder-flexion-cable-2/",
+      "source": "[P]rehab",
+      "kind": "video-link",
+      "title": "D1 shoulder flexion with band or cable"
+    },
+    {
+      "exercise": "Resistance Band Finger Extension",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/finger-extension-with-rubber-band/",
+      "source": "PocketPhysio",
+      "title": "Finger extension with a rubber band",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Resistance Band Hip Flexion",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/standing-hip-flexion-with-band/",
+      "source": "PocketPhysio",
+      "title": "Standing hip flexion with a band",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Resistance Band Shoulder Extension",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/band-shoulder-extension/",
+      "source": "PocketPhysio",
+      "title": "Band shoulder extension",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Resistance Band Shoulder External Rotation",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/shoulder-external-rotation-with-band/",
+      "source": "PocketPhysio",
+      "title": "Shoulder external rotation with band",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Resistance Band Shoulder Internal Rotation",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/shoulder-internal-rotation-with-band/",
+      "source": "PocketPhysio",
+      "title": "Shoulder internal rotation with band",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Resistance Band Terminal Knee Extension",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/terminal-knee-extension/",
+      "source": "PocketPhysio",
+      "title": "Terminal knee extension with band",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Resistance Band Wrist Ulnar Deviation",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/band-ulnar-deviation/",
+      "source": "PocketPhysio",
+      "title": "Band ulnar deviation",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Resisted Forearm Pronation",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/forearm-pronation-with-band/",
+      "source": "PocketPhysio",
+      "title": "Forearm pronation with band",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Resisted Forearm Supination",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/forearm-supination-with-band/",
+      "source": "PocketPhysio",
+      "title": "Forearm supination with band",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Reverse Lunge",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/reverse-lunge/",
+      "source": "PocketPhysio",
+      "title": "Reverse lunge",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Scapular Depression",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/shoulder-blade-depression/",
+      "source": "PocketPhysio",
+      "title": "Shoulder blade depression",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Scapular Retraction",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/seated-scapular-retraction-hands-on-thighs/",
+      "source": "PocketPhysio",
+      "title": "Scapular squeeze",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Seated Assisted Knee Flexion",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/assisted-seated-knee-bend/",
+      "source": "PocketPhysio",
+      "title": "Assisted seated knee bend",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Seated Heel Raise",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/seated-calf-raise/",
+      "source": "PocketPhysio",
+      "title": "Seated calf raise",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Seated Lateral Scooting",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/scooting-sideways-on-the-bed/",
+      "source": "PocketPhysio",
+      "title": "Scooting sideways on the bed",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Seated Plantar Fascia Stretch",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/plantar-fascia-stretch/",
+      "source": "PocketPhysio",
+      "title": "Plantar fascia stretch",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Seated Stability Ball March",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/seated-ball-marching/",
+      "source": "PocketPhysio",
+      "title": "Seated ball marching",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Seated Thoracic Extension over Chair",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/thoracic-extension-over-chair/",
+      "source": "PocketPhysio",
+      "title": "Thoracic extension over a chair",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Seated Thoracic Rotation",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/seated-trunk-rotation/",
+      "source": "PocketPhysio",
+      "title": "Seated trunk rotation",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Seated Thoracic Side Bending",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/seated-side-bend/",
+      "source": "PocketPhysio",
+      "title": "Seated side bend",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Semi-Tandem Balance",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/semi-tandem-stance/",
+      "source": "PocketPhysio",
+      "title": "Semi-tandem stance",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Short Arc Quadriceps Extension",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/short-arc-quads/",
+      "source": "PocketPhysio",
+      "title": "Short arc quads",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Shoulder Pendulum",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/pendulum-exercise/",
+      "source": "PocketPhysio",
+      "title": "Pendulum exercise for the shoulder",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Shoulder Shrug",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/shoulder-shrugs/",
+      "source": "PocketPhysio",
+      "title": "Shoulder shrugs",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Side-Lying Hip Abduction",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/side-lying-hip-abduction/",
+      "source": "PocketPhysio",
+      "title": "Side lying hip abduction",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Side-Lying Hip Adduction",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/side-lying-hip-adduction/",
+      "source": "PocketPhysio",
+      "title": "Side lying hip adduction",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Side-Lying Open Book",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/open-book-stretch/",
+      "source": "PocketPhysio",
+      "title": "Open book stretch",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Sideways Walking",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/side-stepping/",
+      "source": "PocketPhysio",
+      "title": "Side stepping",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Single-Leg Balance",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/single-leg-stance/",
+      "source": "PocketPhysio",
+      "title": "Single leg stance",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Single-Leg Clock Reach",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/single-leg-clock-reach/",
+      "source": "PocketPhysio",
+      "title": "Single leg clock reach",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Single-Leg Heel Raise",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/single-leg-heel-raise/",
+      "source": "PocketPhysio",
+      "title": "Single leg heel raise",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Sit-to-Stand",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/sit-to-stand/",
+      "source": "PocketPhysio",
+      "title": "Sit to stand",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Stability Ball Hamstring Curl",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/stability-ball-hamstring-curl/",
+      "source": "PocketPhysio",
+      "title": "Stability ball hamstring curl",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Stair Ascent and Descent Practice",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/stair-climbing/",
+      "source": "PocketPhysio",
+      "title": "Stair climbing",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Standing Balance with Ball Toss",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/ball-toss-eye-tracking/",
+      "source": "PocketPhysio",
+      "title": "Ball toss eye tracking",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Standing Balance with Eyes Closed",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/standing-balance-with-eyes-closed/",
+      "source": "PocketPhysio",
+      "title": "Standing balance with eyes closed",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Standing Bilateral Heel Raise",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/calf-raises/",
+      "source": "PocketPhysio",
+      "title": "Calf raises",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Standing Hamstring Curl",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/standing-hamstring-curl/",
+      "source": "PocketPhysio",
+      "title": "Standing hamstring curl",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Standing March in Place",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/standing-marching/",
+      "source": "PocketPhysio",
+      "title": "Standing marching",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Standing Outer Hip Stretch",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/standing-it-band-stretch/",
+      "source": "PocketPhysio",
+      "title": "Standing IT band stretch",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Standing Quadriceps Stretch",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/standing-quad-stretch/",
+      "source": "PocketPhysio",
+      "title": "Standing quad stretch",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Standing Toe Raise",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/heel-and-toe-raises/",
+      "source": "PocketPhysio",
+      "title": "Heel and toe raises",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Stepping Turns",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/turning-on-the-spot/",
+      "source": "PocketPhysio",
+      "title": "Turning on the spot",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Straight Leg Raise",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/straight-leg-raise/",
+      "source": "PocketPhysio",
+      "title": "Straight leg raise",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Supine Chin Nod",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/deep-neck-flexor-exercise/",
+      "source": "PocketPhysio",
+      "title": "Deep neck flexor exercise",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Supine Hamstring Stretch",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/supine-hamstring-stretch/",
+      "source": "PocketPhysio",
+      "title": "Supine hamstring stretch",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Supine Lower Trunk Rotation",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/lower-trunk-rotation/",
+      "source": "PocketPhysio",
+      "title": "Lower trunk rotation",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Supine Serratus Punch",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/lying-serratus-punch/",
+      "source": "PocketPhysio",
+      "title": "Lying serratus punch",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Supine Tabletop Toe Taps",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/lying-alternate-heel-taps/",
+      "source": "PocketPhysio",
+      "title": "Lying alternate heel taps",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Supine-to-Sit Transfer",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/log-roll-out-of-bed/",
+      "source": "PocketPhysio",
+      "title": "Log roll out of bed",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Tall-Kneeling Heel Sit",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/kneel-sit-to-tall-kneel/",
+      "source": "PocketPhysio",
+      "title": "Kneel sit to tall kneel",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Tandem Balance",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/tandem-stance/",
+      "source": "PocketPhysio",
+      "title": "Tandem stance",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Tandem Walking",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/balance-tandem-walking/",
+      "source": "PocketPhysio",
+      "title": "Tandem walking",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Therapy Putty Key Pinch",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/key-grip-with-putty/",
+      "source": "PocketPhysio",
+      "title": "Key grip with putty",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Thumb Radial Abduction",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/thumb-side-slide/",
+      "source": "PocketPhysio",
+      "title": "Thumb side slide",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Toe Walking",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/toe-walking/",
+      "source": "PocketPhysio",
+      "title": "Toe walking",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Upper Trapezius Stretch",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/upper-trapezius-stretch/",
+      "source": "PocketPhysio",
+      "title": "Upper trapezius stretch",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Walking with Head Turns",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/walking-with-head-turns/",
+      "source": "PocketPhysio",
+      "title": "Walking with head turns",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Wall Push-Up Plus",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/wall-push-up-plus/",
+      "source": "PocketPhysio",
+      "title": "Wall push up plus",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Wall Sit",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/wall-sit/",
+      "source": "PocketPhysio",
+      "title": "Wall sit",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Wand-Assisted Shoulder Abduction",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/shoulder-abduction-with-a-stick/",
+      "source": "PocketPhysio",
+      "title": "Shoulder abduction with a stick",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Wrist Circles",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/wrist-circles/",
+      "source": "PocketPhysio",
+      "title": "Wrist circles",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Wrist Flexor Stretch",
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/wrist-flexor-stretch/",
+      "source": "PocketPhysio",
+      "title": "Wrist flexor stretch",
+      "accessNote": "20 free video views per month"
+    },
+    {
+      "exercise": "Chair Press-Up",
+      "url": "https://vimeo.com/1135129341",
+      "source": "Treasure Coast Physical Therapy",
+      "kind": "video-link",
+      "title": "Chair press up"
+    },
+    {
+      "exercise": "Recumbent Stepper",
+      "url": "https://vimeo.com/502287581",
+      "source": "HCI Fitness",
+      "kind": "video-link",
+      "title": "PhysioStep recumbent linear cross trainer"
+    },
+    {
+      "exercise": "Resistance Band D2 Shoulder Flexion",
+      "url": "https://vimeo.com/877300108",
+      "source": "CMC Physical Therapy",
+      "kind": "video-link",
+      "title": "D2 shoulder flexion pattern"
+    }
+  ]
+}

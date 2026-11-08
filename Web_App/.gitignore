@@ -8,7 +8,9 @@
 /supabase/.temp/
 !tests/browser/patientRefresh.spec.mjs
 !tests/browser/patientCalendar.spec.mjs
+!tests/browser/providerNavigation.spec.mjs
 !tests/browser/patientOnboarding.spec.mjs
 !tests/browser/patientSetup.spec.mjs
 !tests/patientOnboardingServer.test.mjs
 !supabase/tests/patient_onboarding.sql
+!tests/browser/routinePrototype.spec.mjs

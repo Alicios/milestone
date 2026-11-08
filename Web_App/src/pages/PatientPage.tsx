@@ -6,7 +6,6 @@ import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined'
 import PersonRemoveOutlinedIcon from '@mui/icons-material/PersonRemoveOutlined'
 import { Alert, Box, Button, Card, Chip, Link, Stack, Tab, Tabs, Typography } from '@mui/material'
 import { PatientWeekCalendar } from '../components/PatientWeekCalendar'
-import { CalendarWeekNavigation } from '../components/CalendarWeekNavigation'
 import { withinHorizon } from '../lib/scheduling'
 import { prescriptionSummary } from '../lib/prescriptions'
 import { inviteExistingPatient, type PatientLoginCode } from '../lib/supabaseData'
@@ -151,13 +150,12 @@ function PatientOverview({ patient }: { patient: Patient }) {
       <Card component="section" aria-labelledby="patient-routines-heading" sx={{ p: { xs: 2.5, sm: 3 } }}>
         <Typography id="patient-routines-heading" component="h2" variant="h6">Assigned routines</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: .5, mb: 2.5 }}>Assigned routines and patient feedback for the selected week.</Typography>
-        <CalendarWeekNavigation dates={weekDates} policy={policy} onChange={setWeek} />
         <Button variant="outlined" disabled={!policy || !weekDates.some((date) => withinHorizon(date, policy)) || assignmentsLoading} onClick={() => openSchedule(patient)}>Schedule week</Button>
         <Box sx={{ minWidth: 0, mt: 2 }}>
           <PatientWeekCalendar patient={patient} assignments={patientAssignments} weekDates={weekDates} policy={policy}
             occupied={occupied[patient.profileId] ?? []} loading={assignmentsLoading} selectedAssignmentId={selectedAssignmentId}
             detailsId="patient-assignment-details" onSelect={(id) => setSelectedAssignmentId((current) => current === id ? null : id)}
-            onAssign={(index) => openSchedule(patient, weekDates[index])} />
+            onAssign={(index) => openSchedule(patient, weekDates[index])} onWeekChange={setWeek} />
         </Box>
         <RoutineStatusLegend />
         {assignmentsError && <Alert severity="error" sx={{ mt: 2 }} action={<Button onClick={retryAssignments}>Retry details</Button>}>{assignmentsError}</Alert>}

@@ -1,0 +1,184 @@
+﻿{
+    "tool":  "Built-in image_gen",
+    "createdOn":  "2026-11-07",
+    "sharedPrompt":  "Scientific educational physical therapy illustration, landscape 3:2, white background, restrained teal and navy, softly shaded natural adult anatomy, clear movement phases and subtle teal directional arrows. No logos, no dosage text, no decorative equipment. Keep prescribed body position, support, and equipment faithful to the stored catalog instructions.",
+    "prompts":  [
+                    {
+                        "key":  "great-toe-assisted",
+                        "name":  "Assisted Great Toe Flexion and Extension",
+                        "instruction":  "Closeup side view of an adult bare right foot resting on the opposite knee while seated; healthy natural foot five toes. One supporting hand steadies forefoot just behind the big toe knuckle. Other hand gently holds the big toe near its base, never pulling the tip. Two separate clear closeup panels same foot and same two hands: first gently tip the BIG TOE upward relative to forefoot (extension), second gently tip it downward (flexion), ankle unchanged neutral in both views. Small teal curved arrow at the BIG TOE base joint shows each direction. Clearly distinguish big toe from four smaller relaxed toes. No bands no splints. Show only ankle, foot and two hands in each panel; avoid distorted fingers.",
+                        "asset":  "public/exercise-media/great-toe-assisted.png"
+                    },
+                    {
+                        "key":  "counter-lat-stretch",
+                        "name":  "Counter-Supported Latissimus Stretch",
+                        "instruction":  "Two full-body side views same adult woman facing a sturdy counter fixed at hip height. First upright setup with both palms flat on countertop and elbows straight. Second take small steps back and hinge hips backward so torso inclines forward until roughly aligned with straight arms, BOTH hands remain on countertop, elbows straight, knees slightly soft, heels down, neutral long back with head in line. The counter stays fixed, does not tip. Show mild stretch along sides of upper back with small subtle teal highlight, not muscle anatomy. No crouching, no arched lumbar spine, no kneeling, no bent elbows, no door handle.",
+                        "asset":  "public/exercise-media/counter-lat-stretch.png"
+                    },
+                    {
+                        "key":  "isometric-plantar-flexion",
+                        "name":  "Isometric Ankle Plantar Flexion",
+                        "instruction":  "Two close-up panels of SAME seated adult lower leg and foot with hand resistance: leg comfortably supported extended forward, foot hanging free just beyond support, ankle at neutral approximately90degrees. One opposite hand is cupped firmly against BALL OF FOOT on plantar sole beneath toe bases, gently resisting the foot trying to point down/away. Show side view of foot and hand clearly, all five toes relaxed. First panel setup, second identical posture with two small opposing teal arrows at sole/hand contact to indicate equal forces, NO actual ankle movement. Hand presses ball of foot toward shin while foot presses away against hand. Do not show standing calf raise or resistance band. Focus on foot, lower leg, and resisting hand, natural anatomical toes and fingers.",
+                        "asset":  "public/exercise-media/isometric-plantar-flexion.png"
+                    },
+                    {
+                        "key":  "shelf-reach",
+                        "name":  "Shelf Reach and Place",
+                        "instruction":  "Two full-body three-quarter side views same adult woman standing close to a fixed shelf at comfortable CHEST HEIGHT. First holds one small lightweight cup near abdomen in one hand, opposite hand relaxed by side. Second extends same arm FORWARD at chest height to place cup on shelf, trunk upright, feet planted and flat, shoulders relaxed, no overhead reaching no backwards leaning no weight no kettlebell. Both views include same small fixed shelf at chest level, generous clear walking space around feet. Subtle teal arrow from hand to shelf. Use light cup that is clearly easy to hold.",
+                        "asset":  "public/exercise-media/shelf-reach.png"
+                    },
+                    {
+                        "key":  "hand-thigh-isometric",
+                        "name":  "Supine Hand-to-Thigh Isometric Press",
+                        "instruction":  "Two full-body SIDE views SAME adult woman lying flat on her back on a thin mat with head supported by small pillow. BOTH hips flexed90degrees thighs pointing upward, BOTH knees bent90degrees, shins horizontal in tabletop position, feet off floor, ankles relaxed. BOTH palms press on FRONTS of thighs JUST ABOVE knees. Knees press toward hands while hands push back toward feet, equal forces so there is NO MOVEMENT. First panel setup same position; second panel same position plus small opposed teal arrows at hand/thigh contacts. Arms straight enough to reach thigh fronts, both shoulders stay on mat, lower back steady neutral and no crunch. Exactly two legs and two arms, hands touching thigh fronts not kneecaps, not behind thighs. No band no exercise ball.",
+                        "asset":  "public/exercise-media/hand-thigh-isometric.png"
+                    },
+                    {
+                        "key":  "wobble-board-tilts",
+                        "name":  "Wobble Board Controlled Tilts",
+                        "instruction":  "Two full-body three-quarter front views SAME adult woman standing with BOTH feet about hip width apart on a round wobble board with a low hemispherical pivot. Board on clear level floor immediately BESIDE a fixed sturdy horizontal railing at waist height. The near hand maintains light contact with rail in BOTH views, other arm relaxed. Knees slightly softened, torso upright, gaze forward, feet both remain planted on board. First board level and second board only gently tilted to ONE SIDE with board edge just approaching floor, body remains stable without exaggerated lean. Small subtle curved teal arrow at BOARD indicates controlled tilt-and-return. No balance ball, no raised step, no single leg stance, no eyes closed. Feet and pivot fully visible.",
+                        "asset":  "public/exercise-media/wobble-board-tilts.png"
+                    },
+                    {
+                        "key":  "walking-carry-object",
+                        "name":  "Walking While Carrying an Object",
+                        "instruction":  "Two full-body views of the same upright adult woman walking on a clear level floor while holding a light box close to the abdomen using both hands. Eyes look ahead over the box. Alternate feet lead in the two views; no leaning or obstructed view.",
+                        "asset":  "public/exercise-media/walking-carry-object.png"
+                    },
+                    {
+                        "key":  "sitting-balance",
+                        "name":  "Unsupported Sitting Balance",
+                        "instruction":  "Two full-body three-quarter views of the same adult sitting toward the front of a sturdy chair, feet flat, hands resting in the lap, back clear of the backrest. First head forward; second head gently turned left while the trunk stays upright and still.",
+                        "asset":  "public/exercise-media/sitting-balance.png"
+                    },
+                    {
+                        "key":  "walking-speed-changes",
+                        "name":  "Walking Speed Changes",
+                        "instruction":  "Two side views of the same adult walking on a level path with upright posture and relaxed arms. First a comfortable step with two direction arrows; second a shorter slower step with one direction arrow. No running, backwards walking or exaggerated strides.",
+                        "asset":  "public/exercise-media/walking-speed-changes.png"
+                    },
+                    {
+                        "key":  "standing-reach",
+                        "name":  "Standing Multidirectional Reach",
+                        "instruction":  "Two full-body views of the same adult standing beside a stable counter with both feet planted. First reaches a short distance forward to a light cup at chest height; second reaches a short distance to the side. Trunk stays mostly upright. Corrected right-panel anatomy to remove an extra detached hand; exactly two arms and two hands per adult.",
+                        "asset":  "public/exercise-media/standing-reach-v2.png"
+                    },
+                    {
+                        "key":  "quadruped-neck-retraction",
+                        "name":  "Quadruped Cervical Retraction",
+                        "instruction":  "Create one scientific-educational physical therapy illustration for Quadruped Cervical Retraction. Landscape 3:2 clean white background, calm teal and navy softly shaded medical illustration. Show TWO SIDE views of the same adult woman on hands and knees on a thin mat, hands directly under shoulders, knees under hips, arms straight, back level. In LEFT panel the neck is relaxed with chin slightly poking forward; in RIGHT panel she gently draws her chin inward/backward to align the head with the neutral spine while keeping eyes on floor and trunk completely still. Small teal horizontal backward arrow at chin, not neck bending up or down. No added resistance band, no weights, no head lifted upward, no excessive neck flexion, no head drop, no dosage or text, exactly two arms two legs each view. Forehead, chin, shoulders, level back, hand positions and knees all visible. Use the same teal shirt and navy trousers palette as a physiotherapy web app. No logos, no decorations.",
+                        "asset":  "public/exercise-media/quadruped-neck-retraction.png"
+                    },
+                    {
+                        "key":  "forward-step-down",
+                        "name":  "Forward Step-Down",
+                        "instruction":  "Two side views of the same adult woman on a LOW stable step about10cm high, next to a sturdy waist-high handrail held lightly by near hand. First stand upright on RIGHT foot on step, LEFT heel hovering just IN FRONT of the step (not to side), left knee straight relaxed. Second slowly bend RIGHT supporting knee in a small controlled single-leg squat to lower LEFT heel to touch floor IN FRONT of the step; RIGHT foot stays entirely planted on step, RIGHT knee aligned with toes and pelvis level. Return movement shown with small teal vertical arrow by front heel. Clearly forward step-down, NOT lateral step-down and NOT step-up. Chest stays mostly upright, no extreme knee bend. Two arms two legs per panel, legs clearly separated by depth.",
+                        "asset":  "public/exercise-media/forward-step-down.png"
+                    },
+                    {
+                        "key":  "supine-hip-internal-rotation-stretch",
+                        "name":  "Supine Hip Internal Rotation Stretch",
+                        "instruction":  "Two slightly elevated three-quarter views of SAME adult woman lying on back on mat, head supported, BOTH knees bent with BOTH feet planted flat slightly wider than hips. LEFT panel knees start upright with feet apart. RIGHT panel only right knee moves gently INWARD toward midline while the right foot stays flat exactly in same spot, left knee stays upright. Pelvis stays on mat level, both thighs stay connected to hips, no lifting feet or tabletop, no crossing ankles, no pulling knee with hand. Hands relaxed by sides. Small curved teal arrow at right knee indicates inward motion, exactly two legs and two arms, both feet clearly visible and planted.",
+                        "asset":  "public/exercise-media/supine-hip-internal-rotation-stretch.png"
+                    },
+                    {
+                        "key":  "half-kneeling-hip-flexor-stretch",
+                        "name":  "Half-Kneeling Hip Flexor Stretch",
+                        "instruction":  "Two full-body side views SAME adult woman in half-kneeling position on padded mat. RIGHT knee rests on mat under hip, RIGHT shin extends back on mat; LEFT foot flat well forward with LEFT knee bent90degrees above ankle. Hands rest on front thigh. LEFT panel upright setup with neutral pelvis. RIGHT panel tuck pelvis gently and shift hips a LITTLE forward to feel stretch at front of RIGHT hip, trunk remains upright and abdomen gently engaged, NO back arch, NO leaning trunk, NO raising rear knee. Both views maintain rear knee contact with mat. Small subtle teal arrow forward near pelvis. No additional equipment, no standing lunge, no overstretch.",
+                        "asset":  "public/exercise-media/half-kneeling-hip-flexor-stretch.png"
+                    },
+                    {
+                        "key":  "standing-hip-extension-isometric",
+                        "name":  "Standing Hip Extension Isometric",
+                        "instruction":  "Two full-body side views same adult woman standing near a WALL BEHIND her and sturdy chair or counter IN FRONT within reach. Both hands hold fixed support in front, chest upright, pelvis level. RIGHT foot planted beneath body; LEFT knee slightly bent so BACK OF LEFT HEEL presses backward against wall BEHIND at LOW height, foot just clear of floor. Left thigh stays close to body, not lifted high. First setup; second same unmoving position plus tiny equal opposing teal arrows at heel/wall contact, one backward from heel and one forward from wall showing isometric effort. Absolutely no actual movement or kicking, no forward lean no back arch. Wall behind and support in front clearly shown, exactly two legs and two arms. Match a gentle gluteal isometric exercise.",
+                        "asset":  "public/exercise-media/standing-hip-extension-isometric.png"
+                    },
+                    {
+                        "key":  "side-plank-from-knees",
+                        "name":  "Side Plank from Knees",
+                        "instruction":  "Two full-body SIDE views of the same adult woman lying on her RIGHT SIDE on a mat, BOTH knees bent roughly90degrees and stacked, feet behind body. Support upper body on RIGHT FOREARM with RIGHT ELBOW directly below shoulder, forearm lies on mat, RIGHT elbow remains bent90degrees. LEFT hand rests on left hip. First hips rest on mat. Second lift hips gently so shoulders, hips and knees form a straight line while BOTH bent knees and RIGHT FOREARM stay in contact with mat; chest faces forward, no trunk twist. Small upward teal arrow by hips. IMPORTANT support is FOREARM AND ELBOW, not a straight supporting arm or hand. Exactly two arms two legs, no feet on toes, no full long-leg plank.",
+                        "asset":  "public/exercise-media/side-plank-from-knees.png"
+                    },
+                    {
+                        "key":  "wand-shoulder-external-rotation",
+                        "name":  "Wand-Assisted Shoulder External Rotation",
+                        "instruction":  "Two THREE-QUARTER OVERHEAD views of SAME adult woman lying flat on back on mat, head on small pillow, knees bent feet flat. RIGHT upper arm rests beside torso, RIGHT elbow bent90degrees, small rolled towel between RIGHT upper arm and ribs. BOTH hands hold a short wooden stick horizontally across abdomen/chest with elbows bent; LEFT hand holds one end, RIGHT palm supports other end. First RIGHT forearm points generally upward/forward from elbow. Second LEFT unaffected hand gently pushes stick toward woman\u0027s RIGHT side so RIGHT forearm rotates outward away from belly while RIGHT elbow remains snug against towel and torso. RIGHT upper arm never abducts away from ribs; shoulder and elbow stay supported. Small outward teal curved arrow beside RIGHT forearm. Passive assisted rotation only, no arm overhead, no standing, no trunk twisting, no resistance band, exactly two arms and two hands each view.",
+                        "asset":  "public/exercise-media/wand-shoulder-external-rotation.png"
+                    },
+                    {
+                        "key":  "leg-press",
+                        "name":  "Leg Press",
+                        "instruction":  "Scientific educational physical therapy illustration for Leg Press. Landscape 3:2 white background, calm teal shirt and navy trousers on same adult woman, softly shaded realistic natural anatomy. Two full-body SIDE views of SAME seated HORIZONTAL leg press machine. In both panels her entire back and pelvis stay supported against a slightly reclined seat back, head neutral. Both hands hold the seat handles beside hips. Both feet flat hip-width apart on a broad VERTICAL footplate in front at about hip height, knees align with feet. Left panel knees and hips comfortably bent about90degrees, thighs do not compress abdomen. Right panel press the footplate FORWARD AWAY from seat along horizontal guide rails, legs almost straight but BOTH knees remain a little bent, never locked. Seat stays fixed, plate moves horizontally forward, low safe controlled range. Small teal arrow along plate rail away from seat. Simple machine showing two guide rails, seat, handles and single footplate, no weights obscuring legs, no sled angled overhead, no barbell or free weights. Exactly two arms and two legs per person, feet keep contact with platform in both panels, pelvis never lifts from seat. No labels or dosage text, no logos. Faithful instructional drawing, clear before/after poses.",
+                        "asset":  "public/exercise-media/leg-press.png"
+                    },
+                    {
+                        "key":  "shoulder-d1-band",
+                        "name":  "Resistance Band D1 Shoulder Flexion",
+                        "instruction":  "Scientific educational physical therapy illustration for Resistance Band D1 Shoulder Flexion. Landscape3:2 white background, softly shaded natural adult anatomy, same teal shirt navy trousers woman as physiotherapy app illustrations. Two FULL BODY FRONT views of SAME adult woman standing upright, feet planted hip-width apart, pelvis and shoulders face straight ahead. A resistance band is SECURELY anchored to a fixed low wall ring on the woman\u0027s RIGHT side (viewer LEFT), ring near ankle height beside her right foot. Her RIGHT hand holds the free end. LEFT panel: right arm straight down slightly to side, right hand at OUTSIDE of right hip with palm facing BACKWARDS. RIGHT panel: right arm draws UP and DIAGONALLY ACROSS the FRONT of her chest until RIGHT hand is near LEFT shoulder, palm now faces TOWARD HER FACE, thumb points up/outward. Right elbow can bend comfortably as hand reaches opposite shoulder; no arm overhead. Band visibly stretches from same LOW anchor on her RIGHT side to the raised right hand across chest, band diagonal LOW RIGHT TO UPPER LEFT from woman\u0027s perspective. Left arm relaxed by side in both panels. Trunk remains upright and untwisted, no lean. One subtle teal curved diagonal arrow shows hand path from right outer hip toward left shoulder in right panel. Only one band, one fixed anchor, two arms and two hands per person. No cables or dumbbells, no second exercise, no reversed diagonal or D2 movement, no labels or dosage text, no logos. Show complete body and entire band in both panels, clear start and finish.",
+                        "asset":  "public/exercise-media/shoulder-d1-band.png"
+                    },
+                    {
+                        "key":  "active-shoulder-flexion",
+                        "name":  "Active Shoulder Flexion",
+                        "instruction":  "Scientific educational physical therapy illustration. Landscape3:2 white background, restrained teal shirt and navy trousers, softly shaded natural adult anatomy. Clear two-panel setup and movement views, small teal directional arrows only where specified. No words, labels, dosage, logos or decorative equipment. Two full-body SIDE views same adult woman standing upright, feet flat. LEFT start right arm relaxed straight at her side with thumb pointing forward. RIGHT lift the RIGHT arm directly FORWARD in sagittal plane to comfortable SHOULDER HEIGHT, elbow comfortably straight, thumb up. Left arm stays at side. Shoulder stays down, ribs do not flare, spine remains neutral, no backward lean. Small curved teal arrow shows arm forward/up. No weights or band, no shoulder abduction sideways, no overhead reach.",
+                        "asset":  "public/exercise-media/active-shoulder-flexion.png"
+                    },
+                    {
+                        "key":  "forearm-pronation-supination",
+                        "name":  "Forearm Pronation and Supination",
+                        "instruction":  "Scientific educational physical therapy illustration. Landscape3:2 white background, restrained teal shirt and navy trousers, softly shaded natural adult anatomy. Clear two-panel setup and movement views, small teal directional arrows only where specified. No words, labels, dosage, logos or decorative equipment. Two three-quarter front views of SAME seated adult woman from waist upward with RIGHT elbow bent90degrees and upper arm kept snug at her side. Right forearm points forward horizontal, wrist straight, fingers loosely extended. LEFT view forearm rotated palm UP, RIGHT view same forearm rotated palm DOWN. Elbow and shoulder identical position. Small teal curved arrow around forearm axis. Left hand rests in lap, no stick or weights, exactly two arms and natural five fingers per hand.",
+                        "asset":  "public/exercise-media/forearm-pronation-supination.png"
+                    },
+                    {
+                        "key":  "gluteal-isometric-squeeze",
+                        "name":  "Gluteal Isometric Squeeze",
+                        "instruction":  "Scientific educational physical therapy illustration. Landscape3:2 white background, restrained teal shirt and navy trousers, softly shaded natural adult anatomy. Clear two-panel setup and movement views, small teal directional arrows only where specified. No words, labels, dosage, logos or decorative equipment. Two full-body SIDE views SAME adult woman lying comfortably on BACK on thin mat with head on small pillow, legs extended relaxed with optional small folded towel under knees. BOTH views identical resting supine posture: pelvis AND buttocks stay on mat, heels supported, arms by sides. RIGHT panel small subtle translucent teal highlight ONLY over buttock muscles with two tiny inward teal arrows to convey gentle contraction; LEFT relaxed. NO bridge and no pelvis lift, NO knee squeeze or crossed legs. Natural neutral back. This is a buttock squeeze with NO MOVEMENT, do not show body motion arrows.",
+                        "asset":  "public/exercise-media/gluteal-isometric-squeeze.png"
+                    },
+                    {
+                        "key":  "seated-alternating-punches",
+                        "name":  "Seated Alternating Punches",
+                        "instruction":  "Scientific educational physical therapy illustration. Landscape3:2 white background, restrained teal shirt and navy trousers, softly shaded natural adult anatomy. Clear two-panel setup and movement views, small teal directional arrows only where specified. No words, labels, dosage, logos or decorative equipment. Two full-body three-quarter front views SAME adult woman sitting upright in sturdy chair, BOTH feet flat apart on floor, knees90degrees, no wheels. LEFT view right arm reaches FORWARD at chest height with right elbow still slightly bent, left loose fist beside chest. RIGHT view LEFT arm reaches FORWARD with elbow soft while right hand returns near chest. Shoulders relaxed down, trunk remains facing ahead upright, no torso twist or aggressive boxing. Both hands loosely curled, no gloves no weights. Subtle teal arrow forward near reaching hand in each panel. Two arms two legs per person.",
+                        "asset":  "public/exercise-media/seated-alternating-punches.png"
+                    },
+                    {
+                        "key":  "seated-plantar-flexion-stretch",
+                        "name":  "Seated Ankle Plantar Flexion Stretch",
+                        "instruction":  "Scientific educational physical therapy illustration. Landscape3:2 white background, restrained teal shirt and navy trousers, softly shaded natural adult anatomy. Clear two-panel setup and movement views, small teal directional arrows only where specified. No words, labels, dosage, logos or decorative equipment. Two close-up SIDE views of SAME adult woman\u0027s bare foot with lower leg supported horizontal on padded stool, foot free beyond stool edge. LEFT ankle neutral90degrees. RIGHT one supporting hand gently guides the WHOLE foot downward at midfoot/top of forefoot so ankle points slightly away from shin; toes remain RELAXED and not curled. Lower leg stays still on support, foot never twists inward. Small teal arrow at ANKLE joint showing downward pointing movement. Show ankle, foot, relaxed five toes, part of shin and guiding hand anatomically correct. No band no standing no toe pull, focus stretch across FRONT OF ANKLE.",
+                        "asset":  "public/exercise-media/seated-plantar-flexion-stretch.png"
+                    },
+                    {
+                        "key":  "seated-toe-extensor-stretch",
+                        "name":  "Seated Toe Extensor Stretch",
+                        "instruction":  "Scientific educational physical therapy illustration. Landscape3:2 white background, restrained teal shirt and navy trousers, softly shaded natural adult anatomy. Clear two-panel setup and movement views, small teal directional arrows only where specified. No words, labels, dosage, logos or decorative equipment. Two clear close-up SIDE views SAME bare adult foot resting supported across opposite knee while seated. Ankle remains NEUTRAL90degrees in BOTH views. One hand supports forefoot behind toe bases. Other hand gently cups the tops of the TOES with broad finger contact near bases, not on toenails. LEFT toes relaxed, RIGHT toes are gently curled DOWNWARD at their base joints by guiding hand, to stretch top of toes; ankle absolutely unchanged. Five natural toes with big toe clearly distinct. Tiny teal curved arrow around toe BASE joints, no arrow at ankle. Exactly two hands per panel and naturally articulated fingers, no toenail pressure, no bands or splints.",
+                        "asset":  "public/exercise-media/seated-toe-extensor-stretch.png"
+                    },
+                    {
+                        "key":  "supine-hip-abduction-slide",
+                        "name":  "Supine Hip Abduction Slide",
+                        "instruction":  "Scientific educational physical therapy illustration. Landscape3:2 white background, restrained teal shirt and navy trousers, softly shaded natural adult anatomy. Clear two-panel setup and movement views, small teal directional arrows only where specified. No words, labels, dosage, logos or decorative equipment. Two FULL BODY nearly OVERHEAD views SAME adult woman lying flat on back on firm bed or mat, head supported on small pillow, arms by sides. LEFT both legs straight parallel about hip-width apart, toes face upward. RIGHT ONLY RIGHT leg slides OUT TO HER RIGHT SIDE about25degrees along mat, keeping knee straight, heel and back of leg supported on mat; LEFT leg remains exactly straight centered. Both toes still point UP to ceiling, hips and pelvis stay level and untwisted flat on bed. Small curved teal arrow to side along heel path. No leg lifting or crossing, no resistance band, no sitting, exactly two arms and legs. Clearly depict a horizontal slide along surface, not side lying hip abduction.",
+                        "asset":  "public/exercise-media/supine-hip-abduction-slide.png"
+                    },
+                    {
+                        "key":  "chair-press-up",
+                        "name":  "Chair Press-Up",
+                        "instruction":  "Scientific educational physical therapy illustration. Landscape3:2 clean white background, same adult woman wearing teal shirt and navy trousers, natural softly shaded anatomy. Two clear setup and movement panels with subtle teal arrows. No logos, text, dosage, labels or extra equipment. Two full-body THREE-QUARTER SIDE views same adult woman seated in STURDY chair with FIXED ARMRESTS, no wheels, both feet flat on floor under knees. Both palms rest on the armrests just beside hips. LEFT panel normal sitting with hips resting on seat, elbows comfortably bent. RIGHT panel she presses DOWN through both armrests, straightens elbows and lifts buttocks ONLY2cm off seat, both feet remain flat, knees bent, trunk stays mostly upright, shoulders stay down away from ears. Small teal vertical up arrow at side of hip. Chair firmly planted, no instability, no full standing, no leaning far forward, no large dip. Exactly two arms and legs, hands stay contacting armrests both sides.",
+                        "asset":  "public/exercise-media/chair-press-up.png"
+                    },
+                    {
+                        "key":  "recumbent-stepper",
+                        "name":  "Recumbent Stepper",
+                        "instruction":  "Scientific educational physical therapy illustration. Landscape3:2 clean white background, same adult woman wearing teal shirt and navy trousers, natural softly shaded anatomy. Two clear setup and movement panels with subtle teal arrows. No logos, text, dosage, labels or extra equipment. Two full-body SIDE three-quarter views same adult woman sitting in SAME recumbent stepper exercise machine. Machine has a chair-like seat with full back support reclined slightly, two separate foot pedals in front that move forward/backward on low horizontal linkages, and optionally fixed hand grips beside seat. It is a RECUMBENT STEPPER, NOT a bicycle: no circular crank motion. Woman\u0027s back and pelvis stay against seat, both hands rest on side grips. LEFT panel RIGHT knee more bent and LEFT leg extends forward to push its pedal, with left knee still soft; RIGHT panel swap legs so LEFT knee bends and RIGHT leg extends forward with knee still soft. Both feet remain securely planted on their own pedals with simple foot straps, neutral upright ankles. Subtle opposed teal arrows show alternating horizontal pedal push/pull. Natural two arms two legs, knees never lock, no pelvis lifting, no leaning. Simple unbranded machine, no computer text or weights.",
+                        "asset":  "public/exercise-media/recumbent-stepper-v2.png",
+                        "edits":  [
+                                      "Edit this recumbent stepper illustration into ONE SINGLE LARGE SIDE VIEW. Keep the adult woman\u0027s anatomy, supported seated posture, teal shirt, navy trousers, secure foot straps, and the recumbent stepping machine from the LEFT HALF exactly as they are. Remove the duplicate right-half panel completely, and center/enlarge the retained left-half illustration on a white landscape3:2 canvas. Show both feet on separate pedals, one knee bent, other knee comfortably extended but not locked. Remove ALL existing teal arrows. Add just TWO small distinct teal direction arrows beside the respective pedals, one arrow pointing FORWARD beside the more bent leg\u0027s pedal and one arrow pointing BACKWARD beside the more extended leg\u0027s pedal, indicating that the pedals alternate directions. No before/after panels, no need to invent a second pose, no words or dosage or logos. Keep back and pelvis against seat, hands on side handles, exactly two arms and two legs. Maintain gentle clinical illustration style."
+                                  ]
+                    },
+                    {
+                        "key":  "shoulder-d2-band",
+                        "name":  "Resistance Band D2 Shoulder Flexion",
+                        "instruction":  "Scientific educational physical therapy illustration. Landscape3:2 clean white background, same adult woman wearing teal shirt and navy trousers, natural softly shaded anatomy. Two clear setup and movement panels with subtle teal arrows. No logos, text, dosage, labels or extra equipment. Two full-body FRONT views same adult woman standing upright feet flat hip-width apart, torso and pelvis facing directly forward without twist or lean. Use her RIGHT working arm. One resistance band securely anchored LOW beside her LEFT foot, on opposite side of working right arm (anchor on VIEWER RIGHT). LEFT panel RIGHT hand begins near her LEFT hip across the front of pelvis, right arm diagonally across body low. RIGHT panel lift RIGHT arm diagonally UP AND OUT toward her RIGHT side to comfortable above-shoulder height about130degrees, elbow soft, thumb rotates backward/outward, band stretches diagonally from low LEFT-side anchor to raised RIGHT hand (anchor VIEWER RIGHT and raised hand VIEWER LEFT). Left arm stays relaxed at side in both views. Small teal diagonal arrow from opposite hip toward up/out right hand. Exactly one visible band and fixed anchor, two arms and two hands each view. No shrug, no rib flare, no twisting, no D1 across-chest-to-opposite-shoulder movement, no dumbbells.",
+                        "asset":  "public/exercise-media/shoulder-d2-band.png"
+                    }
+                ]
+}

@@ -1,0 +1,2479 @@
+{
+  "Abdominal Bracing": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712918108844.png",
+      "source": "PocketPhysio",
+      "title": "Transverse abdominis activation",
+      "sourceUrl": "https://pocketphysio.app/exercises/transverse-abdominis-activation/"
+    }
+  ],
+  "Abdominal Curl-Up": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706187687919.png",
+      "source": "PocketPhysio",
+      "title": "Curl up",
+      "sourceUrl": "https://pocketphysio.app/exercises/curl-up/"
+    }
+  ],
+  "Active Ankle Inversion and Eversion": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705929765717.png",
+      "source": "PocketPhysio",
+      "title": "Active ankle inversion",
+      "sourceUrl": "https://pocketphysio.app/exercises/active-ankle-inversion/"
+    },
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1707204241047.png",
+      "source": "PocketPhysio",
+      "title": "Active ankle eversion",
+      "sourceUrl": "https://pocketphysio.app/exercises/active-ankle-eversion/"
+    }
+  ],
+  "Active Shoulder Flexion": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/active-shoulder-flexion.png",
+      "source": "Generated illustration",
+      "title": "Active Shoulder Flexion"
+    }
+  ],
+  "Adductor Rockback": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/hip-adductor-rock-back",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Hip adductor rock back"
+    }
+  ],
+  "Alternating Step Taps": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705930063710.png",
+      "source": "PocketPhysio",
+      "title": "Step taps",
+      "sourceUrl": "https://pocketphysio.app/exercises/step-taps/"
+    }
+  ],
+  "Ankle Circles": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705929702022.png",
+      "source": "PocketPhysio",
+      "title": "Ankle circles",
+      "sourceUrl": "https://pocketphysio.app/exercises/ankle-circles/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/ankle-circles/",
+      "source": "PocketPhysio",
+      "title": "Ankle circles",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Ankle Pumps": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705929858840.png",
+      "source": "PocketPhysio",
+      "title": "Ankle pumps",
+      "sourceUrl": "https://pocketphysio.app/exercises/ankle-pumps/"
+    }
+  ],
+  "Assisted Great Toe Flexion and Extension": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/great-toe-assisted.png",
+      "source": "Generated illustration",
+      "title": "Assisted Great Toe Flexion and Extension"
+    }
+  ],
+  "Backward Walking": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706167316678.png",
+      "source": "PocketPhysio",
+      "title": "Backward walking",
+      "sourceUrl": "https://pocketphysio.app/exercises/backward-walking/"
+    }
+  ],
+  "Ball-on-Wall Shoulder Circles": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/wall-ball-shoulder-circles",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Wall ball shoulder circles"
+    }
+  ],
+  "Bed Rolling": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705929410955.png",
+      "source": "PocketPhysio",
+      "title": "Rolling onto your side in bed",
+      "sourceUrl": "https://pocketphysio.app/exercises/rolling-onto-your-side-in-bed/"
+    }
+  ],
+  "Bench Thoracic Extension": [
+    {
+      "url": "https://redefiningstrength.com/kneeling-thoracic-extension-and-lat-stretch/",
+      "source": "Redefining Strength",
+      "kind": "video-link",
+      "title": "Kneeling thoracic extension and lat stretch"
+    }
+  ],
+  "Bent-Knee Fallout": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706179436812.png",
+      "source": "PocketPhysio",
+      "title": "Bent knee fall out",
+      "sourceUrl": "https://pocketphysio.app/exercises/bent-knee-fall-out/"
+    }
+  ],
+  "Bird Dog": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717751264632.png",
+      "source": "PocketPhysio",
+      "title": "Bird dog",
+      "sourceUrl": "https://pocketphysio.app/exercises/bird-dog/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/bird-dog/",
+      "source": "PocketPhysio",
+      "title": "Bird dog",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Butterfly Adductor Stretch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705986198942.png",
+      "source": "PocketPhysio",
+      "title": "Butterfly stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/butterfly-stretch/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/butterfly-stretch/",
+      "source": "PocketPhysio",
+      "title": "Butterfly stretch",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Cat-Cow": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705986232518.png",
+      "source": "PocketPhysio",
+      "title": "Cat-camel stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/cat-camel-stretch/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/cat-camel-stretch/",
+      "source": "PocketPhysio",
+      "title": "Cat-camel stretch",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Cervical Extension": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706176716775.png",
+      "source": "PocketPhysio",
+      "title": "Seated neck extension",
+      "sourceUrl": "https://pocketphysio.app/exercises/seated-neck-extension/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/seated-neck-extension/",
+      "source": "PocketPhysio",
+      "title": "Seated neck extension",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Cervical Flexion": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1716373624743.png",
+      "source": "PocketPhysio",
+      "title": "Neck flexion and extension",
+      "sourceUrl": "https://pocketphysio.app/exercises/neck-flexion-and-extension/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/neck-flexion-and-extension/",
+      "source": "PocketPhysio",
+      "title": "Neck flexion and extension",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Cervical Retraction": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1718017731027.png",
+      "source": "PocketPhysio",
+      "title": "Chin tuck",
+      "sourceUrl": "https://pocketphysio.app/exercises/chin-tuck/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/chin-tuck/",
+      "source": "PocketPhysio",
+      "title": "Chin tuck",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Cervical Rotation": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1716373638031.png",
+      "source": "PocketPhysio",
+      "title": "Neck rotation",
+      "sourceUrl": "https://pocketphysio.app/exercises/neck-rotation-exercise/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/neck-rotation-exercise/",
+      "source": "PocketPhysio",
+      "title": "Neck rotation",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Cervical Side Bending": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705986327850.png",
+      "source": "PocketPhysio",
+      "title": "Neck side bend",
+      "sourceUrl": "https://pocketphysio.app/exercises/neck-side-bend/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/neck-side-bend/",
+      "source": "PocketPhysio",
+      "title": "Neck side bend",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Chair Press-Up": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/chair-press-up.png",
+      "source": "Generated illustration",
+      "title": "Chair Press-Up"
+    }
+  ],
+  "Child's Pose": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/childs-pose",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Childs pose"
+    }
+  ],
+  "Clamshell": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717657146567.png",
+      "source": "PocketPhysio",
+      "title": "Clamshell",
+      "sourceUrl": "https://pocketphysio.app/exercises/clamshell/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/clamshell/",
+      "source": "PocketPhysio",
+      "title": "Clamshell",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Clock Stepping": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705986400047.png",
+      "source": "PocketPhysio",
+      "title": "Clock stepping",
+      "sourceUrl": "https://pocketphysio.app/exercises/clock-stepping/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/clock-stepping/",
+      "source": "PocketPhysio",
+      "title": "Clock stepping",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Counter-Supported Latissimus Stretch": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/counter-lat-stretch.png",
+      "source": "Generated illustration",
+      "title": "Counter-Supported Latissimus Stretch"
+    }
+  ],
+  "Cross-Body Shoulder Stretch": [
+    {
+      "kind": "video-link",
+      "url": "https://ca.physitrack.com/home-exercise-video/cross-body-shoulder-stretch",
+      "source": "Physitrack",
+      "title": "Cross Body Shoulder Stretch"
+    }
+  ],
+  "Dart-Thrower's Wrist Motion": [
+    {
+      "url": "https://www.youtube.com/watch?v=0NkMInYg0lE",
+      "source": "MedBridge",
+      "kind": "video-link",
+      "title": "Wrist AROM dart thrower's motion"
+    }
+  ],
+  "Dead Bug": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706176826263.png",
+      "source": "PocketPhysio",
+      "title": "Dead bug",
+      "sourceUrl": "https://pocketphysio.app/exercises/dead-bug/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/dead-bug/",
+      "source": "PocketPhysio",
+      "title": "Dead bug",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Diaphragmatic Breathing": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706176961673.png",
+      "source": "PocketPhysio",
+      "title": "Diaphragmatic breathing",
+      "sourceUrl": "https://pocketphysio.app/exercises/diaphragmatic-breathing/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/diaphragmatic-breathing/",
+      "source": "PocketPhysio",
+      "title": "Diaphragmatic breathing",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Doorway Chest Stretch": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/doorway-chest-stretch",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Doorway chest stretch"
+    }
+  ],
+  "Dumbbell Biceps Curl": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712660264643.png",
+      "source": "PocketPhysio",
+      "title": "Biceps curl",
+      "sourceUrl": "https://pocketphysio.app/exercises/biceps-curl/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/biceps-curl/",
+      "source": "PocketPhysio",
+      "title": "Biceps curl",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Dumbbell Wrist Extension": [
+    {
+      "kind": "video-link",
+      "url": "https://ca.physitrack.com/home-exercise-video/wrist-extension-with-weight",
+      "source": "Physitrack",
+      "title": "Seated wrist extension - with weight (Wrist extension strengthening, with weight, over edge, palm down)"
+    }
+  ],
+  "Dumbbell Wrist Flexion": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717566272895.png",
+      "source": "PocketPhysio",
+      "title": "Wrist curl",
+      "sourceUrl": "https://pocketphysio.app/exercises/wrist-curl/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/wrist-curl/",
+      "source": "PocketPhysio",
+      "title": "Wrist curl",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Eccentric Heel Lowering": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1718013270235.png",
+      "source": "PocketPhysio",
+      "title": "Eccentric calf raise",
+      "sourceUrl": "https://pocketphysio.app/exercises/eccentric-calf-raise/"
+    }
+  ],
+  "Elbow Flexion and Extension": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706177112146.png",
+      "source": "PocketPhysio",
+      "title": "Elbow flexion and extension",
+      "sourceUrl": "https://pocketphysio.app/exercises/elbow-flexion-and-extension/"
+    }
+  ],
+  "Elliptical Trainer": [
+    {
+      "kind": "video-link",
+      "url": "https://www.youtube.com/watch?v=_iX7rq1npOE",
+      "source": "Albany State University",
+      "title": "Elliptical tutorial"
+    }
+  ],
+  "Feet-Together Balance": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712738659157.png",
+      "source": "PocketPhysio",
+      "title": "Standing with feet together",
+      "sourceUrl": "https://pocketphysio.app/exercises/standing-with-feet-together/"
+    }
+  ],
+  "Figure-Eight Walking": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705985521212.png",
+      "source": "PocketPhysio",
+      "title": "Figure 8 walking",
+      "sourceUrl": "https://pocketphysio.app/exercises/figure-8-walking/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/figure-8-walking/",
+      "source": "PocketPhysio",
+      "title": "Figure 8 walking",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Finger Abduction and Adduction": [
+    {
+      "kind": "image",
+      "url": "https://www.dbth.nhs.uk/wp-content/uploads/2025/11/Screenshot-2025-11-07-100928.png",
+      "source": "Doncaster and Bassetlaw NHS",
+      "title": "Finger Abduction and Adduction",
+      "sourceUrl": "https://www.dbth.nhs.uk/finger-mobilising-exercises/"
+    },
+    {
+      "kind": "image",
+      "url": "https://www.dbth.nhs.uk/wp-content/uploads/2025/11/Screenshot-2025-11-07-100938.png",
+      "source": "Doncaster and Bassetlaw NHS",
+      "title": "Finger Abduction and Adduction",
+      "sourceUrl": "https://www.dbth.nhs.uk/finger-mobilising-exercises/"
+    }
+  ],
+  "Finger Middle-Joint Blocking (PIP)": [
+    {
+      "kind": "image",
+      "url": "https://www.rnoh.nhs.uk/application/files/4517/4117/0756/Screenshot_2025-03-05_at_10.15.47.png",
+      "source": "Royal National Orthopaedic Hospital NHS",
+      "title": "Finger Middle-Joint Blocking (PIP)",
+      "sourceUrl": "https://www.rnoh.nhs.uk/patients-and-visitors/patient-information-guides/paediatric-wrist-hand-illustrations-exercise-sheets"
+    }
+  ],
+  "Finger Tendon Glides": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712926117147.png",
+      "source": "PocketPhysio",
+      "title": "Tendon glides",
+      "sourceUrl": "https://pocketphysio.app/exercises/tendon-glides/"
+    }
+  ],
+  "Finger Tip-Joint Blocking (DIP)": [
+    {
+      "kind": "image",
+      "url": "https://www.rnoh.nhs.uk/application/files/9817/4117/0756/Screenshot_2025-03-05_at_10.15.53.png",
+      "source": "Royal National Orthopaedic Hospital NHS",
+      "title": "Finger Tip-Joint Blocking (DIP)",
+      "sourceUrl": "https://www.rnoh.nhs.uk/patients-and-visitors/patient-information-guides/paediatric-wrist-hand-illustrations-exercise-sheets"
+    }
+  ],
+  "Floor-to-Stand Transfer": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705929595220.png",
+      "source": "PocketPhysio",
+      "title": "Getting up from the floor",
+      "sourceUrl": "https://pocketphysio.app/exercises/getting-up-from-the-floor/"
+    }
+  ],
+  "Floor-to-Waist Lift": [
+    {
+      "kind": "image",
+      "url": "https://www.hse.gov.uk/Msd/assets/images/mannekin04.png",
+      "source": "UK Health and Safety Executive",
+      "title": "Floor-to-Waist Lift",
+      "sourceUrl": "https://www.hse.gov.uk/Msd/manual-handling/good-handling-technique.htm"
+    },
+    {
+      "kind": "image",
+      "url": "https://www.hse.gov.uk/Msd/assets/images/mannekin02.jpg",
+      "source": "UK Health and Safety Executive",
+      "title": "Floor-to-Waist Lift",
+      "sourceUrl": "https://www.hse.gov.uk/Msd/manual-handling/good-handling-technique.htm"
+    }
+  ],
+  "Foam Surface Balance": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717134039142.png",
+      "source": "PocketPhysio",
+      "title": "Standing balance on a foam pad",
+      "sourceUrl": "https://pocketphysio.app/exercises/standing-balance-on-a-foam-pad/"
+    }
+  ],
+  "Forearm Plank": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/PLANK.png",
+      "source": "PocketPhysio",
+      "title": "Plank",
+      "sourceUrl": "https://pocketphysio.app/exercises/plank/"
+    }
+  ],
+  "Forearm Pronation and Supination": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/forearm-pronation-supination.png",
+      "source": "Generated illustration",
+      "title": "Forearm Pronation and Supination"
+    }
+  ],
+  "Forearm Pronation Stretch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706186914886.png",
+      "source": "PocketPhysio",
+      "title": "Pronator stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/pronator-stretch/"
+    }
+  ],
+  "Forearm Supination Stretch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706186943725.png",
+      "source": "PocketPhysio",
+      "title": "Forearm supinator stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/forearm-supinator-stretch/"
+    }
+  ],
+  "Forearm Wall Slide": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/serratus-wall-slide",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Serratus wall slide"
+    }
+  ],
+  "Forward and Backward Weight Shift": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705929905191.png",
+      "source": "PocketPhysio",
+      "title": "Forward and backward weight shift",
+      "sourceUrl": "https://pocketphysio.app/exercises/forward-and-backward-weight-shift/"
+    }
+  ],
+  "Forward Step-Down": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/forward-step-down.png",
+      "source": "Generated illustration",
+      "title": "Forward Step-Down"
+    }
+  ],
+  "Forward Step-Up": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1718020307647.png",
+      "source": "PocketPhysio",
+      "title": "Step up",
+      "sourceUrl": "https://pocketphysio.app/exercises/step-up/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/step-up/",
+      "source": "PocketPhysio",
+      "title": "Step up",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Forward Walking with Heel-to-Toe Pattern": [
+    {
+      "url": "https://uk.physitrack.com/home-exercise-video/walking-with-a-stick-%2528heel-strike-and-push-off%2529",
+      "source": "Physitrack",
+      "kind": "video-link",
+      "title": "Heel strike and push-off walking (with a stick)"
+    }
+  ],
+  "Glute Bridge": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706176693552.png",
+      "source": "PocketPhysio",
+      "title": "Glute bridge",
+      "sourceUrl": "https://pocketphysio.app/exercises/glute-bridge/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/glute-bridge/",
+      "source": "PocketPhysio",
+      "title": "Glute bridge",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Gluteal Isometric Squeeze": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/gluteal-isometric-squeeze.png",
+      "source": "Generated illustration",
+      "title": "Gluteal Isometric Squeeze"
+    }
+  ],
+  "Grapevine Cross-Stepping": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706177286815.png",
+      "source": "PocketPhysio",
+      "title": "Grapevine drill",
+      "sourceUrl": "https://pocketphysio.app/exercises/grapevine/"
+    }
+  ],
+  "Half-Kneeling Hip Flexor Stretch": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/half-kneeling-hip-flexor-stretch.png",
+      "source": "Generated illustration",
+      "title": "Half-Kneeling Hip Flexor Stretch"
+    }
+  ],
+  "Hamstring Heel-Dig Isometric": [
+    {
+      "kind": "video-link",
+      "url": "https://ca.physitrack.com/home-exercise-video/hamstring-sets",
+      "source": "Physitrack",
+      "title": "Isometric Hamstring Sets"
+    }
+  ],
+  "Heel Prop Knee Extension": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706179413794.png",
+      "source": "PocketPhysio",
+      "title": "Knee extension stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/knee-extension-stretch/"
+    }
+  ],
+  "Heel Slide": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706178139177.png",
+      "source": "PocketPhysio",
+      "title": "Heel slides",
+      "sourceUrl": "https://pocketphysio.app/exercises/heel-slides/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/heel-slides/",
+      "source": "PocketPhysio",
+      "title": "Heel slides",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Heel Walking": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706178169026.png",
+      "source": "PocketPhysio",
+      "title": "Heel walking",
+      "sourceUrl": "https://pocketphysio.app/exercises/heel-walking/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/heel-walking/",
+      "source": "PocketPhysio",
+      "title": "Heel walking",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "High-Knee Stepping Gait": [
+    {
+      "url": "https://www.sikana.tv/en/sport/learn-to-nordic-walk/high-knee-walking-practice",
+      "source": "Sikana",
+      "kind": "video-link",
+      "title": "High knee walking practice"
+    }
+  ],
+  "Hip Adduction Ball Squeeze": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706179203724.png",
+      "source": "PocketPhysio",
+      "title": "Adductor ball squeeze",
+      "sourceUrl": "https://pocketphysio.app/exercises/adductor-ball-squeeze/"
+    }
+  ],
+  "Hip Hike": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706178734181.png",
+      "source": "PocketPhysio",
+      "title": "Hip hike",
+      "sourceUrl": "https://pocketphysio.app/exercises/hip-hike/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/hip-hike/",
+      "source": "PocketPhysio",
+      "title": "Hip hike",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Hip Hinge": [
+    {
+      "kind": "video-link",
+      "url": "https://www.youtube.com/watch?v=sinpFajtRPw",
+      "source": "Mayo Clinic",
+      "title": "Wellness Wednesday: Hip hinge"
+    }
+  ],
+  "Hooklying March": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706181559905.png",
+      "source": "PocketPhysio",
+      "title": "Supine marching",
+      "sourceUrl": "https://pocketphysio.app/exercises/supine-marching/"
+    }
+  ],
+  "Isometric Ankle Dorsiflexion": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706165575053.png",
+      "source": "PocketPhysio",
+      "title": "Isometric ankle dorsiflexion",
+      "sourceUrl": "https://pocketphysio.app/exercises/isometric-ankle-dorsiflexion/"
+    }
+  ],
+  "Isometric Ankle Eversion": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712729333116.png",
+      "source": "PocketPhysio",
+      "title": "Isometric ankle eversion",
+      "sourceUrl": "https://pocketphysio.app/exercises/isometric-ankle-eversion/"
+    }
+  ],
+  "Isometric Ankle Inversion": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712729984522.png",
+      "source": "PocketPhysio",
+      "title": "Isometric ankle inversion",
+      "sourceUrl": "https://pocketphysio.app/exercises/isometric-ankle-inversion/"
+    }
+  ],
+  "Isometric Ankle Plantar Flexion": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/isometric-plantar-flexion.png",
+      "source": "Generated illustration",
+      "title": "Isometric Ankle Plantar Flexion"
+    }
+  ],
+  "Isometric Cervical Extension": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705986338328.png",
+      "source": "PocketPhysio",
+      "title": "Neck isometric exercises",
+      "sourceUrl": "https://pocketphysio.app/exercises/neck-isometric-exercises/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/neck-isometric-exercises/",
+      "source": "PocketPhysio",
+      "title": "Neck isometric exercises",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Isometric Cervical Flexion": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705986338328.png",
+      "source": "PocketPhysio",
+      "title": "Neck isometric exercises",
+      "sourceUrl": "https://pocketphysio.app/exercises/neck-isometric-exercises/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/neck-isometric-exercises/",
+      "source": "PocketPhysio",
+      "title": "Neck isometric exercises",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Isometric Cervical Rotation": [
+    {
+      "kind": "video-link",
+      "url": "https://ca.physitrack.com/home-exercise-video/isometric-cervical-rotation",
+      "source": "Physitrack",
+      "title": "Isometric cervical rotation (Cervical rotation strengthening isometric, sitting)"
+    }
+  ],
+  "Isometric Cervical Side Bending": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705986338328.png",
+      "source": "PocketPhysio",
+      "title": "Neck isometric exercises",
+      "sourceUrl": "https://pocketphysio.app/exercises/neck-isometric-exercises/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/neck-isometric-exercises/",
+      "source": "PocketPhysio",
+      "title": "Neck isometric exercises",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Isometric Elbow Extension": [
+    {
+      "url": "https://ca.physitrack.com/home-exercise-video/isometric-elbow-flexion-and-extension",
+      "source": "Physitrack",
+      "kind": "video-link",
+      "title": "Self-resisted elbow flexion and extension"
+    }
+  ],
+  "Isometric Elbow Flexion": [
+    {
+      "url": "https://ca.physitrack.com/home-exercise-video/isometric-elbow-flexion-and-extension",
+      "source": "Physitrack",
+      "kind": "video-link",
+      "title": "Self-resisted elbow flexion and extension"
+    }
+  ],
+  "Isometric Shoulder Abduction": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712838810956.png",
+      "source": "PocketPhysio",
+      "title": "Isometric shoulder abduction",
+      "sourceUrl": "https://pocketphysio.app/exercises/isometric-shoulder-abduction/"
+    }
+  ],
+  "Isometric Shoulder Extension": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1718015924494.png",
+      "source": "PocketPhysio",
+      "title": "Isometric shoulder extension",
+      "sourceUrl": "https://pocketphysio.app/exercises/isometric-shoulder-extension/"
+    }
+  ],
+  "Isometric Shoulder External Rotation": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1707210550303.png",
+      "source": "PocketPhysio",
+      "title": "Isometric shoulder external rotation",
+      "sourceUrl": "https://pocketphysio.app/exercises/isometric-shoulder-external-rotation/"
+    }
+  ],
+  "Isometric Shoulder Flexion": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1716376289971.png",
+      "source": "PocketPhysio",
+      "title": "Isometric shoulder flexion",
+      "sourceUrl": "https://pocketphysio.app/exercises/isometric-shoulder-flexion/"
+    }
+  ],
+  "Isometric Shoulder Internal Rotation": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706185152053.png",
+      "source": "PocketPhysio",
+      "title": "Isometric shoulder internal rotation",
+      "sourceUrl": "https://pocketphysio.app/exercises/isometric-shoulder-internal-rotation/"
+    }
+  ],
+  "Isometric Wrist Extension": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712921106328.png",
+      "source": "PocketPhysio",
+      "title": "Isometric wrist extension",
+      "sourceUrl": "https://pocketphysio.app/exercises/isometric-wrist-extension/"
+    }
+  ],
+  "Isometric Wrist Flexion": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706179297175.png",
+      "source": "PocketPhysio",
+      "title": "Isometric wrist flexion",
+      "sourceUrl": "https://pocketphysio.app/exercises/isometric-wrist-flexion/"
+    }
+  ],
+  "Knee-to-Wall Ankle Mobility": [
+    {
+      "url": "https://www.peak-physio.com.au/exercise/ankle-dorsiflexion-knee-to-wall/",
+      "source": "Peak Physio",
+      "kind": "video-link",
+      "title": "Ankle dorsiflexion knee-to-wall demonstration"
+    }
+  ],
+  "Lateral Lunge": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/LATERAL+LUNGES.png",
+      "source": "PocketPhysio",
+      "title": "Lateral lunge",
+      "sourceUrl": "https://pocketphysio.app/exercises/lateral-lunge/"
+    }
+  ],
+  "Lateral Resistance Band Walk": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712925549740.png",
+      "source": "PocketPhysio",
+      "title": "Lateral band walk",
+      "sourceUrl": "https://pocketphysio.app/exercises/lateral-band-walk/"
+    }
+  ],
+  "Lateral Step-Down": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/lateral-step-down",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Lateral step down"
+    }
+  ],
+  "Lateral Step-Up": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/lateral-step-up",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Lateral step up"
+    }
+  ],
+  "Lateral Weight Shift": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705930143834.png",
+      "source": "PocketPhysio",
+      "title": "Side to side weight shift",
+      "sourceUrl": "https://pocketphysio.app/exercises/side-to-side-weight-shift/"
+    }
+  ],
+  "Leg Press": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/leg-press.png",
+      "source": "Generated illustration",
+      "title": "Leg Press"
+    }
+  ],
+  "Levator Scapulae Stretch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1718019285315.png",
+      "source": "PocketPhysio",
+      "title": "Levator scapulae stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/levator-scapulae-stretch/"
+    }
+  ],
+  "Low-Impact Step Jack": [
+    {
+      "url": "https://www.fitmetrics.ch/en/exercise/6896d57d46a80-side-step-jacks",
+      "source": "FitMetrics",
+      "kind": "video-link",
+      "title": "Side step jacks without jumping"
+    }
+  ],
+  "Mini Squat": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706180958517.png",
+      "source": "PocketPhysio",
+      "title": "Mini squat",
+      "sourceUrl": "https://pocketphysio.app/exercises/mini-squat/"
+    }
+  ],
+  "Monster Walk": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/monster-walks",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Monster walks"
+    }
+  ],
+  "Obstacle Step-Over": [
+    {
+      "url": "https://ca.physitrack.com/home-exercise-video/obstacle-walk",
+      "source": "Physitrack",
+      "kind": "video-link",
+      "title": "Step over obstacle while walking"
+    }
+  ],
+  "Overhead Triceps Stretch": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/triceps-stretch",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Triceps stretch"
+    }
+  ],
+  "Pallof Press": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/pallof-press",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Pallof press"
+    }
+  ],
+  "Posterior Pelvic Tilt": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706181378129.png",
+      "source": "PocketPhysio",
+      "title": "Pelvic tilt",
+      "sourceUrl": "https://pocketphysio.app/exercises/pelvic-tilt/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/pelvic-tilt/",
+      "source": "PocketPhysio",
+      "title": "Pelvic tilt",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Prone Hip Extension": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706178601143.png",
+      "source": "PocketPhysio",
+      "title": "Prone hip extension",
+      "sourceUrl": "https://pocketphysio.app/exercises/prone-hip-extension/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/prone-hip-extension/",
+      "source": "PocketPhysio",
+      "title": "Prone hip extension",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Prone Hip Internal and External Rotation": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706178685676.png",
+      "source": "PocketPhysio",
+      "title": "Prone hip rotation",
+      "sourceUrl": "https://pocketphysio.app/exercises/prone-hip-rotation/"
+    }
+  ],
+  "Prone Press-Up": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/COBRAS.png",
+      "source": "PocketPhysio",
+      "title": "Cobra stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/cobra-stretch/"
+    }
+  ],
+  "Prone T Raise": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706183945151.png",
+      "source": "PocketPhysio",
+      "title": "Prone T raise",
+      "sourceUrl": "https://pocketphysio.app/exercises/prone-t-raise/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/prone-t-raise/",
+      "source": "PocketPhysio",
+      "title": "Prone T raise",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Prone Thoracic Extension": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706187372887.png",
+      "source": "PocketPhysio",
+      "title": "Prone back extension",
+      "sourceUrl": "https://pocketphysio.app/exercises/prone-back-extension/"
+    }
+  ],
+  "Prone W Raise": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706187365790.png",
+      "source": "PocketPhysio",
+      "title": "Prone W raise",
+      "sourceUrl": "https://pocketphysio.app/exercises/prone-w-raise/"
+    }
+  ],
+  "Prone Y Raise": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706183952450.png",
+      "source": "PocketPhysio",
+      "title": "Prone Y raise",
+      "sourceUrl": "https://pocketphysio.app/exercises/prone-y-raise/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/prone-y-raise/",
+      "source": "PocketPhysio",
+      "title": "Prone Y raise",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Pursed-Lip Breathing": [
+    {
+      "kind": "video-link",
+      "url": "https://www.youtube.com/watch?v=gWKT0jXnzac&t=350",
+      "source": "The George Institute for Global Health",
+      "title": "Pursed-lip breathing (05:50)"
+    }
+  ],
+  "Quadriceps Set": [
+    {
+      "kind": "video-link",
+      "url": "https://ca.physitrack.com/home-exercise-video/quadriceps-set",
+      "source": "Physitrack",
+      "title": "Supine Quadriceps Sets"
+    }
+  ],
+  "Quadruped Arm Lift": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705986455422.png",
+      "source": "PocketPhysio",
+      "title": "Quadruped arm lift",
+      "sourceUrl": "https://pocketphysio.app/exercises/quadruped-arm-lift/"
+    }
+  ],
+  "Quadruped Cervical Retraction": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/quadruped-neck-retraction.png",
+      "source": "Generated illustration",
+      "title": "Quadruped Cervical Retraction"
+    }
+  ],
+  "Quadruped Hip Abduction": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/fire-hydrant",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Fire hydrant"
+    }
+  ],
+  "Quadruped Knee Hover": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/bear-crawl-holds",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Bear crawl holds"
+    }
+  ],
+  "Quadruped Thoracic Rotation": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/thoracic-rotations",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Thoracic rotations"
+    }
+  ],
+  "Recumbent Stepper": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/recumbent-stepper-v2.png",
+      "source": "Generated illustration",
+      "title": "Recumbent Stepper"
+    }
+  ],
+  "Resistance Band Ankle Dorsiflexion": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1718021322456.png",
+      "source": "PocketPhysio",
+      "title": "Ankle dorsiflexion with band",
+      "sourceUrl": "https://pocketphysio.app/exercises/ankle-dorsiflexion-with-band/"
+    }
+  ],
+  "Resistance Band Ankle Eversion": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712729734667.png",
+      "source": "PocketPhysio",
+      "title": "Ankle eversion with band",
+      "sourceUrl": "https://pocketphysio.app/exercises/ankle-eversion-with-band/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/ankle-eversion-with-band/",
+      "source": "PocketPhysio",
+      "title": "Ankle eversion with band",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Resistance Band Ankle Inversion": [
+    {
+      "kind": "video-link",
+      "url": "https://ca.physitrack.com/home-exercise-video/ankle-inversion-with-band",
+      "source": "Physitrack",
+      "title": "Ankle inversion with resistance band (Ankle inversion strengthening, with band, sitting legs straight)"
+    }
+  ],
+  "Resistance Band Ankle Plantar Flexion": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712730879105.png",
+      "source": "PocketPhysio",
+      "title": "Ankle plantar flexion with band",
+      "sourceUrl": "https://pocketphysio.app/exercises/ankle-plantar-flexion-with-band/"
+    }
+  ],
+  "Resistance Band D1 Shoulder Flexion": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/shoulder-d1-band.png",
+      "source": "Generated illustration",
+      "title": "Resistance Band D1 Shoulder Flexion"
+    }
+  ],
+  "Resistance Band D2 Shoulder Flexion": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/shoulder-d2-band.png",
+      "source": "Generated illustration",
+      "title": "Resistance Band D2 Shoulder Flexion"
+    }
+  ],
+  "Resistance Band Finger Extension": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717662981803.png",
+      "source": "PocketPhysio",
+      "title": "Finger extension with a rubber band",
+      "sourceUrl": "https://pocketphysio.app/exercises/finger-extension-with-rubber-band/"
+    }
+  ],
+  "Resistance Band High-to-Low Chop": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/high-to-low-wood-chop",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "High to low wood chop"
+    }
+  ],
+  "Resistance Band Hip Flexion": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717136060259.png",
+      "source": "PocketPhysio",
+      "title": "Standing hip flexion with a band",
+      "sourceUrl": "https://pocketphysio.app/exercises/standing-hip-flexion-with-band/"
+    }
+  ],
+  "Resistance Band Low-to-High Lift": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/low-high-wood-chop",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Low high wood chop"
+    }
+  ],
+  "Resistance Band Row": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712666424377.png",
+      "source": "PocketPhysio",
+      "title": "Resistance band row",
+      "sourceUrl": "https://pocketphysio.app/exercises/resistance-band-row/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/resistance-band-row/",
+      "source": "PocketPhysio",
+      "title": "Resistance band row",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Resistance Band Shoulder Extension": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712840302763.png",
+      "source": "PocketPhysio",
+      "title": "Band shoulder extension",
+      "sourceUrl": "https://pocketphysio.app/exercises/band-shoulder-extension/"
+    }
+  ],
+  "Resistance Band Shoulder External Rotation": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712897334904.png",
+      "source": "PocketPhysio",
+      "title": "Shoulder external rotation with band",
+      "sourceUrl": "https://pocketphysio.app/exercises/shoulder-external-rotation-with-band/"
+    }
+  ],
+  "Resistance Band Shoulder Internal Rotation": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712899710013.png",
+      "source": "PocketPhysio",
+      "title": "Shoulder internal rotation with band",
+      "sourceUrl": "https://pocketphysio.app/exercises/shoulder-internal-rotation-with-band/"
+    }
+  ],
+  "Resistance Band Terminal Knee Extension": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712819865770.png",
+      "source": "PocketPhysio",
+      "title": "Terminal knee extension with band",
+      "sourceUrl": "https://pocketphysio.app/exercises/terminal-knee-extension/"
+    }
+  ],
+  "Resistance Band Triceps Extension": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/banded-triceps-pulldown",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Banded triceps pulldown"
+    }
+  ],
+  "Resistance Band Trunk Rotation": [
+    {
+      "url": "https://uk.physitrack.com/home-exercise-video/standing-trunk-rotation-%2528resistance-band%2529",
+      "source": "Physitrack",
+      "kind": "video-link",
+      "title": "Standing trunk rotation with resistance band"
+    }
+  ],
+  "Resistance Band Wrist Radial Deviation": [
+    {
+      "url": "https://www.youtube.com/watch?v=a_92x8kpOqo",
+      "source": "Rehab My Patient",
+      "kind": "video-link",
+      "title": "Radial deviation with exercise band"
+    }
+  ],
+  "Resistance Band Wrist Ulnar Deviation": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712918351943.png",
+      "source": "PocketPhysio",
+      "title": "Band ulnar deviation",
+      "sourceUrl": "https://pocketphysio.app/exercises/band-ulnar-deviation/"
+    }
+  ],
+  "Resisted Forearm Pronation": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712751335606.png",
+      "source": "PocketPhysio",
+      "title": "Forearm pronation with band",
+      "sourceUrl": "https://pocketphysio.app/exercises/forearm-pronation-with-band/"
+    }
+  ],
+  "Resisted Forearm Supination": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712751481020.png",
+      "source": "PocketPhysio",
+      "title": "Forearm supination with band",
+      "sourceUrl": "https://pocketphysio.app/exercises/forearm-supination-with-band/"
+    }
+  ],
+  "Reverse Clamshell": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/reverse-clamshell",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Reverse clamshell"
+    }
+  ],
+  "Reverse Lunge": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/REVERSE+LUNGES.png",
+      "source": "PocketPhysio",
+      "title": "Reverse lunge",
+      "sourceUrl": "https://pocketphysio.app/exercises/reverse-lunge/"
+    }
+  ],
+  "Scapular Depression": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717161439721.png",
+      "source": "PocketPhysio",
+      "title": "Shoulder blade depression",
+      "sourceUrl": "https://pocketphysio.app/exercises/shoulder-blade-depression/"
+    }
+  ],
+  "Scapular Retraction": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706183894330.png",
+      "source": "PocketPhysio",
+      "title": "Scapular squeeze",
+      "sourceUrl": "https://pocketphysio.app/exercises/seated-scapular-retraction-hands-on-thighs/"
+    }
+  ],
+  "Seated 90/90 Hip Rotation Switch": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/9090-hip-switch",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "9090 hip switch"
+    }
+  ],
+  "Seated Alternating Punches": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/seated-alternating-punches.png",
+      "source": "Generated illustration",
+      "title": "Seated Alternating Punches"
+    }
+  ],
+  "Seated Ankle Plantar Flexion Stretch": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/seated-plantar-flexion-stretch.png",
+      "source": "Generated illustration",
+      "title": "Seated Ankle Plantar Flexion Stretch"
+    }
+  ],
+  "Seated Assisted Knee Flexion": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706179754160.png",
+      "source": "PocketPhysio",
+      "title": "Assisted seated knee bend",
+      "sourceUrl": "https://pocketphysio.app/exercises/assisted-seated-knee-bend/"
+    }
+  ],
+  "Seated Heel Raise": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706188004247.png",
+      "source": "PocketPhysio",
+      "title": "Seated calf raise",
+      "sourceUrl": "https://pocketphysio.app/exercises/seated-calf-raise/"
+    }
+  ],
+  "Seated Hip Flexion Isometric": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1716375698340.png",
+      "source": "PocketPhysio",
+      "title": "Seated isometric hip flexion",
+      "sourceUrl": "https://pocketphysio.app/exercises/seated-isometric-hip-flexion/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/seated-isometric-hip-flexion/",
+      "source": "PocketPhysio",
+      "title": "Seated isometric hip flexion",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Seated Knee Extension": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705986492815.png",
+      "source": "PocketPhysio",
+      "title": "Seated knee extension",
+      "sourceUrl": "https://pocketphysio.app/exercises/seated-knee-extension/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/seated-knee-extension/",
+      "source": "PocketPhysio",
+      "title": "Seated knee extension",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Seated Knee Extension Isometric": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/seated-knee-extension-isometric",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Seated knee extension isometric"
+    }
+  ],
+  "Seated Lateral Scooting": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712725841244.png",
+      "source": "PocketPhysio",
+      "title": "Scooting sideways on the bed",
+      "sourceUrl": "https://pocketphysio.app/exercises/scooting-sideways-on-the-bed/"
+    }
+  ],
+  "Seated Marching": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717161930296.png",
+      "source": "PocketPhysio",
+      "title": "Seated hip flexion",
+      "sourceUrl": "https://pocketphysio.app/exercises/seated-hip-flexion/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/seated-hip-flexion/",
+      "source": "PocketPhysio",
+      "title": "Seated hip flexion",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Seated Plantar Fascia Stretch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706181854999.png",
+      "source": "PocketPhysio",
+      "title": "Plantar fascia stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/plantar-fascia-stretch/"
+    }
+  ],
+  "Seated Stability Ball March": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706181166373.png",
+      "source": "PocketPhysio",
+      "title": "Seated ball marching",
+      "sourceUrl": "https://pocketphysio.app/exercises/seated-ball-marching/"
+    }
+  ],
+  "Seated Stability Ball Pelvic Circles": [
+    {
+      "url": "https://www.youtube.com/watch?v=uGlzWM_I-vU",
+      "source": "Direct Performance Physical Therapy",
+      "kind": "video-link",
+      "title": "Seated pelvic circles on a ball"
+    }
+  ],
+  "Seated Thoracic Extension over Chair": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712915767466.png",
+      "source": "PocketPhysio",
+      "title": "Thoracic extension over a chair",
+      "sourceUrl": "https://pocketphysio.app/exercises/thoracic-extension-over-chair/"
+    }
+  ],
+  "Seated Thoracic Flexion": [
+    {
+      "url": "https://www.youtube.com/watch?v=DyJLjwV2j4Q",
+      "source": "Clinical movement demonstration",
+      "kind": "video-link",
+      "title": "Seated thoracic flexion mobility"
+    }
+  ],
+  "Seated Thoracic Rotation": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717410483042.png",
+      "source": "PocketPhysio",
+      "title": "Seated trunk rotation",
+      "sourceUrl": "https://pocketphysio.app/exercises/seated-trunk-rotation/"
+    }
+  ],
+  "Seated Thoracic Side Bending": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717408398065.png",
+      "source": "PocketPhysio",
+      "title": "Seated side bend",
+      "sourceUrl": "https://pocketphysio.app/exercises/seated-side-bend/"
+    }
+  ],
+  "Seated Toe Extensor Stretch": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/seated-toe-extensor-stretch.png",
+      "source": "Generated illustration",
+      "title": "Seated Toe Extensor Stretch"
+    }
+  ],
+  "Semi-Tandem Balance": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712732055882.png",
+      "source": "PocketPhysio",
+      "title": "Semi-tandem stance",
+      "sourceUrl": "https://pocketphysio.app/exercises/semi-tandem-stance/"
+    }
+  ],
+  "Shelf Reach and Place": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/shelf-reach.png",
+      "source": "Generated illustration",
+      "title": "Shelf Reach and Place"
+    }
+  ],
+  "Short Arc Quadriceps Extension": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706184152603.png",
+      "source": "PocketPhysio",
+      "title": "Short arc quads",
+      "sourceUrl": "https://pocketphysio.app/exercises/short-arc-quads/"
+    }
+  ],
+  "Short Foot Exercise": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/short-foot",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Short foot"
+    }
+  ],
+  "Shoulder Flexion Table Slide": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/shoulder-flexion-table-slide",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Shoulder flexion table slide"
+    }
+  ],
+  "Shoulder Pendulum": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712830464474.png",
+      "source": "PocketPhysio",
+      "title": "Pendulum exercise for the shoulder",
+      "sourceUrl": "https://pocketphysio.app/exercises/pendulum-exercise/"
+    }
+  ],
+  "Shoulder Scaption": [
+    {
+      "url": "https://www.youtube.com/watch?v=2o3MD-DfiI0",
+      "source": "Zion Physical Therapy",
+      "kind": "video-link",
+      "title": "Shoulder scaption demonstration"
+    }
+  ],
+  "Shoulder Shrug": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712900304010.png",
+      "source": "PocketPhysio",
+      "title": "Shoulder shrugs",
+      "sourceUrl": "https://pocketphysio.app/exercises/shoulder-shrugs/"
+    }
+  ],
+  "Side Plank from Knees": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/side-plank-from-knees.png",
+      "source": "Generated illustration",
+      "title": "Side Plank from Knees"
+    }
+  ],
+  "Side-Lying Hip Abduction": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1707204745292.png",
+      "source": "PocketPhysio",
+      "title": "Side lying hip abduction",
+      "sourceUrl": "https://pocketphysio.app/exercises/side-lying-hip-abduction/"
+    }
+  ],
+  "Side-Lying Hip Adduction": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706178525133.png",
+      "source": "PocketPhysio",
+      "title": "Side lying hip adduction",
+      "sourceUrl": "https://pocketphysio.app/exercises/side-lying-hip-adduction/"
+    }
+  ],
+  "Side-Lying Open Book": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706187652047.png",
+      "source": "PocketPhysio",
+      "title": "Open book stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/open-book-stretch/"
+    }
+  ],
+  "Sideways Walking": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706178439910.png",
+      "source": "PocketPhysio",
+      "title": "Side stepping",
+      "sourceUrl": "https://pocketphysio.app/exercises/side-stepping/"
+    }
+  ],
+  "Single-Leg Balance": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706186040615.png",
+      "source": "PocketPhysio",
+      "title": "Single leg stance",
+      "sourceUrl": "https://pocketphysio.app/exercises/single-leg-stance/"
+    }
+  ],
+  "Single-Leg Bridge": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706167296637.png",
+      "source": "PocketPhysio",
+      "title": "Single leg bridge",
+      "sourceUrl": "https://pocketphysio.app/exercises/single-leg-bridge/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/single-leg-bridge/",
+      "source": "PocketPhysio",
+      "title": "Single leg bridge",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Single-Leg Clock Reach": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712733612291.png",
+      "source": "PocketPhysio",
+      "title": "Single leg clock reach",
+      "sourceUrl": "https://pocketphysio.app/exercises/single-leg-clock-reach/"
+    }
+  ],
+  "Single-Leg Heel Raise": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706178062879.png",
+      "source": "PocketPhysio",
+      "title": "Single leg heel raise",
+      "sourceUrl": "https://pocketphysio.app/exercises/single-leg-heel-raise/"
+    }
+  ],
+  "Single-Leg Mini Squat": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717160672922.png",
+      "source": "PocketPhysio",
+      "title": "Supported single leg squat",
+      "sourceUrl": "https://pocketphysio.app/exercises/supported-single-leg-squat/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/supported-single-leg-squat/",
+      "source": "PocketPhysio",
+      "title": "Supported single leg squat",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Single-Leg Romanian Deadlift": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/SINGLE+LEG+DEADLIFTS+(ALTERNATE).png",
+      "source": "PocketPhysio",
+      "title": "Single leg deadlift",
+      "sourceUrl": "https://pocketphysio.app/exercises/single-leg-deadlift/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/single-leg-deadlift/",
+      "source": "PocketPhysio",
+      "title": "Single leg deadlift",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Sit-to-Stand": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706165083398.png",
+      "source": "PocketPhysio",
+      "title": "Sit to stand",
+      "sourceUrl": "https://pocketphysio.app/exercises/sit-to-stand/"
+    }
+  ],
+  "Split Squat": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/SPLIT+SQUAT+LEFT.png",
+      "source": "PocketPhysio",
+      "title": "Split squat",
+      "sourceUrl": "https://pocketphysio.app/exercises/split-squat/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/split-squat/",
+      "source": "PocketPhysio",
+      "title": "Split squat",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Stability Ball Hamstring Curl": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1716373826533.png",
+      "source": "PocketPhysio",
+      "title": "Stability ball hamstring curl",
+      "sourceUrl": "https://pocketphysio.app/exercises/stability-ball-hamstring-curl/"
+    }
+  ],
+  "Stair Ascent and Descent Practice": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1716376713618.png",
+      "source": "PocketPhysio",
+      "title": "Stair climbing",
+      "sourceUrl": "https://pocketphysio.app/exercises/stair-climbing/"
+    }
+  ],
+  "Standing Balance with Ball Toss": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712725063137.png",
+      "source": "PocketPhysio",
+      "title": "Ball toss eye tracking",
+      "sourceUrl": "https://pocketphysio.app/exercises/ball-toss-eye-tracking/"
+    }
+  ],
+  "Standing Balance with Eyes Closed": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712738256602.png",
+      "source": "PocketPhysio",
+      "title": "Standing balance with eyes closed",
+      "sourceUrl": "https://pocketphysio.app/exercises/standing-balance-with-eyes-closed/"
+    }
+  ],
+  "Standing Biceps Stretch": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/biceps-stretch",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Biceps stretch"
+    }
+  ],
+  "Standing Bilateral Heel Raise": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/CALF+RAISES.png",
+      "source": "PocketPhysio",
+      "title": "Calf raises",
+      "sourceUrl": "https://pocketphysio.app/exercises/calf-raises/"
+    }
+  ],
+  "Standing Gastrocnemius Stretch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712912218068.png",
+      "source": "PocketPhysio",
+      "title": "Calf stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/calf-stretch/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/calf-stretch/",
+      "source": "PocketPhysio",
+      "title": "Calf stretch",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Standing Hamstring Curl": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712661515310.png",
+      "source": "PocketPhysio",
+      "title": "Standing hamstring curl",
+      "sourceUrl": "https://pocketphysio.app/exercises/standing-hamstring-curl/"
+    }
+  ],
+  "Standing Hip Abduction Wall Press": [
+    {
+      "url": "https://www.youtube.com/watch?v=G3atEABzgJA",
+      "source": "Clinical exercise demonstration",
+      "kind": "video-link",
+      "title": "Wall press for gluteus medius"
+    }
+  ],
+  "Standing Hip Extension Isometric": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/standing-hip-extension-isometric.png",
+      "source": "Generated illustration",
+      "title": "Standing Hip Extension Isometric"
+    }
+  ],
+  "Standing March in Place": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717501262840.png",
+      "source": "PocketPhysio",
+      "title": "Standing marching",
+      "sourceUrl": "https://pocketphysio.app/exercises/standing-marching/"
+    }
+  ],
+  "Standing Multidirectional Reach": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/standing-reach-v2.png",
+      "source": "Generated illustration",
+      "title": "Standing Multidirectional Reach"
+    }
+  ],
+  "Standing Outer Hip Stretch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706178515167.png",
+      "source": "PocketPhysio",
+      "title": "Standing IT band stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/standing-it-band-stretch/"
+    }
+  ],
+  "Standing Quadriceps Stretch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706182244920.png",
+      "source": "PocketPhysio",
+      "title": "Standing quad stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/standing-quad-stretch/"
+    }
+  ],
+  "Standing Soleus Stretch": [
+    {
+      "kind": "video-link",
+      "url": "https://ca.physitrack.com/home-exercise-video/standing-soleus-stretch",
+      "source": "Physitrack",
+      "title": "Standing soleus stretch"
+    }
+  ],
+  "Standing Toe Raise": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717406241625.png",
+      "source": "PocketPhysio",
+      "title": "Heel and toe raises",
+      "sourceUrl": "https://pocketphysio.app/exercises/heel-and-toe-raises/"
+    }
+  ],
+  "Stationary Cycling": [
+    {
+      "kind": "video-link",
+      "url": "https://www.youtube.com/watch?v=aYcbaDjPL5E",
+      "source": "Albany State University",
+      "title": "Upright exercise bike tutorial"
+    }
+  ],
+  "Stepping Turns": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705930215032.png",
+      "source": "PocketPhysio",
+      "title": "Turning on the spot",
+      "sourceUrl": "https://pocketphysio.app/exercises/turning-on-the-spot/"
+    }
+  ],
+  "Straight Leg Raise": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1707210700406.png",
+      "source": "PocketPhysio",
+      "title": "Straight leg raise",
+      "sourceUrl": "https://pocketphysio.app/exercises/straight-leg-raise/"
+    }
+  ],
+  "Suitcase Carry": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/suitcase-carry",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Suitcase carry"
+    }
+  ],
+  "Supine Chin Nod": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706176945513.png",
+      "source": "PocketPhysio",
+      "title": "Deep neck flexor exercise",
+      "sourceUrl": "https://pocketphysio.app/exercises/deep-neck-flexor-exercise/"
+    }
+  ],
+  "Supine Chin Tuck with Head Lift": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1718019153750.png",
+      "source": "PocketPhysio",
+      "title": "Lying neck flexor head lift",
+      "sourceUrl": "https://pocketphysio.app/exercises/lying-neck-flexor-head-lift/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/lying-neck-flexor-head-lift/",
+      "source": "PocketPhysio",
+      "title": "Lying neck flexor head lift",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Supine Figure-Four Piriformis Stretch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706177220119.png",
+      "source": "PocketPhysio",
+      "title": "Lying figure 4 stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/lying-figure-4-stretch/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/lying-figure-4-stretch/",
+      "source": "PocketPhysio",
+      "title": "Lying figure 4 stretch",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Supine Gluteal Stretch": [
+    {
+      "url": "https://ca.physitrack.com/home-exercise-video/glute-stretch",
+      "source": "Physitrack",
+      "kind": "video-link",
+      "title": "Cross-body gluteal muscle stretch"
+    }
+  ],
+  "Supine Hamstring Stretch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1707204636245.png",
+      "source": "PocketPhysio",
+      "title": "Supine hamstring stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/supine-hamstring-stretch/"
+    }
+  ],
+  "Supine Hand-to-Thigh Isometric Press": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/hand-thigh-isometric.png",
+      "source": "Generated illustration",
+      "title": "Supine Hand-to-Thigh Isometric Press"
+    }
+  ],
+  "Supine Hip Abduction Slide": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/supine-hip-abduction-slide.png",
+      "source": "Generated illustration",
+      "title": "Supine Hip Abduction Slide"
+    }
+  ],
+  "Supine Hip Internal Rotation Stretch": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/supine-hip-internal-rotation-stretch.png",
+      "source": "Generated illustration",
+      "title": "Supine Hip Internal Rotation Stretch"
+    }
+  ],
+  "Supine Lower Trunk Rotation": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706180406270.png",
+      "source": "PocketPhysio",
+      "title": "Lower trunk rotation",
+      "sourceUrl": "https://pocketphysio.app/exercises/lower-trunk-rotation/"
+    }
+  ],
+  "Supine Serratus Punch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712835877745.png",
+      "source": "PocketPhysio",
+      "title": "Lying serratus punch",
+      "sourceUrl": "https://pocketphysio.app/exercises/lying-serratus-punch/"
+    }
+  ],
+  "Supine Tabletop Toe Taps": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705929661694.png",
+      "source": "PocketPhysio",
+      "title": "Lying alternate heel taps",
+      "sourceUrl": "https://pocketphysio.app/exercises/lying-alternate-heel-taps/"
+    }
+  ],
+  "Supine-to-Sit Transfer": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1705929356396.png",
+      "source": "PocketPhysio",
+      "title": "Log roll out of bed",
+      "sourceUrl": "https://pocketphysio.app/exercises/log-roll-out-of-bed/"
+    }
+  ],
+  "Tabletop Finger Lifts": [
+    {
+      "kind": "image",
+      "url": "https://www.dbth.nhs.uk/wp-content/uploads/2025/11/Screenshot-2025-11-21-150951.png",
+      "source": "Doncaster and Bassetlaw NHS",
+      "title": "Tabletop Finger Lifts",
+      "sourceUrl": "https://www.dbth.nhs.uk/finger-mobilising-exercises/"
+    }
+  ],
+  "Tall-Kneeling Heel Sit": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1716374179806.png",
+      "source": "PocketPhysio",
+      "title": "Kneel sit to tall kneel",
+      "sourceUrl": "https://pocketphysio.app/exercises/kneel-sit-to-tall-kneel/"
+    }
+  ],
+  "Tandem Balance": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712741725850.png",
+      "source": "PocketPhysio",
+      "title": "Tandem stance",
+      "sourceUrl": "https://pocketphysio.app/exercises/tandem-stance/"
+    }
+  ],
+  "Tandem Walking": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717567560145.png",
+      "source": "PocketPhysio",
+      "title": "Tandem walking",
+      "sourceUrl": "https://pocketphysio.app/exercises/balance-tandem-walking/"
+    }
+  ],
+  "Therapy Putty Finger Adduction": [
+    {
+      "kind": "image",
+      "url": "https://www.kentcht.nhs.uk/wp-content/uploads/2026/09/finger-abduction.jpg",
+      "source": "Kent Community Health NHS",
+      "title": "Therapy Putty Finger Adduction",
+      "sourceUrl": "https://www.kentcht.nhs.uk/leaflet/therapeutic-putty-exercises/"
+    }
+  ],
+  "Therapy Putty Grip": [
+    {
+      "kind": "image",
+      "url": "https://www.kentcht.nhs.uk/wp-content/uploads/2026/09/Gross-grip.jpg",
+      "source": "Kent Community Health NHS",
+      "title": "Therapy Putty Grip",
+      "sourceUrl": "https://www.kentcht.nhs.uk/leaflet/therapeutic-putty-exercises/"
+    }
+  ],
+  "Therapy Putty Key Pinch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712818972414.png",
+      "source": "PocketPhysio",
+      "title": "Key grip with putty",
+      "sourceUrl": "https://pocketphysio.app/exercises/key-grip-with-putty/"
+    }
+  ],
+  "Therapy Putty Tip Pinch": [
+    {
+      "kind": "image",
+      "url": "https://www.kentcht.nhs.uk/wp-content/uploads/2026/09/Tip-pinch.jpg",
+      "source": "Kent Community Health NHS",
+      "title": "Therapy Putty Tip Pinch",
+      "sourceUrl": "https://www.kentcht.nhs.uk/leaflet/therapeutic-putty-exercises/"
+    }
+  ],
+  "Therapy Putty Tripod Pinch": [
+    {
+      "kind": "image",
+      "url": "https://media.cuh.nhs.uk/images/Tripod_pinch.width-840.png",
+      "source": "Cambridge University Hospitals NHS",
+      "title": "Therapy Putty Tripod Pinch",
+      "sourceUrl": "https://www.cuh.nhs.uk/patient-information/hand-therapy-theraputty-thumb-strengthening-exercises/"
+    }
+  ],
+  "Thread the Needle": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706187311819.png",
+      "source": "PocketPhysio",
+      "title": "Thread the needle",
+      "sourceUrl": "https://pocketphysio.app/exercises/thread-the-needle/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/thread-the-needle/",
+      "source": "PocketPhysio",
+      "title": "Thread the needle",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Thumb Knuckle Flexion (MCP)": [
+    {
+      "kind": "image",
+      "url": "https://media.cuh.nhs.uk/images/MCPJ_flexion_and_extension.width-840.png",
+      "source": "Cambridge University Hospitals NHS",
+      "title": "Thumb Knuckle Flexion (MCP)",
+      "sourceUrl": "https://www.cuh.nhs.uk/patient-information/hand-therapy-active-thumb-exercises/"
+    }
+  ],
+  "Thumb Opposition": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712917488237.png",
+      "source": "PocketPhysio",
+      "title": "Thumb opposition",
+      "sourceUrl": "https://pocketphysio.app/exercises/thumb-opposition/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/thumb-opposition/",
+      "source": "PocketPhysio",
+      "title": "Thumb opposition",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Thumb Palmar Abduction": [
+    {
+      "kind": "image",
+      "url": "https://media.cuh.nhs.uk/images/Palmar_adduction_and_abduction.width-840.png",
+      "source": "Cambridge University Hospitals NHS",
+      "title": "Thumb Palmar Abduction",
+      "sourceUrl": "https://www.cuh.nhs.uk/patient-information/hand-therapy-active-thumb-exercises/"
+    }
+  ],
+  "Thumb Radial Abduction": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712924727185.png",
+      "source": "PocketPhysio",
+      "title": "Thumb side slide",
+      "sourceUrl": "https://pocketphysio.app/exercises/thumb-side-slide/"
+    }
+  ],
+  "Thumb Tip Joint Blocking": [
+    {
+      "kind": "image",
+      "url": "https://media.cuh.nhs.uk/images/IPJ_flexion_and_extension.width-840.png",
+      "source": "Cambridge University Hospitals NHS",
+      "title": "Thumb Tip Joint Blocking",
+      "sourceUrl": "https://www.cuh.nhs.uk/patient-information/hand-therapy-active-thumb-exercises/"
+    }
+  ],
+  "Thumb Web-Space Stretch": [
+    {
+      "kind": "image",
+      "url": "https://www.rnoh.nhs.uk/application/files/4817/4117/0757/Screenshot_2025-03-05_at_10.16.05.png",
+      "source": "Royal National Orthopaedic Hospital NHS",
+      "title": "Thumb Web-Space Stretch",
+      "sourceUrl": "https://www.rnoh.nhs.uk/patients-and-visitors/patient-information-guides/paediatric-wrist-hand-illustrations-exercise-sheets"
+    }
+  ],
+  "Toe Spreading": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/toe-spread",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Toe spread"
+    }
+  ],
+  "Toe Walking": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706187343060.png",
+      "source": "PocketPhysio",
+      "title": "Toe walking",
+      "sourceUrl": "https://pocketphysio.app/exercises/toe-walking/"
+    }
+  ],
+  "Toe Yoga": [
+    {
+      "url": "https://www.rehabhero.ca/exercise/yoga-toes",
+      "source": "Rehab Hero",
+      "kind": "video-link",
+      "title": "Yoga toes"
+    }
+  ],
+  "Towel Toe Curls": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717407073320.png",
+      "source": "PocketPhysio",
+      "title": "Towel scrunches",
+      "sourceUrl": "https://pocketphysio.app/exercises/towel-scrunches/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/towel-scrunches/",
+      "source": "PocketPhysio",
+      "title": "Towel scrunches",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Treadmill Walking": [
+    {
+      "kind": "video-link",
+      "url": "https://www.youtube.com/watch?v=zQreIFgwGq8",
+      "source": "Albany State University",
+      "title": "Treadmill tutorial"
+    }
+  ],
+  "Unsupported Sitting Balance": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/sitting-balance.png",
+      "source": "Generated illustration",
+      "title": "Unsupported Sitting Balance"
+    }
+  ],
+  "Upper Body Ergometer": [
+    {
+      "url": "https://www.youtube.com/watch?v=HbAfCg6dgqI",
+      "source": "Athletic Institute",
+      "kind": "video-link",
+      "title": "Upper body ergometer"
+    }
+  ],
+  "Upper Trapezius Stretch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1717408275483.png",
+      "source": "PocketPhysio",
+      "title": "Upper trapezius stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/upper-trapezius-stretch/"
+    }
+  ],
+  "Walking Speed Changes": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/walking-speed-changes.png",
+      "source": "Generated illustration",
+      "title": "Walking Speed Changes"
+    }
+  ],
+  "Walking While Carrying an Object": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/walking-carry-object.png",
+      "source": "Generated illustration",
+      "title": "Walking While Carrying an Object"
+    }
+  ],
+  "Walking with Head Turns": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706187902043.png",
+      "source": "PocketPhysio",
+      "title": "Walking with head turns",
+      "sourceUrl": "https://pocketphysio.app/exercises/walking-with-head-turns/"
+    }
+  ],
+  "Wall Push-Up Plus": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1712837199778.png",
+      "source": "PocketPhysio",
+      "title": "Wall push up plus",
+      "sourceUrl": "https://pocketphysio.app/exercises/wall-push-up-plus/"
+    }
+  ],
+  "Wall Shoulder Taps": [
+    {
+      "url": "https://www.youtube.com/watch?v=UZACF8kEq-c",
+      "source": "Train With Cuz",
+      "kind": "video-link",
+      "title": "Wall shoulder taps in incline position"
+    }
+  ],
+  "Wall Sit": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/wall-sit.png",
+      "source": "PocketPhysio",
+      "title": "Wall sit",
+      "sourceUrl": "https://pocketphysio.app/exercises/wall-sit/"
+    }
+  ],
+  "Wand-Assisted Shoulder Abduction": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706184236298.png",
+      "source": "PocketPhysio",
+      "title": "Shoulder abduction with a stick",
+      "sourceUrl": "https://pocketphysio.app/exercises/shoulder-abduction-with-a-stick/"
+    }
+  ],
+  "Wand-Assisted Shoulder External Rotation": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/wand-shoulder-external-rotation.png",
+      "source": "Generated illustration",
+      "title": "Wand-Assisted Shoulder External Rotation"
+    }
+  ],
+  "Wobble Board Controlled Tilts": [
+    {
+      "kind": "image",
+      "url": "/exercise-media/wobble-board-tilts.png",
+      "source": "Generated illustration",
+      "title": "Wobble Board Controlled Tilts"
+    }
+  ],
+  "Wrist Circles": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706188018090.png",
+      "source": "PocketPhysio",
+      "title": "Wrist circles",
+      "sourceUrl": "https://pocketphysio.app/exercises/wrist-circles/"
+    }
+  ],
+  "Wrist Extensor Stretch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1716377398163.png",
+      "source": "PocketPhysio",
+      "title": "Wrist extensor stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/wrist-extensor-stretch/"
+    },
+    {
+      "kind": "video-link",
+      "url": "https://pocketphysio.app/exercises/wrist-extensor-stretch/",
+      "source": "PocketPhysio",
+      "title": "Wrist extensor stretch",
+      "accessNote": "20 free video views per month"
+    }
+  ],
+  "Wrist Flexor Stretch": [
+    {
+      "kind": "image",
+      "url": "https://virtuelife.s3.ap-south-1.amazonaws.com/exerciseImages/exerciseImage-1706164944046.png",
+      "source": "PocketPhysio",
+      "title": "Wrist flexor stretch",
+      "sourceUrl": "https://pocketphysio.app/exercises/wrist-flexor-stretch/"
+    }
+  ]
+}

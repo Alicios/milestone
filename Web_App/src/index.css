@@ -402,9 +402,92 @@ html {
   }
 }
 
-@media (max-width: 599px) {
-  .messages-page {
-    height: 88vh !important;
+@media (min-width: 600px) and (max-width: 899.95px) {
+  .dashboard-header .MuiToolbar-root > nav.MuiStack-root:first-child .MuiButton-root {
+    flex: 0 1 auto;
+    padding: 6px 8px !important;
+    font-size: .75rem !important;
+  }
+}
+
+@media (max-width: 599.95px) {
+  .dashboard-shell {
+    --provider-dock-space: calc(72px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--provider-dock-space);
+  }
+
+  .dashboard-shell .dashboard-header.MuiAppBar-root {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: var(--provider-dock-space);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    border-radius: 16px 16px 0 0 !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.16) !important;
+  }
+
+  .dashboard-header > .MuiContainer-root {
+    height: 100%;
+    padding-left: max(8px, env(safe-area-inset-left, 0px));
+    padding-right: max(8px, env(safe-area-inset-right, 0px));
+  }
+
+  .dashboard-shell .dashboard-header .MuiToolbar-root {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 48px;
+    height: 100%;
+    min-height: 0 !important;
+    padding: 0;
+    gap: 4px !important;
+  }
+
+  .dashboard-header .MuiToolbar-root > nav.MuiStack-root {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+    gap: 4px !important;
+  }
+
+  .dashboard-shell .dashboard-header .MuiToolbar-root > nav.MuiStack-root .MuiButton-root {
+    flex-direction: column;
+    min-width: 0;
+    min-height: 56px;
+    margin: 0;
+    padding: 6px 2px !important;
+    gap: 4px;
+    border-radius: 10px !important;
+    font-size: .625rem !important;
+    line-height: 1.2;
+  }
+
+  .dashboard-header nav .MuiButton-startIcon {
+    margin: 0 !important;
+  }
+
+  .dashboard-header nav .MuiButton-startIcon .MuiSvgIcon-root {
+    font-size: 22px;
+  }
+
+  .dashboard-account-nav #profile-menu-button {
+    flex-direction: column;
+    justify-content: center;
+    width: 48px;
+    height: 56px;
+    gap: 4px;
+    border-radius: 10px;
+  }
+
+  .dashboard-header .dashboard-account-nav .MuiAvatar-root {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: .75rem !important;
+  }
+
+  .dashboard-shell .messages-page {
+    height: calc(100dvh - var(--provider-dock-space)) !important;
   }
 }
 

@@ -7,7 +7,6 @@ import SearchIcon from '@mui/icons-material/Search'
 import SortIcon from '@mui/icons-material/Sort'
 import { Box, Button, Card, Collapse, Fade, IconButton, InputAdornment, Menu, MenuItem, OutlinedInput, Stack, Typography, useTheme } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
-import { CalendarWeekNavigation } from '../components/CalendarWeekNavigation'
 import { AssignedRoutineDetails } from '../components/AssignedRoutineDetails'
 import { type OccupiedDate, type SchedulingPolicy } from '../lib/scheduling'
 import { PatientAvatar } from '../components/PatientAvatar'
@@ -27,6 +26,7 @@ interface PatientRowProps {
   assignments: DayAssignments
   weekDates: string[]
   onAssign: (dayIndex: number) => void
+  onWeekChange: (week: string) => void
   policy: SchedulingPolicy | null
   occupied: OccupiedDate[]
   loading: boolean
@@ -34,11 +34,12 @@ interface PatientRowProps {
   onRetry: () => void
 }
 
-function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAssign, policy, occupied, loading, error, onRetry }: PatientRowProps) {
+function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAssign, onWeekChange, policy, occupied, loading, error, onRetry }: PatientRowProps) {
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null)
   const detailsId = `assignment-details-${patient.profileId}`
   const selectedAssignment = Object.values(assignments).flat().find((assignment) => assignment.id === selectedAssignmentId)
-  useEffect(() => { if (!expanded) setSelectedAssignmentId(null) }, [expanded])
+  const weekStart = weekDates[0]
+  useEffect(() => { setSelectedAssignmentId(null) }, [expanded, weekStart])
   const theme = useTheme()
   const border = theme.palette.divider
   const accentText = '#102b34'
@@ -57,7 +58,7 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
       <Box sx={{ minWidth: 0, pt: 1 }}>
       <PatientWeekCalendar patient={patient} assignments={assignments} weekDates={weekDates} policy={policy}
         occupied={occupied} loading={loading} selectedAssignmentId={selectedAssignmentId} detailsId={detailsId}
-        onSelect={(id) => setSelectedAssignmentId((current) => current === id ? null : id)} onAssign={onAssign} />
+        onSelect={(id) => setSelectedAssignmentId((current) => current === id ? null : id)} onAssign={onAssign} onWeekChange={onWeekChange} />
       </Box>
       {expanded && selectedAssignmentId && <AssignedRoutineDetails id={detailsId} assignment={selectedAssignment}
         today={policy?.today} loading={loading} error={error} onRetry={onRetry} onClose={() => setSelectedAssignmentId(null)} />}
@@ -102,7 +103,6 @@ export function DashboardPage() {
 
   return <>
     <Typography component="h1" variant="h4" sx={{ mb: 2 }}>Patients</Typography>
-    <CalendarWeekNavigation dates={weekDates} policy={policy} onChange={setWeek} />
     <Fade in appear timeout={320}>
       <Stack className="dashboard-overview" direction={{ xs: 'column', lg: 'row' }} spacing={{ xs: 2, lg: 5 }} alignItems="stretch">
       <Box flexGrow={1} minWidth={0}>
@@ -120,7 +120,7 @@ export function DashboardPage() {
             {([['all', 'All Patients'], ...routineStatusOrder.map((status) => [status, routineStatusLabels[status]]), ['modified', 'Modified'], ['unassigned', 'Unassigned this week']] as [StatusFilter, string][]).map(([value, label]) =>
               <MenuItem key={value} selected={statusFilter === value} onClick={() => { setStatusFilter(value); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>{label}</MenuItem>)}
           </Menu>
-          {visiblePatients.length ? visiblePatients.map((patient) => <PatientRow key={`${patient.profileId}/${weekDates[0]}`} patient={patient} expanded={expanded.includes(patient.id)} onToggle={() => togglePatient(patient.id)} assignments={assignments[patient.profileId] ?? {}} weekDates={weekDates} policy={policy} occupied={occupied[patient.profileId] ?? []} loading={assignmentsLoading} error={assignmentsError} onRetry={retryAssignments} onAssign={(dayIndex) => openSchedule(patient, weekDates[dayIndex])} />) : <Card sx={{ p: 5, textAlign: 'center', border: `4px solid ${border}`, bgcolor: surface, color: text }}><Typography variant="h6" fontFamily="Georgia, serif">No patients found</Typography></Card>}
+          {visiblePatients.length ? visiblePatients.map((patient) => <PatientRow key={patient.profileId} patient={patient} expanded={expanded.includes(patient.id)} onToggle={() => togglePatient(patient.id)} assignments={assignments[patient.profileId] ?? {}} weekDates={weekDates} policy={policy} occupied={occupied[patient.profileId] ?? []} loading={assignmentsLoading} error={assignmentsError} onRetry={retryAssignments} onAssign={(dayIndex) => openSchedule(patient, weekDates[dayIndex])} onWeekChange={setWeek} />) : <Card sx={{ p: 5, textAlign: 'center', border: `4px solid ${border}`, bgcolor: surface, color: text }}><Typography variant="h6" fontFamily="Georgia, serif">No patients found</Typography></Card>}
         </Stack>
       </Box>
       <PatientSetupBox />

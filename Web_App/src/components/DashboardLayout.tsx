@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Alert, AppBar, Avatar, Box, Button, Container, Divider, IconButton, Menu, MenuItem, Stack, Toolbar, Typography } from '@mui/material'
+import { Alert, AppBar, Avatar, Box, Button, Container, Divider, IconButton, Menu, MenuItem, Stack, Toolbar, Typography, useMediaQuery } from '@mui/material'
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
 import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined'
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined'
@@ -68,6 +68,7 @@ export function DashboardLayout() {
 export function DashboardWorkspace() {
   const { user, logout } = useAuth()
   const location = useLocation()
+  const mobileDock = useMediaQuery('(max-width:599.95px)')
   const isPatientDetailPage = /^\/dashboard\/patients\/[^/]+$/.test(location.pathname) && !location.pathname.endsWith('/new')
   const isMessagesPage = location.pathname === '/dashboard/messages'
   const isPatientsPage = location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/patients')
@@ -247,14 +248,18 @@ export function DashboardWorkspace() {
       <Container maxWidth="xl">
         <Toolbar disableGutters sx={{ minHeight: { xs: 72, sm: 124 }, justifyContent: 'space-between', gap: { xs: .5, sm: 2 }, alignItems: 'center', flexWrap: 'nowrap', py: { xs: .5, sm: 0 }, position: 'relative' }}>
           <Stack component="nav" aria-label="Provider pages" direction="row" spacing={{ xs: .35, sm: 1 }} justifyContent="center" sx={{ flex: { xs: 1, md: 'initial' }, minWidth: 0, position: { md: 'absolute' }, left: { md: '50%' }, transform: { md: 'translateX(-50%)' }, zIndex: 1 }}>
-            {navItems.map((item) => <Button key={item.to} component={RouterLink} to={item.to} aria-current={item.active ? 'page' : undefined} startIcon={item.icon} sx={{ ...buttonSx, flex: { xs: 1, md: 'initial' }, bgcolor: item.active ? '#eb681d' : aqua, color: item.active ? 'white' : 'black' }}>{item.label}</Button>)}
+            {navItems.map((item) => <Button key={item.to} component={RouterLink} to={item.to} aria-label={item.label} aria-current={item.active ? 'page' : undefined} startIcon={item.icon} sx={{ ...buttonSx, flex: { xs: 1, md: 'initial' }, bgcolor: item.active ? '#eb681d' : aqua, color: item.active ? 'white' : 'black' }}>
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>{item.label}</Box>
+              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>{item.label === 'Appointments' ? 'Appts' : item.label}</Box>
+            </Button>)}
           </Stack>
-          <Stack direction="row" spacing={{ xs: .5, sm: 2 }} alignItems="center" sx={{ ml: { md: 'auto' }, flexShrink: 0 }}>
+          <Stack className="dashboard-account-nav" direction="row" spacing={{ xs: .5, sm: 2 }} alignItems="center" sx={{ ml: { md: 'auto' }, flexShrink: 0 }}>
             <Typography sx={{ display: { xs: 'none', lg: 'block' }, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontWeight: 700, fontSize: { sm: '1.7rem', md: '2.4rem' }, whiteSpace: 'nowrap' }}>Welcome, {user?.name.split(' ')[0]}!</Typography>
             <IconButton id="profile-menu-button" aria-label="Open profile menu" aria-haspopup="menu" aria-expanded={Boolean(profileMenuAnchor) ? 'true' : undefined} onClick={(event) => setProfileMenuAnchor(event.currentTarget)} sx={{ p: 0, borderRadius: '50%' }}>
               <Avatar alt={`${user?.name ?? 'User'} profile picture`} src={user?.avatarUrl} sx={{ width: { xs: 38, sm: 80 }, height: { xs: 38, sm: 80 }, bgcolor: aqua, color: 'black', border: '3px solid black', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: { xs: '.9rem', sm: '1.9rem' } }}>{user?.initials}</Avatar>
+              <Box component="span" sx={{ display: { xs: 'block', sm: 'none' }, color: 'white', fontFamily: 'Montserrat, Arial, sans-serif', fontSize: '.625rem', lineHeight: 1.2 }}>Profile</Box>
             </IconButton>
-            <Menu anchorEl={profileMenuAnchor} open={Boolean(profileMenuAnchor)} onClose={() => setProfileMenuAnchor(null)} MenuListProps={{ 'aria-labelledby': 'profile-menu-button' }} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
+            <Menu anchorEl={profileMenuAnchor} open={Boolean(profileMenuAnchor)} onClose={() => setProfileMenuAnchor(null)} MenuListProps={{ 'aria-labelledby': 'profile-menu-button' }} anchorOrigin={{ vertical: mobileDock ? 'top' : 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: mobileDock ? 'bottom' : 'top', horizontal: 'right' }}>
               <Box sx={{ px: 2, py: 1 }}><Typography sx={{ fontWeight: 700, fontFamily: 'Georgia, serif' }}>{user?.name}</Typography>{(user?.professionalTitle || user?.medicalPracticeName) && <Typography variant="body2" color="text.secondary">{[user.professionalTitle, user.medicalPracticeName].filter(Boolean).join(' · ')}</Typography>}<Typography variant="body2" color="text.secondary">{user?.email}</Typography></Box>
               <Divider />
               <MenuItem component={RouterLink} to="/dashboard/profile" onClick={() => setProfileMenuAnchor(null)} sx={{ fontFamily: 'Georgia, serif' }}>Profile</MenuItem>
@@ -267,9 +272,9 @@ export function DashboardWorkspace() {
     </AppBar>
     <Container maxWidth={false} sx={{ width: { xs: '100%', sm: '95%', md: '90%' }, maxWidth: 'none', py: isMessagesPage ? 0 : { xs: 2, md: 3 } }}>
       <Stack role="region" aria-label="Dashboard notifications" spacing={1} sx={{
-        position: 'fixed', top: { xs: 120, sm: 80 }, right: { xs: 16, sm: 24 },
+        position: 'fixed', top: { xs: 16, sm: 80 }, right: { xs: 16, sm: 24 },
         width: { xs: 'calc(100% - 32px)', sm: 420 }, maxWidth: 'calc(100% - 32px)',
-        maxHeight: { xs: 'calc(100dvh - 136px)', sm: 'calc(100dvh - 96px)' }, overflowY: 'auto',
+        maxHeight: { xs: 'calc(100dvh - var(--provider-dock-space, 72px) - 32px)', sm: 'calc(100dvh - 96px)' }, overflowY: 'auto',
         zIndex: (theme) => theme.zIndex.appBar + 1, pointerEvents: 'none',
         '& .MuiAlert-root': { pointerEvents: 'auto', boxShadow: 3, flexShrink: 0, overflowWrap: 'anywhere' },
         '& .MuiAlert-message': { minWidth: 0 },

@@ -7,7 +7,7 @@ import { onboardingLabels } from '../lib/patientOnboarding'
 export function PatientSetupBox() {
   const { data, loading, error, refresh } = usePatientOnboardingStatuses()
   return <Card component="section" aria-labelledby="patient-setup-heading" sx={{ width: { xs: '100%', lg: 320 }, flexShrink: 0, alignSelf: 'flex-start', p: 2.5 }}>
-    <Typography id="patient-setup-heading" component="h2" variant="h6" sx={{ mb: 2 }}>Patient setup</Typography>
+    <Typography id="patient-setup-heading" component="h2" variant="h6" sx={{ mb: 2 }}>Pending Patients</Typography>
     <Button component={RouterLink} to="/dashboard/patients/new" variant="contained" startIcon={<AddIcon />} fullWidth>Add patient</Button>
     <Divider sx={{ my: 2 }} />
     {loading ? <Typography role="status">Loading patient setup…</Typography>

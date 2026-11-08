@@ -1,5 +1,6 @@
 import { useAppTheme, useThemedStyles } from './components/AppTheme';
 import { PatientSessionProvider } from './auth/PatientSession';
+import ExerciseDemonstration, { ExerciseMediaProvider } from './components/ExerciseDemonstration';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
@@ -112,7 +113,7 @@ export default function App() {
       <AppFontsContext.Provider value={fontsLoaded}>
         <PatientSessionProvider>
         <UnlockGate>
-          {({ unlocked, onLock, profile, onOpenProfile }) => <AppContent key={profile?.id || 'signed-out'} isUnlocked={unlocked} onLock={onLock} profile={profile} onOpenProfile={onOpenProfile} />}
+          {({ unlocked, onLock, profile, onOpenProfile }) => <ExerciseMediaProvider key={profile?.id || 'signed-out'}><AppContent isUnlocked={unlocked} onLock={onLock} profile={profile} onOpenProfile={onOpenProfile} /></ExerciseMediaProvider>}
         </UnlockGate>
         </PatientSessionProvider>
       </AppFontsContext.Provider>
@@ -125,6 +126,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   const { colors, barStyle } = useAppTheme();
   const { width, isShort, isMedium } = useAdaptiveLayout();
   const landscapeExercise = isShort && isMedium;
+  const compactExerciseHeader = isShort && !isMedium;
   const [routineStarted, setRoutineStarted] = useState(false);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [exercises, setExercises] = useState([]);
@@ -504,23 +506,24 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
   }
 
   if (screen === 'exercise') {
+    const instructions = (
+      <View style={[styles.exerciseInstructions, landscapeExercise && styles.exerciseInstructionsShort]}>
+        <Text accessibilityRole="header" style={styles.exerciseInstructionsTitle}>How to do it</Text>
+        <Text style={styles.exerciseInstructionsText}>{activeExercise.overview}</Text>
+      </View>
+    );
     return (
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-        <ScrollView
-          style={styles.screenScroll}
-          contentContainerStyle={[styles.exerciseScreen, landscapeExercise && styles.exerciseScreenShort]}
-        >
-          <Text style={[styles.encouragementText, landscapeExercise && styles.encouragementShort]}>you got this!</Text>
-
+        <View testID="active-exercise-screen" style={[styles.exerciseScreen, landscapeExercise && styles.exerciseScreenShort]}>
           <View style={[styles.exercisePageCard, landscapeExercise && styles.exerciseCardShort]}>
-            <View style={[styles.exercisePageHeader, landscapeExercise && styles.exerciseHeaderShort]}>
-              <Text style={[styles.exercisePageTitle, landscapeExercise && styles.exerciseTitleShort]}>
+            <View style={[styles.exercisePageHeader, landscapeExercise && styles.exerciseHeaderShort, compactExerciseHeader && styles.exerciseHeaderNarrow]}>
+              <Text style={[styles.exercisePageTitle, landscapeExercise && styles.exerciseTitleShort, compactExerciseHeader && styles.exerciseTitleNarrow]}>
                 {activeExercise.name}
               </Text>
             </View>
 
-            <View style={[styles.exercisePageContent, landscapeExercise && styles.exerciseContentShort]}>
-              <View style={landscapeExercise && styles.exerciseColumn}>
+            <View style={[styles.exercisePageContent, landscapeExercise && styles.exerciseContentShort, compactExerciseHeader && styles.exerciseContentNarrow]}>
+              <View style={[styles.exerciseTimerColumn, landscapeExercise && styles.exerciseColumn, compactExerciseHeader && styles.exerciseTimerRow]}>
               <Text
                 testID="exercise-timer"
                 numberOfLines={1}
@@ -529,33 +532,34 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
                 style={[
                   styles.timerText,
                   { color: palette.white, fontSize: Math.min(landscapeExercise ? 48 : 64, width * (landscapeExercise ? 0.06 : 0.125)) },
+                  compactExerciseHeader && styles.exerciseTimerNarrow,
                 ]}
               >
                 {formatTimer(timerCentiseconds)}
               </Text>
 
+              <View testID="exercise-set-reps" style={[styles.exerciseSetReps, compactExerciseHeader && styles.exerciseSetRepsNarrow]}>
               <View style={[styles.exerciseInfoPill, landscapeExercise && styles.exercisePillShort]}>
-                <Text style={[styles.exerciseInfoText, landscapeExercise && styles.exerciseInfoShort]}>
+                <Text style={[styles.exerciseInfoText, landscapeExercise && styles.exerciseInfoShort, compactExerciseHeader && styles.exerciseInfoNarrow]}>
                   Set {currentSet} of {activeExercise.sets}
                 </Text>
               </View>
 
               <View style={[styles.exerciseInfoPill, landscapeExercise && styles.exercisePillShort]}>
-                <Text style={[styles.exerciseInfoText, landscapeExercise && styles.exerciseInfoShort]}>
+                <Text style={[styles.exerciseInfoText, landscapeExercise && styles.exerciseInfoShort, compactExerciseHeader && styles.exerciseInfoNarrow]}>
                   {activeExercise.reps == null ? 'Reps not specified' : `${activeExercise.reps} Reps`}
                 </Text>
               </View>
               </View>
+              {landscapeExercise && <ScrollView style={styles.exerciseLandscapeInstructions}>{instructions}</ScrollView>}
+              </View>
 
               <View style={[styles.exerciseDetails, landscapeExercise && styles.exerciseColumn]}>
-              <View style={[styles.exerciseInstructions, landscapeExercise && styles.exerciseInstructionsShort]}>
-                <Text accessibilityRole="header" style={styles.exerciseInstructionsTitle}>
-                  How to do it
-                </Text>
-                <Text style={styles.exerciseInstructionsText}>
-                  {activeExercise.overview}
-                </Text>
-              </View>
+              <ScrollView testID="exercise-demonstration-scroll" style={styles.exerciseDemonstrationScroll} contentContainerStyle={styles.exerciseDemonstrationContent}>
+              {!landscapeExercise && instructions}
+
+              <ExerciseDemonstration key={activeExercise.id} exercise={activeExercise} compact />
+              </ScrollView>
 
               <View style={[styles.exerciseControls, landscapeExercise && styles.exerciseControlsShort]}>
                 {isRunning ? (
@@ -602,7 +606,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
               </View>
             </View>
           </View>
-        </ScrollView>
+        </View>
         {renderDock()}
       </SafeAreaView>
     );
@@ -1085,6 +1089,7 @@ function ExerciseInfo({ exercise, showTitle = false, showStats = true }) {
         </View>
         <Text style={styles.overviewText}>{exercise.overview}</Text>
       </View>
+      <ExerciseDemonstration key={exercise.id} exercise={exercise} />
       {showStats && <ExerciseStats exercise={exercise} />}
     </View>
   );
@@ -1901,35 +1906,40 @@ const baseStyles = StyleSheet.create({
     fontSize: 24,
   },
   exerciseScreen: {
-    ...pageLayout,
+    width: '94%', maxWidth: 900, alignSelf: 'center', flex: 1, minHeight: 0, paddingVertical: 8,
   },
-  exerciseScreenShort: { paddingVertical: 8 },
-  encouragementShort: { fontSize: 18, marginBottom: 4 },
+  exerciseScreenShort: { paddingVertical: 4 },
+  exerciseHeaderNarrow: { minHeight: 32, paddingVertical: 2 },
+  exerciseTitleNarrow: { fontSize: 20 },
+  exerciseContentNarrow: { margin: 4, padding: 4 },
+  exerciseTimerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  exerciseTimerNarrow: { flex: 1, fontSize: 24 },
+  exerciseSetRepsNarrow: { flex: 1, marginTop: 0 },
+  exerciseInfoNarrow: { fontSize: 14 },
   exerciseCardShort: { minHeight: 0 },
   exerciseHeaderShort: { minHeight: 44, paddingVertical: 6 },
   exerciseTitleShort: { fontSize: 22 },
-  exerciseContentShort: { flexDirection: 'row', gap: 16, margin: 12, padding: 12 },
+  exerciseContentShort: { flexDirection: 'row', gap: 16, margin: 8, padding: 8 },
   exerciseColumn: { flex: 1, minWidth: 0 },
-  exerciseDetails: { flexGrow: 1 },
-  exercisePillShort: { width: '100%', marginTop: 8, paddingVertical: 4 },
+  exerciseTimerColumn: { flexShrink: 0 },
+  exerciseSetReps: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  exerciseDetails: { flex: 1, minHeight: 0, minWidth: 0 },
+  exerciseDemonstrationScroll: { flex: 1, minHeight: 0 },
+  exerciseLandscapeInstructions: { flex: 1, minHeight: 0, marginTop: 6 },
+  exerciseDemonstrationContent: { flexGrow: 1, justifyContent: 'center' },
+  exercisePillShort: { paddingVertical: 4 },
   exerciseInfoShort: { fontSize: 18 },
   exerciseInstructionsShort: { paddingTop: 0 },
-  exerciseControlsShort: { paddingTop: 12 },
-  exerciseControlShort: { minHeight: 48, paddingVertical: 8 },
+  exerciseControlsShort: { paddingTop: 4 },
+  exerciseControlShort: { minHeight: 64, paddingVertical: 12 },
   exerciseControlTextShort: { fontSize: 16 },
-  encouragementText: {
-    color: palette.ink,
-    fontSize: 25,
-    marginBottom: 14,
-    textAlign: 'center',
-  },
   exercisePageCard: {
     backgroundColor: palette.blue,
     borderColor: palette.ink,
     borderRadius: 22,
     borderWidth: 1.8,
-    flexGrow: 1,
-    minHeight: 420,
+    flex: 1,
+    minHeight: 0,
     overflow: 'hidden',
   },
   exercisePageHeader: {
@@ -1937,10 +1947,10 @@ const baseStyles = StyleSheet.create({
     backgroundColor: palette.orange,
     borderBottomColor: palette.ink,
     borderBottomWidth: 1.5,
-    minHeight: 58,
+    minHeight: 40,
     justifyContent: 'center',
     paddingHorizontal: '4%',
-    paddingVertical: 12,
+    paddingVertical: 6,
   },
   exercisePageTitle: {
     color: palette.white,
@@ -1952,11 +1962,10 @@ const baseStyles = StyleSheet.create({
     borderColor: palette.ink,
     borderRadius: 20,
     borderWidth: 1.5,
-    flexGrow: 1,
-    margin: '3%',
-    paddingHorizontal: '5%',
-    paddingTop: 30,
-    paddingBottom: 12,
+    flex: 1,
+    minHeight: 0,
+    margin: 8,
+    padding: 8,
   },
   timerText: {
     color: palette.white,
@@ -1971,26 +1980,24 @@ const baseStyles = StyleSheet.create({
     borderColor: palette.ink,
     borderRadius: 28,
     borderWidth: 1.5,
-    marginTop: 16,
-    width: '76%',
-    maxWidth: 360,
+    flex: 1,
+    minWidth: 0,
     paddingHorizontal: '3%',
-    paddingVertical: 9,
+    paddingVertical: 5,
   },
   exerciseInfoText: {
     color: palette.white,
-    fontSize: 23,
+    fontSize: 18,
     textAlign: 'center',
   },
   exerciseControls: {
     justifyContent: 'flex-end',
-    paddingTop: 24,
+    paddingTop: 6,
+    flexShrink: 0,
   },
   exerciseInstructions: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    gap: 8,
-    paddingTop: 24,
+    gap: 4,
+    paddingTop: 6,
   },
   exerciseInstructionsTitle: {
     color: palette.ink,
@@ -2010,12 +2017,12 @@ const baseStyles = StyleSheet.create({
     borderColor: palette.ink,
     borderRadius: 20,
     borderWidth: 1.6,
-    minHeight: 78,
+    minHeight: 64,
     justifyContent: 'center',
   },
   stopButtonText: {
     color: palette.white,
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: '900',
   },
   controlRow: {
@@ -2032,10 +2039,10 @@ const baseStyles = StyleSheet.create({
     borderWidth: 1.5,
     flexGrow: 1,
     flexBasis: '45%',
-    minHeight: 70,
+    minHeight: 64,
     justifyContent: 'center',
     paddingHorizontal: '3%',
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   controlButtonText: {
     color: palette.white,

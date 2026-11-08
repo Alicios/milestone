@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { normalizeAssignedExercises } from './assignedExercises';
 import { loadExerciseFeedback } from './exerciseFeedback';
+import { loadAssignmentDemonstrations } from './exerciseDemonstrations';
 
 async function rpc(name, args) {
   const { data, error } = await supabase.rpc(name, args);
@@ -17,13 +18,21 @@ async function allAssignments() {
 // Shared by today's routine and the on-demand expand of an upcoming one.
 export async function exercisesForAssignment(assignmentId, accents) {
   const rows = await rpc('get_my_routine_assignment_prescriptions', { p_routine_assignment_id: assignmentId });
-  let feedback = new Map();
-  let feedbackError = '';
-  try { feedback = await loadExerciseFeedback(assignmentId); }
-  catch { feedbackError = 'Your saved exercise responses could not be loaded. Please retry.'; }
+  const [feedbackResult, mediaResult] = await Promise.allSettled([
+    loadExerciseFeedback(assignmentId), loadAssignmentDemonstrations(assignmentId),
+  ]);
+  const feedback = feedbackResult.status === 'fulfilled' ? feedbackResult.value : new Map();
+  const feedbackError = feedbackResult.status === 'rejected' ? 'Your saved exercise responses could not be loaded. Please retry.' : '';
+  const demonstrations = mediaResult.status === 'fulfilled' ? mediaResult.value : new Map();
+  const mediaError = mediaResult.status === 'rejected' ? 'Demonstrations could not be loaded. Please retry.' : '';
   const list = rows.map(row => ({ assignmentExerciseId: row.id, name: row.exercise_name_snapshot, sets: row.sets_snapshot, reps: row.reps_snapshot, duration_seconds: row.timer_seconds_snapshot, notes: row.notes_snapshot }));
   return normalizeAssignedExercises(list, [], accents).map(exercise => ({
     ...exercise,
+    routineAssignmentId: assignmentId,
+    catalogExerciseId: demonstrations.get(exercise.assignmentExerciseId)?.exerciseId,
+    overview: exercise.overview || demonstrations.get(exercise.assignmentExerciseId)?.instructions || '',
+    media: demonstrations.get(exercise.assignmentExerciseId)?.media || [],
+    mediaError,
     patientFeedback: feedback.get(exercise.assignmentExerciseId),
     patientFeedbackError: feedbackError,
   }));

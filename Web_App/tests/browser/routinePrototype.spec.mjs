@@ -93,6 +93,8 @@ for (const width of [390, 1365]) {
     const routinePreview = page.getByRole('region', { name: 'Routine preview' })
     const exercisePreview = page.getByRole('region', { name: 'Exercise preview' })
     const filters = page.getByRole('group', { name: 'Exercise filters' })
+    const firstResults = results.locator('section').first()
+    await expect(firstResults).toHaveAttribute('aria-label', 'Routine results')
     await expect(search).toHaveCount(1)
     await expect(page.getByRole('combobox')).toHaveCount(0)
     await search.fill('Shoulder')
@@ -117,6 +119,7 @@ for (const width of [390, 1365]) {
     await routineResults.getByRole('button', { name: 'View my routine: Provider Recovery', exact: true }).click()
     await expect(routinePreview.getByText(/3 sets.*12 reps.*30 sec duration/)).toBeVisible()
     await routinePreview.getByRole('button', { name: 'Edit', exact: true }).click()
+    await expect(firstResults).toHaveAttribute('aria-label', 'Exercise results')
     await expect(builder.getByLabel('Sets', { exact: true })).toHaveValue('3')
     await expect(builder.getByLabel('Provider notes', { exact: true })).toHaveValue('Saved provider notes')
     await builder.getByLabel('Routine name', { exact: false }).fill('Provider Recovery Preview')
@@ -126,6 +129,7 @@ for (const width of [390, 1365]) {
     await expect(routineResults.getByRole('button', { name: 'View my routine: Provider Recovery Preview', exact: true })).toHaveCount(0)
 
     await page.getByRole('button', { name: 'New routine', exact: true }).click()
+    await expect(firstResults).toHaveAttribute('aria-label', 'Exercise results')
     await builder.getByLabel('Routine name', { exact: false }).fill('Custom recovery')
     await builder.getByRole('button', { name: 'Save changes', exact: true }).click()
     await expect(builder.getByText('Add at least one exercise.', { exact: true })).toBeVisible()
@@ -149,6 +153,7 @@ for (const width of [390, 1365]) {
     await expect(builder.getByLabel('Routine name', { exact: false })).toHaveValue('Custom recovery')
     await builder.getByRole('button', { name: 'Save changes', exact: true }).click()
     await expect(routinePreview.getByRole('heading', { name: 'Custom recovery', exact: true })).toBeVisible()
+    await expect(firstResults).toHaveAttribute('aria-label', 'Routine results')
 
     await search.fill('Shoulder Mobility')
     await routineResults.getByRole('button', { name: 'View template: Shoulder Mobility', exact: true }).click()

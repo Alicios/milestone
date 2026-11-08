@@ -48,6 +48,17 @@ export interface CatalogExercise {
   id: string
   name: string
   description: string
+  media?: CatalogExerciseMedia[]
+}
+
+export interface CatalogExerciseMedia {
+  kind: 'image' | 'video-link' | 'image-link'
+  url: string
+  source: string
+  title: string
+  sourceUrl?: string
+  accessNote?: string
+  preview?: { kind: 'embed' | 'video'; url: string; source?: string; sourceUrl?: string; poster?: string }
 }
 
 export interface ExercisePrescription {

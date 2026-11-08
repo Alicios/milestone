@@ -1,0 +1,42 @@
+import React from 'react';
+import renderer, { act } from 'react-test-renderer';
+import ExerciseVideo from '../components/ExerciseVideo.native';
+import { VideoView } from 'expo-video';
+import { WebView } from 'react-native-webview';
+const mockRemove = jest.fn();
+let mockStatus;
+const mockPlayer = { play: jest.fn(), pause: jest.fn(), addListener: jest.fn((_event, listener) => { mockStatus = listener; return { remove: mockRemove }; }) };
+jest.mock('expo-video', () => ({ useVideoPlayer: (_url, setup) => { setup(mockPlayer); return mockPlayer; }, VideoView: 'VideoView' }));
+jest.mock('react-native-webview', () => ({ WebView: 'WebView' }));
+jest.mock('../lib/supabase', () => ({ supabase: { supabaseUrl: 'https://fixture.supabase.co' } }));
+
+test('native MP4 has controls, pauses its preview, plays on request, and reports failures', async () => {
+  let tree;
+  const onError = jest.fn();
+  const preview = { kind: 'video', url: 'https://example.invalid/exercise.mp4' };
+  await act(async () => { tree = renderer.create(<ExerciseVideo preview={preview} title="Exercise" active={false} onError={onError} />); });
+  expect(mockPlayer.pause).toHaveBeenCalled();
+  expect(mockPlayer.staysActiveInBackground).toBe(false);
+  expect(tree.root.findByType(VideoView).props).toMatchObject({ nativeControls: false, contentFit: 'contain', surfaceType: 'textureView' });
+  await act(async () => tree.update(<ExerciseVideo preview={preview} title="Exercise" active onError={onError} />));
+  expect(mockPlayer.play).toHaveBeenCalled();
+  expect(tree.root.findByType(VideoView).props.nativeControls).toBe(true);
+  await act(async () => mockStatus({ status: 'error' }));
+  expect(onError).toHaveBeenCalled();
+  await act(async () => tree.unmount());
+  expect(mockRemove).toHaveBeenCalled();
+});
+test('native embedded playback uses an HTTPS origin and inline controls without auth headers', async () => {
+  let tree;
+  const onError = jest.fn();
+  const preview = { kind: 'embed', url: 'https://www.youtube-nocookie.com/embed/abcdefghijk?start=20&playsinline=1' };
+  await act(async () => { tree = renderer.create(<ExerciseVideo preview={preview} title="Exercise video" active onError={onError} />); });
+  const props = tree.root.findByType(WebView).props;
+  expect(props.source.baseUrl).toBe('https://fixture.supabase.co');
+  expect(props.source.headers).toBeUndefined();
+  expect(props.source.html).toContain('start=20&amp;playsinline=1');
+  expect(props.allowsInlineMediaPlayback).toBe(true);
+  expect(props.mediaPlaybackRequiresUserAction).toBe(true);
+  props.onError(); expect(onError).toHaveBeenCalled();
+  await act(async () => tree.unmount());
+});

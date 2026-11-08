@@ -32,6 +32,31 @@ schema dump or authority to repair migration history.
 
 ## Relationship overview
 
+### Shared exercise demonstrations
+
+`20261108211903_shared_exercise_demonstrations.sql` adds `exercise_media`:
+one row per catalog exercise (`exercise_id` primary/foreign key), a `media`
+JSON array, and `updated_at`. The approved catalog contains 248 rows and 295
+resources. Authenticated providers can read the catalog through RLS; clients
+cannot write it, and anonymous reads are revoked.
+
+Patients use `get_my_routine_assignment_media(uuid)`, which returns assignment
+exercise IDs, catalog IDs, instructions, and media only for assignments owned
+by `auth.uid()`. It matches the saved catalog UUID, or exactly one normalized
+legacy name when that UUID is absent. An ambiguous or missing match returns no
+media. The function is intentionally callable by authenticated users with an
+empty search path and an explicit patient ownership check. Prescription and
+feedback snapshots are not rewritten.
+
+`seed_exercise_media.sql` is regenerated from the approved provider manifests
+with `node scripts/prepare-exercise-media.mjs`. The optional
+`--sync-mobile-assets` copies the same 29 approved illustrations and generates
+the patient app's static asset registry. Relative `/exercise-media/*.png`
+references resolve to provider public assets and bundled patient assets;
+remote images and video players use HTTPS. The patient app loads media for
+today's and expanded upcoming assignments, with inline pictures, enlargement,
+video playback, source attribution, and independent retry on failure.
+
 ```text
 auth.users
 |-- providers

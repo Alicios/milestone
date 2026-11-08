@@ -6,6 +6,16 @@ Use Node.js 22.13 or newer. Install dependencies with `npm ci`, then start Metro
 
 The checked-in Android and iOS projects are maintained alongside `app.json`. Run `npx expo prebuild --no-clean` on the appropriate host after changing native app configuration. On macOS, run `npx pod-install` before building iOS to update CocoaPods and `ios/Podfile.lock` for SDK 58. CocoaPods and native device builds were not validated on Windows.
 
+## Exercise demonstrations
+
+Assigned exercises now read the approved shared media through `get_my_routine_assignment_media`. Demonstrations appear in expanded routine information, the exercise preview, and the active exercise screen. Pictures can be enlarged; YouTube/Vimeo videos play inline through WebView, and MP4s use expo-video. Source links and independent retry remain available if a resource fails. Playback closes when leaving its screen or backgrounding the app. Successfully retried media survives navigation within the signed-in patient's session.
+
+The 29 generated illustrations are bundled in `assets/exercise-media`; `lib/exerciseMediaAssets.js` maps their shared paths. Update the approved manifests in Web_App and run `node scripts/prepare-exercise-media.mjs --sync-mobile-assets` there to regenerate the seed SQL and synchronize illustrations. Apply the generated seed only after reviewing media changes. Patient prescriptions, exercise order, dosage, and feedback snapshots are preserved.
+
+Install dependencies and rebuild an existing native development client to include expo-video and react-native-webview; a Metro reload cannot add native modules. The expo-video config plugin uses default foreground-only settings. iOS CocoaPods/builds must be updated on macOS.
+
+Run focused checks with `npm test -- --runInBand __tests__/ExerciseVideo.test.js __tests__/ExerciseDemonstration.test.js __tests__/exerciseDemonstrations.test.js __tests__/patientRoutine.test.js __tests__/assignedExercises.test.js __tests__/assignedRoutineFlow.test.tsx __tests__/App.test.tsx`. Export this app with `node node_modules/expo/bin/cli export --platform all --output-dir .expo/media-final`, then run `node scripts/prepare-exercise-media.mjs` and `node scripts/test-patient-media.mjs ../Mobile_App/milestone/.expo/media-final` from Web_App. Browser checks use fixture patient data and real approved public media. Physical iOS/Android playback and CocoaPods builds still require a device/macOS check.
+
 ## Tablets, foldables, and resizable windows
 
 Layouts follow the current app window and safe-area insets, updating on rotation, folding, and split-screen resizing. At 840 points of usable width (adjusted for the system text scale), Home uses two columns and Messages shows the inbox beside the selected conversation. Narrower windows use the existing stacked screens. Forms and exercise screens retain bounded reading widths. Short windows with at least 600 points of readable width place the exercise timer beside instructions and controls. Profile and Settings opens as a centered dialog on larger windows and a bottom sheet on phones or short landscape windows. Conversation drafts, selected providers, profile edits, and active routine state survive size changes while those screens remain open.

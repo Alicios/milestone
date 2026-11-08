@@ -42,6 +42,7 @@
         "cameraPermission": false,
         "microphonePermission": false
       }
-    ]
+    ],
+    "expo-video"
   ]
 }

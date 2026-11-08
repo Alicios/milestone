@@ -37,7 +37,7 @@ export function providerPrototypeRoutines(routines: Routine[], catalog: CatalogE
         sets: exercise.sets == null ? '' : String(exercise.sets),
         repetitions: exercise.reps == null ? '' : String(exercise.reps),
         duration: exercise.durationSeconds == null ? '' : String(exercise.durationSeconds),
-        rest: '', notes: exercise.notes ?? '', media: exerciseMedia(entry?.name ?? exercise.name),
+        rest: '', notes: exercise.notes ?? '', media: exerciseMedia(entry?.name ?? exercise.name, entry?.media),
       }
     }),
   }))
@@ -63,7 +63,7 @@ export const routineTemplates: Template[] = [
 ]
 
 export function catalogExercise(exercise: CatalogExercise, id: string = crypto.randomUUID()): DemoExercise {
-  return { id, catalogId: exercise.id, name: exercise.name, description: exercise.description, sets: '', repetitions: '', duration: '', rest: '', notes: '', media: exerciseMedia(exercise.name) }
+  return { id, catalogId: exercise.id, name: exercise.name, description: exercise.description, sets: '', repetitions: '', duration: '', rest: '', notes: '', media: exerciseMedia(exercise.name, exercise.media) }
 }
 
 export function buildPrototypeRoutines(catalog: CatalogExercise[]) {

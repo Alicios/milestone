@@ -54,7 +54,7 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
       </IconButton>
     </Stack>
     <Collapse id={`patient-week-${patient.id}`} in={expanded} timeout={260}>
-      <Box sx={{ bgcolor: '#4b9da9', border: `4px solid ${border}`, borderTop: 0, borderRadius: '0 0 28px 28px', mt: -2, pt: 3, px: { xs: .5, sm: 1 }, pb: 1 }}>
+      <Box sx={{ minWidth: 0, pt: 1 }}>
       <PatientWeekCalendar patient={patient} assignments={assignments} weekDates={weekDates} policy={policy}
         occupied={occupied} loading={loading} selectedAssignmentId={selectedAssignmentId} detailsId={detailsId}
         onSelect={(id) => setSelectedAssignmentId((current) => current === id ? null : id)} onAssign={onAssign} />

@@ -153,7 +153,7 @@ function PatientOverview({ patient }: { patient: Patient }) {
         <Typography variant="body2" color="text.secondary" sx={{ mt: .5, mb: 2.5 }}>Assigned routines and patient feedback for the selected week.</Typography>
         <CalendarWeekNavigation dates={weekDates} policy={policy} onChange={setWeek} />
         <Button variant="outlined" disabled={!policy || !weekDates.some((date) => withinHorizon(date, policy)) || assignmentsLoading} onClick={() => openSchedule(patient)}>Schedule week</Button>
-        <Box sx={{ bgcolor: '#4b9da9', border: 1, borderColor: 'divider', borderRadius: 3, p: 1, mt: 2 }}>
+        <Box sx={{ minWidth: 0, mt: 2 }}>
           <PatientWeekCalendar patient={patient} assignments={patientAssignments} weekDates={weekDates} policy={policy}
             occupied={occupied[patient.profileId] ?? []} loading={assignmentsLoading} selectedAssignmentId={selectedAssignmentId}
             detailsId="patient-assignment-details" onSelect={(id) => setSelectedAssignmentId((current) => current === id ? null : id)}

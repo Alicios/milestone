@@ -65,6 +65,7 @@ for (const width of [1280, 390]) for (const theme of ['light', 'dark']) {
     await page.screenshot({ path: testInfo.outputPath('dashboard-feedback.png'), fullPage: true })
 
     await go(page, `/dashboard/patients/${patient}`)
+    await expect(page.getByRole('heading', { name: 'Synthetic Browser Patient', exact: true })).toBeVisible()
     await expect(page.locator('[data-routine-status="missed"]')).toContainText('Routine past')
     await expect(page.locator('[data-routine-status="completed"]')).toContainText('Routine complete')
     await page.getByRole('button', { name: /View assigned routine Routine difficulty/ }).click()

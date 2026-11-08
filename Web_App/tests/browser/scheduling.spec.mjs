@@ -39,7 +39,9 @@ test('patient workflow previews different weekday prescriptions and finite repet
 })
 test('cross-provider conflicts show no clinical details and prevent confirmation', async ({ context, page }) => {
   const state = await setup(context, { foreignDates: ['2026-10-20'] }); await page.goto(path)
-  await expect(page.getByText(/This date already has an active assignment/)).toBeVisible()
+  const occupiedDay = page.getByRole('region', { name: 'Weekly calendar for Synthetic Browser Patient', exact: true }).getByRole('cell').nth(1)
+  await expect(occupiedDay).toHaveText('Occupied')
+  await expect(occupiedDay.getByRole('button')).toHaveCount(0)
   await previewTuesday(page)
   await expect(page.getByText(/Nothing will be saved while dates conflict/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Confirm schedule' })).toBeDisabled()
@@ -81,6 +83,7 @@ test('confirmed write followed by reload failure offers read-only retry', async 
 test('uncertain cancellation is safely retryable, then explicit replacement creates a new assignment', async ({ context, page }) => {
   const state = await setup(context, { cancelledResponseLost: true }); await page.goto(path); await previewTuesday(page)
   await page.getByRole('button', { name: 'Confirm schedule' }).click()
+  await page.getByRole('button', { name: 'View assigned routine Catalog A on 2026-10-20', exact: true }).click()
   await page.getByRole('button', { name: 'Cancel assignment', exact: true }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel Assignment', exact: true }).dblclick()
   await expect(page.getByText(/Cancellation could not be confirmed/)).toBeVisible()

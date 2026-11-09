@@ -8,6 +8,7 @@ import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import type { Patient } from '../data/mockPatients'
 import type { Routine, RoutineAssignment, RoutineExerciseInput } from '../types'
+import type { DemoRoutine } from '../lib/routinePrototype'
 import {
   cancelRoutineAssignment as cancelAssignmentInDatabase,
   cancelRoutineFollowUp as cancelFollowUpInDatabase,
@@ -20,6 +21,7 @@ import {
   loadPatients,
   loadRoutines,
   saveRoutine as saveRoutineInDatabase,
+  saveRoutineDocument,
   scheduleRoutineFollowUp as scheduleFollowUpInDatabase,
 } from '../lib/supabaseData'
 import { AppError, errorMessage } from '../lib/errors'
@@ -54,8 +56,9 @@ export interface DashboardOutletContext {
   scheduleFollowUp: (assignmentId: string, scheduledAt: string) => Promise<void>
   cancelFollowUp: (assignmentId: string) => Promise<void>
   completeFollowUp: (assignmentId: string) => Promise<void>
-  saveRoutine: (routineId: string | null, name: string, exercises: RoutineExerciseInput[]) => Promise<void>
-  deleteRoutine: (routineId: string) => Promise<void>
+  saveRoutine: (routineId: string | null, name: string, exercises: RoutineExerciseInput[], impactToken?: string) => Promise<void>
+  deleteRoutine: (routineId: string, impactToken?: string) => Promise<void>
+  saveEditorRoutine: (routineId: string | null, document: DemoRoutine, impactToken?: string) => Promise<string>
   updatePatientDetails: (patientId: string, input: PatientDetailsInput) => Promise<void>
   dischargePatient: (patientId: string) => Promise<void>
   reinstatePatient: (patientId: string) => Promise<void>
@@ -203,9 +206,10 @@ export function DashboardWorkspace() {
     await afterSave.current()
   }
 
-  const saveRoutine = async (routineId: string | null, name: string, exercises: RoutineExerciseInput[]) => {
+  const saveRoutine = async (routineId: string | null, name: string, exercises: RoutineExerciseInput[], impactToken?: string) => {
     if (!user) throw new AppError('AUTH_REQUIRED')
-    await saveRoutineInDatabase(routineId, name, exercises)
+    await saveRoutineInDatabase(routineId, name, exercises, impactToken)
+    if (routineId && activeProvider.current === user.id) calendar.invalidate()
     try {
       const rows = await loadRoutines(user.id)
       if (activeProvider.current !== user.id) return
@@ -218,11 +222,26 @@ export function DashboardWorkspace() {
     }
   }
 
-  const deleteRoutine = async (routineId: string) => {
+  const deleteRoutine = async (routineId: string, impactToken?: string) => {
     if (!user) throw new AppError('AUTH_REQUIRED')
-    await deleteRoutineInDatabase(routineId)
+    await deleteRoutineInDatabase(routineId, impactToken)
     if (activeProvider.current !== user.id) return
     setRoutines((current) => current.filter((routine) => routine.id !== routineId))
+    calendar.invalidate()
+  }
+
+  const saveEditorRoutine = async (routineId: string | null, document: DemoRoutine, impactToken?: string) => {
+    if (!user) throw new AppError('AUTH_REQUIRED')
+    const savedId = await saveRoutineDocument(routineId, document, impactToken)
+    if (activeProvider.current !== user.id) return savedId
+    calendar.invalidate()
+    try {
+      const rows = await loadRoutines(user.id)
+      if (activeProvider.current === user.id) { setRoutines(rows); setRoutineReloadError('') }
+    } catch {
+      setRoutineReloadError('Routine saved successfully, but routines could not be reloaded. Retry loading routines to make it available for assignment.')
+    }
+    return savedId
   }
 
   const updatePatientDetails = (patientId: string, input: PatientDetailsInput) => mutations.current.run(`patient:${patientId}`, async () => {
@@ -319,7 +338,7 @@ export function DashboardWorkspace() {
         </Alert>)}
         {routineReloadError && <Alert severity="warning" action={<Button color="inherit" disabled={routinesReloading} onClick={() => void reloadRoutines()}>{routinesReloading ? 'Loading…' : 'Retry loading routines'}</Button>}>{routineReloadError}</Alert>}
       </Stack>
-      <Outlet context={{ patients, patientsLoading, patientsError, retryPatients, routines, assignments, weekDates, calendarDates, calendarMonth, setCalendarMonth, openSchedule, policy, occupied, setWeek, assignmentsLoading: calendar.loading, assignmentsError: calendar.error, retryAssignments, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, deleteRoutine, updatePatientDetails, dischargePatient, reinstatePatient } satisfies DashboardOutletContext} />
+      <Outlet context={{ patients, patientsLoading, patientsError, retryPatients, routines, assignments, weekDates, calendarDates, calendarMonth, setCalendarMonth, openSchedule, policy, occupied, setWeek, assignmentsLoading: calendar.loading, assignmentsError: calendar.error, retryAssignments, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, saveEditorRoutine, deleteRoutine, updatePatientDetails, dischargePatient, reinstatePatient } satisfies DashboardOutletContext} />
       {target && policy && <ScheduleRoutineDialog key={`${target.patient.profileId}/${target.singleDate ?? weekDates[0]}`} patientName={target.patient.name} patientProfileId={target.patient.profileId} routines={routines} weekStart={weekDates[0]} singleDate={target.singleDate} policy={policy} onCancel={() => setTarget(null)} onConfirm={async (entries) => {
         calendar.invalidate()
         try {

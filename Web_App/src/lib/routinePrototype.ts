@@ -2,7 +2,7 @@ import type { CatalogExercise, Routine } from '../types'
 import { exerciseMedia } from './exerciseMedia'
 import type { VideoPreview } from './videoPreview'
 
-export type DemoMedia = { id: string; kind: 'image' | 'uploaded-video' | 'youtube' | 'vimeo' | 'video-link' | 'image-link'; url: string; caption: string; name: string; sourceUrl?: string; preview?: VideoPreview }
+export type DemoMedia = { id: string; kind: 'image' | 'uploaded-video' | 'youtube' | 'vimeo' | 'video-link' | 'image-link'; url: string; caption: string; name: string; sourceUrl?: string; storagePath?: string; preview?: VideoPreview }
 export type DemoExercise = {
   id: string
   catalogId?: string
@@ -27,8 +27,8 @@ export function copyPrototypeRoutine(routine: DemoRoutine): DemoRoutine {
 export function providerPrototypeRoutines(routines: Routine[], catalog: CatalogExercise[]): DemoRoutine[] {
   const byId = new Map(catalog.map((exercise) => [exercise.id, exercise]))
   const byName = new Map(catalog.map((exercise) => [exercise.name.toLowerCase(), exercise]))
-  return routines.map((routine) => ({
-    id: `provider-${routine.id}`, name: routine.name, description: '', source: 'provider',
+  return routines.map((routine) => routine.editorDocument ? { ...structuredClone(routine.editorDocument), id: routine.id, name: routine.name, source: 'provider' } : ({
+    id: routine.id, name: routine.name, description: routine.description ?? '', source: 'provider',
     exercises: routine.exercises.map((exercise) => {
       const entry = exercise.exerciseId ? byId.get(exercise.exerciseId) : byName.get(exercise.name.toLowerCase())
       return {

@@ -25,9 +25,19 @@ export function normalizeDemonstrations(value) {
 export async function loadAssignmentDemonstrations(assignmentId) {
   const { data, error } = await supabase.rpc('get_my_routine_assignment_media', { p_routine_assignment_id: assignmentId });
   if (error) throw error;
-  return new Map((data || []).filter(row => row.assignment_exercise_id).map(row => [row.assignment_exercise_id, {
-    exerciseId: row.exercise_id,
-    instructions: typeof row.instructions === 'string' ? row.instructions : '',
-    media: normalizeDemonstrations(row.media),
-  }]));
+  const rows = await Promise.all((data || []).filter(row => row.assignment_exercise_id).map(async row => {
+    const media = await Promise.all((Array.isArray(row.media) ? row.media : []).map(async item => {
+      if (!item?.storagePath) return item;
+      const { data: signed, error: signError } = await supabase.storage.from('routine-media').createSignedUrl(item.storagePath, 3600);
+      if (signError) throw signError;
+      return { ...item, url: signed.signedUrl,
+        preview: item.preview?.kind === 'video' ? { ...item.preview, url: signed.signedUrl } : item.preview };
+    }));
+    return [row.assignment_exercise_id, {
+      exerciseId: row.exercise_id,
+      instructions: typeof row.instructions === 'string' ? row.instructions : '',
+      media: normalizeDemonstrations(media),
+    }];
+  }));
+  return new Map(rows);
 }

@@ -1,8 +1,10 @@
 import { AppError, normalizeError } from './errors'
 import { supabase } from './supabase'
-import type { EditableUserFields, FollowUpAppointment, MedicalPractice, Routine, RoutineAssignment, RoutineAssignmentStatus, RoutineExercise, RoutineExerciseInput, User } from '../types'
+import type { EditableUserFields, FollowUpAppointment, MedicalPractice, Routine, RoutineAssignment, RoutineAssignmentStatus, RoutineChangeImpact, RoutineExercise, RoutineExerciseInput, User } from '../types'
 import { validPrescriptionInteger } from './prescriptions'
 import type { Patient } from '../data/mockPatients'
+import type { DemoRoutine } from './routinePrototype'
+import { publicVideoPreview } from './videoPreview'
 
 export const PROFILE_IMAGE_BUCKET = 'profile-images'
 
@@ -322,7 +324,7 @@ export async function dischargePatient(patientId: string) {
   }
 }
 
-type RoutineRow = { id: string; name: string; exercise_list: unknown[] | null }
+type RoutineRow = { id: string; name: string; description?: string; editor_document?: DemoRoutine | null; exercise_list: unknown[] | null }
 type RoutineExerciseRow = { id: string; routine_id: string; name: string; position: number }
 type RoutineAssignmentRow = {
   id: string
@@ -419,17 +421,34 @@ function routineExerciseName(entry: unknown) {
 
 export async function loadRoutines(providerId: string): Promise<Routine[]> {
   try {
-    const { data: routines, error: routineError, status: routineErrorStatus } = await supabase
-      .from('routines')
-      .select('id, name, exercise_list')
-      .eq('provider_id', providerId)
-      .order('name')
+    let includeEditorDocument = true
+    let includeArchiveFilter = true
+    const read = () => {
+      let query = (includeEditorDocument
+        ? supabase.from('routines').select('id, name, description, editor_document, exercise_list')
+        : supabase.from('routines').select('id, name, description, exercise_list'))
+        .eq('provider_id', providerId)
+      if (includeArchiveFilter) query = query.is('archived_at', null)
+      return query.order('name')
+    }
+    let result = await read()
+    // Read existing routines before the editor migration is deployed. Remove
+    // only the missing field/filter; never retry permissions or network errors.
+    for (let attempt = 0; result.error && attempt < 2; attempt += 1) {
+      if (includeEditorDocument && isMissingSchemaObject(result.error, ['editor_document'])) includeEditorDocument = false
+      else if (includeArchiveFilter && isMissingSchemaObject(result.error, ['archived_at'])) includeArchiveFilter = false
+      else break
+      result = await read()
+    }
+    const { data: routines, error: routineError, status: routineErrorStatus } = result
     if (routineError) throw normalizeError(routineError, { operation: 'loadRoutines', status: routineErrorStatus })
 
     const rows = (routines ?? []) as RoutineRow[]
-    return rows.map((routine) => ({
+    return await Promise.all(rows.map(async (routine) => ({
       id: routine.id,
       name: routine.name,
+      description: routine.description ?? '',
+      editorDocument: routine.editor_document ? await resolveRoutineMedia(routine.editor_document) : null,
       exercises: (routine.exercise_list ?? []).map((entry, position) => {
         const record = entry && typeof entry === 'object' && !Array.isArray(entry) ? entry as Record<string, unknown> : null
         const exerciseId = typeof record?.exercise_id === 'string' ? record.exercise_id : null
@@ -442,23 +461,78 @@ export async function loadRoutines(providerId: string): Promise<Routine[]> {
           durationSeconds: validPrescriptionInteger(record?.duration_seconds) ? record?.duration_seconds ?? null : null,
           notes: typeof record?.notes === 'string' ? record.notes : null }
       }),
-    }))
+    })))
   } catch (error) {
     throw normalizeError(error, { operation: 'loadRoutines' })
   }
 }
 
-export async function deleteRoutine(routineId: string) {
+export async function loadRoutineChangeImpact(routineId: string): Promise<RoutineChangeImpact> {
+  const { data, error, status } = await supabase.rpc('preview_routine_change', { p_routine_id: routineId })
+  if (error) throw routineChangeError(error, status)
+  if (!data || !Array.isArray(data.patients) || typeof data.token !== 'string') throw new AppError('SERVICE_UNAVAILABLE')
+  return data as RoutineChangeImpact
+}
+
+function routineChangeError(error: { code?: string }, status?: number, operation = 'saveRoutine') {
+  if (error.code === 'PGRST202' || error.code === '42883') return new AppError('SERVICE_UNAVAILABLE', { message: 'Routine saving and patient-change confirmation are waiting for the database update. Your changes have not been saved.', cause: error, sourceCode: error.code, httpStatus: status })
+  if (error.code === '40001') return new AppError('CONFLICT', { message: 'The routine or affected patient list changed. Review the refreshed list and confirm again.', cause: error, sourceCode: error.code, httpStatus: status })
+  return normalizeError(error, { operation, status })
+}
+
+const uploadedRoutineFiles = new Map<string, string>()
+async function resolveRoutineMedia(document: DemoRoutine): Promise<DemoRoutine> {
+  const copy = structuredClone(document)
+  await Promise.all(copy.exercises.flatMap((exercise) => exercise.media.map(async (media) => {
+    if (!media.storagePath) return
+    const { data, error } = await supabase.storage.from('routine-media').createSignedUrl(media.storagePath, 3600)
+    // Keep the saved routine available even when an individual preview is unavailable.
+    media.url = error ? '' : data.signedUrl
+  })))
+  return copy
+}
+
+export async function saveRoutineDocument(routineId: string | null, document: DemoRoutine, impactToken?: string) {
+  const copy = structuredClone(document)
+  for (const exercise of copy.exercises) for (const media of exercise.media) {
+    if (media.url.startsWith('blob:') && !media.storagePath) {
+      let path = uploadedRoutineFiles.get(media.url)
+      if (!path) {
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) throw new AppError('AUTH_REQUIRED')
+        const blob = await fetch(media.url).then((response) => response.blob())
+        const suffix = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/webm': 'webm' } as Record<string, string>)[blob.type]
+        if (!suffix) throw new AppError('VALIDATION_ERROR', { message: 'Choose a supported picture or video file.' })
+        path = `${user.id}/${crypto.randomUUID()}.${suffix}`
+        const { error } = await supabase.storage.from('routine-media').upload(path, blob, { contentType: blob.type, upsert: false })
+        if (error) throw normalizeError(error, { operation: 'saveRoutine' })
+        uploadedRoutineFiles.set(media.url, path)
+      }
+      media.storagePath = path
+    }
+    if (media.storagePath) media.url = ''
+    else if (!media.preview) media.preview = publicVideoPreview(media.url)
+  }
+  const { data, error, status } = await supabase.rpc('save_editor_routine', {
+    p_routine_id: routineId, p_document: copy, p_token: impactToken ?? null,
+  })
+  if (error) throw routineChangeError(error, status)
+  return data as string
+}
+
+export async function deleteRoutine(routineId: string, impactToken?: string) {
   try {
-    const { error, status } = await supabase.rpc('delete_routine', { p_routine_id: routineId })
+    const { error, status } = impactToken === undefined
+      ? await supabase.rpc('delete_routine', { p_routine_id: routineId })
+      : await supabase.rpc('apply_routine_change', { p_routine_id: routineId, p_action: 'delete', p_token: impactToken })
     if (error?.code === '23503') throw new AppError('CONFLICT', { message: 'This routine has patient assignments and cannot be deleted. Their history must be preserved.', cause: error, sourceCode: error.code, httpStatus: status })
-    if (error) throw normalizeError(error, { operation: 'deleteRoutine', status })
+    if (error) throw routineChangeError(error, status, 'deleteRoutine')
   } catch (error) {
     throw normalizeError(error, { operation: 'deleteRoutine' })
   }
 }
 
-export async function saveRoutine(routineId: string | null, name: string, exercises: RoutineExerciseInput[]) {
+export async function saveRoutine(routineId: string | null, name: string, exercises: RoutineExerciseInput[], impactToken?: string) {
   try {
     if (!name.trim() || name.length > 200) throw new AppError('VALIDATION_ERROR', { message: 'Routine name must contain 1 to 200 characters.', details: { fieldErrors: { name: 'INVALID' } } })
     if (!exercises.length || exercises.length > 100 || exercises.some((exercise) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(exercise.exerciseId))) {
@@ -468,15 +542,18 @@ export async function saveRoutine(routineId: string | null, name: string, exerci
       || (exercise.notes != null && typeof exercise.notes !== 'string'))) {
       throw new AppError('VALIDATION_ERROR', { message: 'Sets, reps, and duration must be positive whole numbers or blank; notes must be text.', details: { fieldErrors: { exercises: 'INVALID' } } })
     }
-    const { data, error, status: errorStatus } = await supabase.rpc('save_routine_prescriptions', {
+    const args = {
       p_routine_id: routineId,
       p_routine_name: name.trim(),
       p_exercises: exercises.map((exercise) => ({ exercise_id: exercise.exerciseId,
         sets: exercise.sets ?? null, reps: exercise.reps ?? null,
         duration_seconds: exercise.durationSeconds ?? null, notes: exercise.notes?.trim() || null })),
-    })
+    }
+    const { data, error, status: errorStatus } = routineId && impactToken !== undefined
+      ? await supabase.rpc('apply_routine_change', { ...args, p_action: 'edit', p_token: impactToken })
+      : await supabase.rpc('save_routine_prescriptions', args)
     if (error?.code === 'PGRST202') throw new AppError('SERVICE_UNAVAILABLE', { message: 'Prescription saving is not available on this backend yet. Your changes have not been saved.', cause: error, sourceCode: error.code, httpStatus: errorStatus })
-    if (error) throw normalizeError(error, { operation: 'saveRoutine', status: errorStatus })
+    if (error) throw routineChangeError(error, errorStatus)
     return data as string
   } catch (error) {
     throw normalizeError(error, { operation: 'saveRoutine' })

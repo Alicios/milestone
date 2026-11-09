@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import AddIcon from '@mui/icons-material/Add'
+import CloseIcon from '@mui/icons-material/Close'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import EditIcon from '@mui/icons-material/Edit'
 import LinkIcon from '@mui/icons-material/Link'
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
-import { Alert, Box, Button, Card, CardContent, Chip, Divider, Stack, TextField, Typography, useTheme } from '@mui/material'
+import { Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Divider, IconButton, Stack, Tab, Tabs, TextField, Typography, useTheme } from '@mui/material'
 import { alpha } from '@mui/material/styles'
 import { loadExercises } from '../lib/exerciseData'
 import { exerciseMedia } from '../lib/exerciseMedia'
 import { errorMessage } from '../lib/errors'
 import { publicVideoPreview, videoPreviewPoster, type VideoPreview } from '../lib/videoPreview'
 import { exerciseTags, exerciseTagOptions, matchesExerciseTags, type ExerciseTag } from '../lib/exerciseTags'
-import type { CatalogExercise, Routine } from '../types'
+import type { CatalogExercise, Routine, RoutineChangeImpact } from '../types'
+import { loadRoutineChangeImpact } from '../lib/supabaseData'
 import { buildPrototypeRoutines, catalogExercise, copyPrototypeRoutine, providerPrototypeRoutines, type DemoExercise, type DemoMedia, type DemoRoutine } from '../lib/routinePrototype'
 
 const MAX_ITEMS = 5
@@ -144,7 +146,7 @@ function MediaGallery({ media, editing, onChange }: { media: DemoMedia[]; editin
         <TextField size="small" label="YouTube or Vimeo link" value={link} onChange={(event) => setLink(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addLink() } }} sx={{ flex: 1 }} />
         <Button variant="outlined" startIcon={<LinkIcon />} onClick={addLink} disabled={!link.trim() || media.length >= MAX_ITEMS}>Add link</Button>
       </Stack>
-      <Typography variant="caption" color="text.secondary">Files stay in this browser. Pictures: up to 10 MB. Videos: up to 50 MB.</Typography>
+      <Typography variant="caption" color="text.secondary">Files upload when you save the routine. Pictures: up to 10 MB. Videos: up to 50 MB.</Typography>
     </>}
   </Stack>
 }
@@ -154,8 +156,8 @@ function Dosage({ exercise }: { exercise: DemoExercise }) {
   return parts.length ? <Typography variant="body2" color="text.secondary">{parts.join(' · ')}</Typography> : null
 }
 
-function invalidDosage(value: string) {
-  return value !== '' && (!/^\d+$/.test(value) || Number(value) > 9999)
+function invalidDosage(value: string, maximum = 3600) {
+  return value !== '' && (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > maximum)
 }
 
 type RoutineSearchOption =
@@ -168,7 +170,11 @@ function optionMatches(option: RoutineSearchOption, query: string, tags: Exercis
   return matchesExerciseTags(names, tags) && text.some((value) => value.toLowerCase().includes(query.trim().toLowerCase()))
 }
 
-export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
+export function RoutineEditor({ savedRoutines, onSave, onDelete }: {
+  savedRoutines: Routine[]
+  onSave: (id: string | null, routine: DemoRoutine, token?: string) => Promise<string>
+  onDelete: (id: string, token?: string) => Promise<void>
+}) {
   const theme = useTheme()
   const invalidInputSx = { '& .MuiOutlinedInput-root': { bgcolor: alpha(theme.palette.error.main, theme.palette.mode === 'dark' ? 0.22 : 0.14) } }
   const [routines, setRoutines] = useState<DemoRoutine[]>([])
@@ -181,22 +187,133 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
   const [missing, setMissing] = useState<string[]>([])
   const [pickedExercise, setPickedExercise] = useState<CatalogExercise | null>(null)
   const [draft, setDraft] = useState<DemoRoutine | null>(null)
+  const [parkedDrafts, setParkedDrafts] = useState<Record<string, DemoRoutine>>({})
+  const [openRoutineIds, setOpenRoutineIds] = useState<string[]>([])
+  const [closingDraftId, setClosingDraftId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [selectedTags, setSelectedTags] = useState<ExerciseTag[]>([])
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [validationAttempted, setValidationAttempted] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
+  const [pendingChange, setPendingChange] = useState<{ action: 'edit' | 'delete'; routine: DemoRoutine } | null>(null)
+  const [impact, setImpact] = useState<RoutineChangeImpact | null>(null)
+  const [impactError, setImpactError] = useState('')
+  const [impactLoading, setImpactLoading] = useState(false)
+  const [impactAttempt, setImpactAttempt] = useState(0)
   const objectUrls = useRef(new Set<string>())
   const resultsRef = useRef<HTMLElement>(null)
   const isBuilding = draft !== null
   const providerRoutines = useMemo(() => providerPrototypeRoutines(savedRoutines, catalog), [savedRoutines, catalog])
   const allRoutines = useMemo(() => [
-    ...providerRoutines.filter((routine) => !routines.some((local) => local.id === routine.id)),
-    ...routines,
+    ...providerRoutines,
+    ...routines.filter((routine) => !providerRoutines.some((saved) => saved.id === routine.id)),
   ].filter((routine) => !archivedIds.has(routine.id)), [providerRoutines, routines, archivedIds])
   const filtered = useMemo(() => allRoutines.filter((routine) => optionMatches({ kind: 'routine', id: routine.id, name: routine.name, routine }, query, selectedTags)), [allRoutines, query, selectedTags])
-  const selected = filtered.find((routine) => routine.id === selectedId) ?? (!draft && !pickedExercise && !query.trim() && selectedTags.length === 0 ? filtered[0] : undefined)
+  const selected = (draft ? filtered : allRoutines).find((routine) => routine.id === selectedId) ?? (!draft && !pickedExercise && !query.trim() && selectedTags.length === 0 ? filtered.find((routine) => openRoutineIds.includes(routine.id)) : undefined)
   const filteredExercises = useMemo(() => catalog.filter((exercise) => optionMatches({ kind: 'exercise', id: exercise.id, name: exercise.name, exercise }, query, selectedTags)), [catalog, query, selectedTags])
+  const openRoutines = [...new Set([...openRoutineIds, ...(selected ? [selected.id] : []), ...(draft ? [draft.id] : [])])]
+    .map((id) => {
+      const editing = draft?.id === id ? draft : parkedDrafts[id]
+      const routine = editing ?? allRoutines.find((item) => item.id === id)
+      return routine ? { routine, editing: Boolean(editing) } : null
+    }).filter((entry) => entry !== null)
+  const activeTabId = draft?.id ?? selected?.id ?? false
+  const closingDraft = draft?.id === closingDraftId ? draft : closingDraftId ? parkedDrafts[closingDraftId] : null
+
+  useEffect(() => {
+    if (!pendingChange) return
+    let active = true
+    setImpact(null)
+    setImpactError('')
+    setImpactLoading(true)
+    void loadRoutineChangeImpact(pendingChange.routine.id).then((result) => {
+      if (active) setImpact(result)
+    }).catch((failure) => {
+      if (active) setImpactError(errorMessage(failure, 'The affected patient list could not be loaded.'))
+    }).finally(() => { if (active) setImpactLoading(false) })
+    return () => { active = false }
+  }, [pendingChange, impactAttempt])
+
+  function reviewChange(action: 'edit' | 'delete', routine: DemoRoutine) {
+    setImpact(null)
+    setError('')
+    setPendingChange({ action, routine })
+  }
+
+  function rememberTab(id: string) {
+    setOpenRoutineIds((current) => current.includes(id) ? current : [...current, id])
+  }
+
+  function switchTab(id: string) {
+    if (id === activeTabId) { setPickedExercise(null); setSelectedId(draft ? '' : id); return }
+    setParkedDrafts((current) => {
+      const next = { ...current }
+      if (draft) next[draft.id] = draft
+      delete next[id]
+      return next
+    })
+    setDraft(parkedDrafts[id] ?? null)
+    setSelectedId(parkedDrafts[id] ? '' : id)
+    setPickedExercise(null)
+    setError('')
+    setNotice('')
+    setValidationAttempted(false)
+  }
+
+  function startDraft(next: DemoRoutine) {
+    if (draft && draft.id !== next.id) setParkedDrafts((current) => ({ ...current, [draft.id]: draft }))
+    rememberTab(next.id)
+    setDraft(next)
+    setSelectedId('')
+    setPickedExercise(null)
+    setNotice('')
+    setError('')
+    setValidationAttempted(false)
+  }
+
+  function closeTab(id: string) {
+    const index = openRoutines.findIndex((entry) => entry.routine.id === id)
+    const remaining = openRoutines.filter((entry) => entry.routine.id !== id)
+    const nextId = remaining[Math.min(index, remaining.length - 1)]?.routine.id
+    setOpenRoutineIds(remaining.map((entry) => entry.routine.id))
+    setParkedDrafts((current) => {
+      const next = { ...current }
+      delete next[id]
+      if (id === activeTabId && nextId) delete next[nextId]
+      return next
+    })
+    if (id === activeTabId) {
+      setDraft(nextId ? parkedDrafts[nextId] ?? null : null)
+      setSelectedId(nextId && !parkedDrafts[nextId] ? nextId : '')
+      setPickedExercise(null)
+      setError('')
+      setNotice('')
+      setValidationAttempted(false)
+    } else if (selectedId === id) setSelectedId('')
+    setClosingDraftId(null)
+  }
+
+  function requestCloseTab(id: string) {
+    if (draft?.id === id || parkedDrafts[id]) setClosingDraftId(id)
+    else closeTab(id)
+  }
+
+  function continueEditing() {
+    if (closingDraftId) switchTab(closingDraftId)
+    setClosingDraftId(null)
+  }
+
+  function cancelDraft() {
+    if (!draft) return
+    setOpenRoutineIds((current) => current.filter((id) => id !== draft.id))
+    setSelectedId(allRoutines.some((routine) => routine.id === draft.id) ? draft.id : '')
+    setDraft(null)
+    setPickedExercise(null)
+    setError('')
+    setValidationAttempted(false)
+  }
 
   function toggleTag(tag: ExerciseTag) {
     const next = selectedTags.includes(tag) ? selectedTags.filter((current) => current !== tag) : [...selectedTags, tag]
@@ -218,6 +335,7 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
       setRoutines(generated.routines)
       setMissing(generated.missing)
       setSelectedId(generated.routines[0]?.id ?? '')
+      setOpenRoutineIds((current) => [...new Set([...current, ...generated.routines.slice(0, 1).map((routine) => routine.id)])])
     }).catch((failure) => {
       if (active) setCatalogError(errorMessage(failure, 'The exercise catalog could not be loaded.'))
     }).finally(() => { if (active) setCatalogLoading(false) })
@@ -226,9 +344,8 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
 
   function addCatalogExercise(entry: CatalogExercise) {
     const exercise = catalogExercise(entry)
-    setDraft((current) => current
-      ? { ...current, exercises: [...current.exercises, exercise] }
-      : { id: crypto.randomUUID(), name: '', description: '', source: 'provider', exercises: [exercise] })
+    if (draft) setDraft({ ...draft, exercises: [...draft.exercises, exercise] })
+    else startDraft({ id: crypto.randomUUID(), name: '', description: '', source: 'provider', exercises: [exercise] })
     setSelectedId('')
     setNotice(`Added ${entry.name} to your routine.`)
     setError('')
@@ -237,7 +354,8 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
 
   function useRoutine(routine: DemoRoutine) {
     const copy = copyPrototypeRoutine(routine)
-    setDraft((current) => current ? { ...current, exercises: [...current.exercises, ...copy.exercises] } : copy)
+    if (draft) setDraft({ ...draft, exercises: [...draft.exercises, ...copy.exercises] })
+    else startDraft(copy)
     setPickedExercise(null)
     setSelectedId('')
     setError('')
@@ -257,27 +375,71 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
     setDraft((current) => current && { ...current, exercises: current.exercises.map((exercise) => exercise.id === id ? { ...exercise, [field]: value } : exercise) })
   }
 
+  async function persistRoutine(routine: DemoRoutine, token?: string) {
+    if (savingRef.current) return
+    savingRef.current = true
+    setSaving(true)
+    setError('')
+    try {
+      const existing = savedRoutines.some((saved) => saved.id === routine.id)
+      const id = await onSave(existing ? routine.id : null, routine, token)
+      const cleaned = { ...routine, id, source: 'provider' as const }
+      setRoutines((current) => [...current.filter((item) => item.id !== id && item.id !== routine.id), cleaned])
+      setOpenRoutineIds((current) => [...new Set(current.map((tab) => tab === routine.id ? id : tab))])
+      setSelectedId(id)
+      setDraft(null)
+      setPickedExercise(null)
+      setQuery('')
+      setSelectedTags([])
+      setPendingChange(null)
+      setValidationAttempted(false)
+      setNotice('Routine saved. Confirmed changes have been applied to eligible patient assignments.')
+    } catch (failure) {
+      setError(errorMessage(failure, 'The routine could not be saved. Your draft is still available.'))
+      if (failure && typeof failure === 'object' && 'sourceCode' in failure && failure.sourceCode === '40001') {
+        setImpact(null)
+        setImpactAttempt((attempt) => attempt + 1)
+      }
+    } finally { savingRef.current = false; setSaving(false) }
+  }
+
+  async function confirmChange() {
+    if (!pendingChange || !impact || impactLoading || savingRef.current) return
+    if (pendingChange.action === 'edit') { await persistRoutine(pendingChange.routine, impact.token); return }
+    savingRef.current = true
+    setSaving(true)
+    setError('')
+    try {
+      await onDelete(pendingChange.routine.id, impact.token)
+      const id = pendingChange.routine.id
+      closeTab(id)
+      setParkedDrafts((current) => { const next = { ...current }; delete next[id]; return next })
+      setArchivedIds((current) => new Set([...current, id]))
+      setPendingChange(null)
+      setNotice('Routine deleted. Upcoming, not-started assignments and scheduled follow-ups were cancelled. Patient history was preserved.')
+    } catch (failure) {
+      setError(errorMessage(failure, 'The routine could not be deleted.'))
+      if (failure && typeof failure === 'object' && 'sourceCode' in failure && failure.sourceCode === '40001') {
+        setImpact(null)
+        setImpactAttempt((attempt) => attempt + 1)
+      }
+    } finally { savingRef.current = false; setSaving(false) }
+  }
+
   function save() {
     if (!draft) return
     setValidationAttempted(true)
     if (!draft.name.trim()) { setError('Enter a routine name.'); return }
     if (draft.exercises.length === 0) { setError('Add at least one exercise.'); return }
     if (draft.exercises.some((exercise) => !exercise.name.trim())) { setError('Name each exercise or remove the empty one.'); return }
-    if (draft.exercises.some((exercise) => [exercise.sets, exercise.repetitions, exercise.duration, exercise.rest].some(invalidDosage))) {
-      setError('Use whole numbers from 0 to 9999 for sets, repetitions, duration, and rest.')
+    if (draft.exercises.some((exercise) => invalidDosage(exercise.sets, 20) || invalidDosage(exercise.repetitions, 500) || invalidDosage(exercise.duration) || invalidDosage(exercise.rest))) {
+      setError('Use positive whole numbers or leave dosage blank. Maximum: 20 sets, 500 reps, and 3600 seconds for duration or rest.')
       return
     }
     const ownedDraft = draft.source === 'template' ? copyPrototypeRoutine(draft) : draft
     const cleaned = { ...ownedDraft, source: 'provider' as const, name: draft.name.trim(), exercises: ownedDraft.exercises.map((exercise) => ({ ...exercise, name: exercise.name.trim() })) }
-    setRoutines((current) => current.some((routine) => routine.id === cleaned.id) ? current.map((routine) => routine.id === cleaned.id ? cleaned : routine) : [...current, cleaned])
-    setSelectedId(cleaned.id)
-    setDraft(null)
-    setPickedExercise(null)
-    setQuery('')
-    setSelectedTags([])
-    setError('')
-    setValidationAttempted(false)
-    setNotice('Changes saved in this browser session. Refreshing the page resets these changes.')
+    if (savedRoutines.some((routine) => routine.id === cleaned.id)) reviewChange('edit', cleaned)
+    else void persistRoutine(cleaned)
   }
 
   const routineResults = (
@@ -290,7 +452,7 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
               return matches.length > 0 && <Box key={source}>
                 <Typography variant="caption" color="text.secondary">{source === 'template' ? 'Templates' : 'Your routines'}</Typography>
                 <Stack spacing={1} sx={{ mt: .5 }}>{matches.map((routine) => <Card key={routine.id} variant="outlined" sx={{ flexShrink: 0, borderColor: !pickedExercise && selected?.id === routine.id ? 'primary.main' : 'divider' }}>
-                  <Button fullWidth aria-label={`View ${source === 'template' ? 'template' : 'my routine'}: ${routine.name}`} onClick={() => { setSelectedId(routine.id); setPickedExercise(null) }} sx={{ justifyContent: 'flex-start', textAlign: 'left', p: 1.25, color: 'text.primary', textTransform: 'none' }}>
+                  <Button fullWidth aria-label={`View ${source === 'template' ? 'template' : 'my routine'}: ${routine.name}`} onClick={() => { rememberTab(routine.id); if (!draft && parkedDrafts[routine.id]) switchTab(routine.id); else { setSelectedId(routine.id); setPickedExercise(null) } }} sx={{ justifyContent: 'flex-start', textAlign: 'left', p: 1.25, color: 'text.primary', textTransform: 'none' }}>
                     <Box minWidth={0}><Typography variant="body2" fontWeight={700}>{routine.name}</Typography><Stack direction="row" spacing={1} alignItems="center" sx={{ mt: .5 }}><Chip size="small" label={source === 'template' ? 'Template' : 'My routine'} /><Typography variant="caption">{routine.exercises.length} exercises</Typography></Stack></Box>
                   </Button>
                 </Card>)}</Stack>
@@ -316,8 +478,41 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
         </Box>
   )
 
-  return <Stack spacing={2.5}>
-    <Alert severity="info">Advanced editor prototype. Changes last until you leave this editor or refresh. Review routine selections and prescribe sets, reps, and timing before use. Exercise demonstrations are shown alongside their instructions.</Alert>
+  return <Stack component="fieldset" disabled={saving} spacing={2.5} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
+    <Dialog open={Boolean(pendingChange)} onClose={saving ? undefined : () => setPendingChange(null)} fullWidth maxWidth="sm" aria-labelledby="routine-change-title" aria-describedby="routine-change-description">
+      <DialogTitle id="routine-change-title">{pendingChange?.action === 'delete' ? 'Delete routine?' : 'Apply routine changes?'}</DialogTitle>
+      <DialogContent>
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        <DialogContentText id="routine-change-description" sx={{ overflowWrap: 'anywhere' }}>
+          {pendingChange?.action === 'delete'
+            ? <>Delete <strong>{pendingChange.routine.name}</strong> from your routines and remove its upcoming, not-started assignments for the patients below? Scheduled follow-ups for those assignments will also be cancelled.</>
+            : <>Apply changes to <strong>{pendingChange?.routine.name}</strong> and its upcoming, not-started assignments for the patients below?</>}
+          {' '}Completed, in-progress, and past assignments keep their original prescriptions and history.
+        </DialogContentText>
+        {impactLoading && <Typography role="status" sx={{ mt: 2 }}>Checking affected patients…</Typography>}
+        {impactError && <Alert severity="error" sx={{ mt: 2 }} action={<Button onClick={() => setImpactAttempt((attempt) => attempt + 1)}>Retry</Button>}>{impactError}</Alert>}
+        {impact && <Box sx={{ mt: 2 }}>
+          <Typography fontWeight={700}>{impact.patients.length} affected {impact.patients.length === 1 ? 'patient' : 'patients'} · {impact.assignmentCount} {impact.assignmentCount === 1 ? 'assignment' : 'assignments'}</Typography>
+          {impact.patients.length === 0 ? <Typography sx={{ mt: 1 }}>No upcoming, not-started patient assignments will be affected.</Typography>
+            : <Box component="ul" aria-label="Affected patients" sx={{ pl: 3, maxHeight: 240, overflowY: 'auto' }}>{impact.patients.map((patient) => <Box component="li" key={patient.id} sx={{ mb: 1, overflowWrap: 'anywhere' }}><Typography fontWeight={600}>{patient.name}</Typography><Typography variant="body2" color="text.secondary">{patient.assignmentCount} {patient.assignmentCount === 1 ? 'assignment' : 'assignments'}: {patient.dates.join(', ')}</Typography></Box>)}</Box>}
+        </Box>}
+      </DialogContent>
+      <DialogActions sx={{ flexWrap: 'wrap', gap: 1, px: 3, pb: 2 }}>
+        <Button autoFocus disabled={saving} onClick={() => setPendingChange(null)}>{pendingChange?.action === 'delete' ? 'Keep routine' : 'Return to editing'}</Button>
+        <Button color={pendingChange?.action === 'delete' ? 'error' : 'primary'} disabled={saving || impactLoading || !impact || Boolean(impactError)} onClick={() => void confirmChange()}>{saving ? 'Saving…' : pendingChange?.action === 'delete' ? 'Delete routine' : 'Apply changes'}</Button>
+      </DialogActions>
+    </Dialog>
+    <Dialog open={Boolean(closingDraft)} onClose={continueEditing} fullWidth maxWidth="xs" aria-labelledby="discard-routine-draft-title" aria-describedby="discard-routine-draft-description">
+      <DialogTitle id="discard-routine-draft-title">Discard unfinished edits?</DialogTitle>
+      <DialogContent><DialogContentText id="discard-routine-draft-description" sx={{ overflowWrap: 'anywhere' }}>
+        Close {closingDraft?.name.trim() || 'Untitled routine'} and discard all its unfinished edits, including exercises, notes, and media changes? Previously saved routine data will stay available.
+      </DialogContentText></DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2, flexWrap: 'wrap', gap: 1 }}>
+        <Button autoFocus onClick={continueEditing}>Continue editing</Button>
+        <Button color="error" onClick={() => { if (closingDraftId) closeTab(closingDraftId) }}>Discard edits and close</Button>
+      </DialogActions>
+    </Dialog>
+    <Typography color="text.secondary">Save your routines to make them available for patient assignment. Unfinished drafts stay open while you switch tabs.</Typography>
     {catalogLoading && <Alert severity="info">Loading the database exercise catalog...</Alert>}
     {catalogError && <Alert severity="error" action={<Button onClick={() => setCatalogAttempt((value) => value + 1)}>Retry catalog</Button>}>{catalogError}</Alert>}
     {!catalogLoading && !catalogError && <Typography variant="body2" color="text.secondary">{catalog.length} database exercises · {allRoutines.filter((routine) => routine.source === 'provider').length} provider routines · {allRoutines.filter((routine) => routine.source === 'template').length} templates · Original catalog names and instructions</Typography>}
@@ -331,7 +526,7 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
       </Stack>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
         <TextField fullWidth label="Search routines or exercises" size="small" value={query} onChange={(event) => setQuery(event.target.value)} sx={{ flex: 1, '& .MuiOutlinedInput-root': { height: 50 }, '& .MuiInputLabel-outlined.MuiInputLabel-sizeSmall:not(.MuiInputLabel-shrink)': { top: '50%', transform: 'translate(14px, -50%) scale(1)' } }} />
-        {!draft && <Button variant="contained" disabled={catalogLoading} startIcon={<AddIcon />} sx={{ height: 50, flexShrink: 0 }} onClick={() => { setDraft({ id: crypto.randomUUID(), name: '', description: '', source: 'provider', exercises: [] }); setSelectedId(''); setPickedExercise(null); setNotice(''); setError(''); setValidationAttempted(false) }}>New routine</Button>}
+        <Button variant="contained" disabled={catalogLoading} startIcon={<AddIcon />} sx={{ height: 50, flexShrink: 0 }} onClick={() => startDraft({ id: crypto.randomUUID(), name: '', description: '', source: 'provider', exercises: [] })}>New routine</Button>
       </Stack>
       {!catalogLoading && !catalogError && <Typography variant="caption" color="text.secondary" role="status">{filtered.length} matching routines · {filteredExercises.length} matching exercises{selectedTags.length > 0 && ' · Matches any selected tag'}</Typography>}
     </Stack></CardContent></Card>
@@ -343,6 +538,17 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
         {draft ? routineResults : exerciseResults}
       </Stack></CardContent></Card>
       <Stack spacing={2.5} minWidth={0}>
+        {openRoutines.length > 0 && <Box sx={{ minWidth: 0, borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs aria-label="Open routines" value={activeTabId} onChange={(_, id: string) => switchTab(id)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
+            {openRoutines.map(({ routine, editing }) => {
+              const name = routine.name.trim() || 'Untitled routine'
+              return <Tab component="div" key={routine.id} value={routine.id} id={`routine-tab-${routine.id}`} aria-controls="routine-workspace" aria-label={`${name}${editing ? ' · Editing' : ''}`} label={`${name}${editing ? ' · Editing' : ''}`} iconPosition="end"
+                icon={<IconButton size="small" aria-label={`Close routine tab: ${name}`} onClick={(event) => { event.stopPropagation(); requestCloseTab(routine.id) }} onKeyDown={(event) => event.stopPropagation()} sx={{ color: 'inherit', ml: 1 }}><CloseIcon fontSize="small" /></IconButton>}
+                sx={{ textTransform: 'none', maxWidth: 320, overflowWrap: 'anywhere' }} />
+            })}
+          </Tabs>
+        </Box>}
+        <Stack role={activeTabId ? 'tabpanel' : undefined} id="routine-workspace" aria-labelledby={activeTabId ? `routine-tab-${activeTabId}` : undefined} spacing={2.5} minWidth={0}>
         {notice && <Alert severity="success" onClose={() => setNotice('')}>{notice}</Alert>}
         {pickedExercise && <Card component="section" aria-label="Exercise preview" variant="outlined"><CardContent><Stack spacing={2}>
           <Stack direction="row" alignItems="center" justifyContent="space-between"><Typography component="h2" variant="h6">Exercise preview</Typography><Button size="small" onClick={() => setPickedExercise(null)}>Close exercise preview</Button></Stack>
@@ -359,7 +565,7 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
 
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1} alignItems={{ sm: 'center' }}>
         <Typography component="h2" variant="h5">{allRoutines.some((routine) => routine.id === draft.id) ? 'Edit your routine' : 'Build your routine'}</Typography>
-        <Button onClick={() => { setDraft(null); setPickedExercise(null); setError(''); setValidationAttempted(false) }}>Cancel</Button>
+        <Button onClick={cancelDraft}>Cancel</Button>
       </Stack>
       {error && <Alert severity="error">{error}</Alert>}
       <Card variant="outlined"><CardContent><Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 3 }}>
@@ -388,7 +594,7 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
             <TextField label="Exercise name" value={exercise.name} onChange={(event) => updateExercise(exercise.id, 'name', event.target.value)} required fullWidth error={validationAttempted && !exercise.name.trim()} helperText={validationAttempted && !exercise.name.trim() ? 'Exercise name is required.' : undefined} sx={validationAttempted && !exercise.name.trim() ? invalidInputSx : undefined} />
             <TextField label="Exercise description" value={exercise.description} onChange={(event) => updateExercise(exercise.id, 'description', event.target.value)} multiline minRows={2} fullWidth helperText="Explain how to perform the movement." />
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1.5 }}>
-              {([['sets', 'Sets'], ['repetitions', 'Repetitions'], ['duration', 'Duration (seconds)'], ['rest', 'Rest (seconds)']] as const).map(([field, label]) => <TextField key={field} label={label} type="number" value={exercise[field]} onChange={(event) => updateExercise(exercise.id, field, event.target.value)} error={validationAttempted && invalidDosage(exercise[field])} sx={validationAttempted && invalidDosage(exercise[field]) ? invalidInputSx : undefined} slotProps={{ htmlInput: { min: 0, step: 1 } }} />)}
+              {([['sets', 'Sets', 20], ['repetitions', 'Repetitions', 500], ['duration', 'Duration (seconds)', 3600], ['rest', 'Rest (seconds)', 3600]] as const).map(([field, label, maximum]) => <TextField key={field} label={label} type="number" value={exercise[field]} onChange={(event) => updateExercise(exercise.id, field, event.target.value)} error={validationAttempted && invalidDosage(exercise[field], maximum)} sx={validationAttempted && invalidDosage(exercise[field], maximum) ? invalidInputSx : undefined} slotProps={{ htmlInput: { min: 1, max: maximum, step: 1 } }} />)}
             </Box>
             <TextField label="Provider notes" value={exercise.notes} onChange={(event) => updateExercise(exercise.id, 'notes', event.target.value)} multiline minRows={2} fullWidth />
           </Stack>
@@ -399,7 +605,7 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
         </Box>
       </Stack></CardContent></Card>)}
       <Stack direction="row" justifyContent="flex-end" spacing={1.5}>
-        <Button variant="outlined" onClick={() => { setDraft(null); setPickedExercise(null); setError(''); setValidationAttempted(false) }}>Cancel</Button>
+        <Button variant="outlined" onClick={cancelDraft}>Cancel</Button>
         <Button variant="contained" onClick={save}>Save changes</Button>
       </Stack>
 
@@ -409,8 +615,8 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <Button variant="contained" onClick={() => useRoutine(selected)}>{selected.source === 'template' ? 'Use template' : 'Make a copy'}</Button>
             {selected.source !== 'template' && <>
-              <Button size="small" startIcon={<EditIcon />} onClick={() => { setDraft(structuredClone(selected)); setSelectedId(''); setNotice(''); setError(''); setValidationAttempted(false) }}>Edit</Button>
-              <Button size="small" color="error" onClick={() => { setArchivedIds((current) => new Set([...current, selected.id])); setNotice('Archived in this prototype only. Refreshing restores the routine.') }}>Archive</Button>
+              <Button size="small" startIcon={<EditIcon />} onClick={() => startDraft(structuredClone(selected))}>Edit</Button>
+              <Button size="small" color="error" onClick={() => reviewChange('delete', selected)}>Delete routine</Button>
             </>}
           </Stack>
           {selected.source === 'template' && <Typography variant="body2" color="text.secondary">Use this template to create your own routine. Customizing your copy leaves the template and other providers' routines unchanged.</Typography>}
@@ -428,6 +634,7 @@ export function RoutineDemo({ savedRoutines }: { savedRoutines: Routine[] }) {
             {index < selected.exercises.length - 1 && <Divider sx={{ mt: 2 }} />}
           </Box>)}
         </Stack></CardContent></Card> : <Card variant="outlined"><CardContent><Typography>Select a result to preview it, or create a new routine.</Typography></CardContent></Card>)}
+        </Stack>
       </Stack>
     </Box>
   </Stack>

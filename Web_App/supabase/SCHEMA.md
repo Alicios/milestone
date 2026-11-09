@@ -8,6 +8,42 @@ Historical migrations must not be replayed; see [README.md](README.md). Supabase
 manages authentication in `auth`; this application never stores password
 hashes in `public` tables.
 
+## Main routine editor and patient-change confirmation — pending deployment
+
+[20261109224647_confirmed_routine_patient_changes.sql](migrations/20261109224647_confirmed_routine_patient_changes.sql)
+has been implemented and checked against a disposable PostgreSQL baseline. It has
+**not** been applied to the shared project; deployment requires operator approval.
+Existing routines remain readable before deployment through schema-compatible
+reads. New editor saving and patient-change confirmations require this migration.
+
+The advanced editor replaces the former saved-routine page. `save_editor_routine`
+persists a validated `routines.editor_document`, including custom exercises,
+descriptions, rest, notes and private media paths, alongside the compatible
+`exercise_list`. New assignments capture an immutable `editor_snapshot`.
+
+`preview_routine_change` returns the provider-owned affected patients, dates,
+assignment counts and a concurrency token. `save_editor_routine` (edits) and
+`apply_routine_change` (deletion) recheck that token after acquiring patient,
+relationship, routine and assignment locks. A stale list aborts without writes.
+Only active-care assignments dated today or later, not started and without
+patient results or exercise feedback, are affected. Edits cancel and replace those
+assignments atomically, retaining scheduled follow-up times. Deletion cancels
+those assignments and scheduled follow-ups and sets `routines.archived_at`.
+Past, completed, in-progress, discharged-care and other historical snapshots stay
+intact. Archived routines cannot be assigned or edited.
+
+The private `routine-media` bucket accepts provider-owned images/videos. Files are
+immutable and remain readable to their provider and patients whose assignment
+snapshots reference them. Clients obtain expiring signed viewing URLs; saved
+documents contain storage paths rather than expiring URLs. Existing catalog media
+and legacy patient assignment APIs remain compatible.
+
+Validation: `npm run test:routines`, the routine editor Playwright suite, and
+`node supabase/tests/routine_changes_integration.mjs`. The latter uses disposable
+PGlite PostgreSQL and does not connect to or mutate the hosted project. Its setup
+command is documented at the top of the test. Physical-device verification and
+hosted transactional checks remain outstanding until deployment is approved.
+
 ## Sprint 3 catalog routines and prescriptions — deployed
 
 The project operator confirmed successful hosted deployment and verification of

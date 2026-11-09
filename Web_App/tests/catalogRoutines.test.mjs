@@ -30,7 +30,6 @@ const errors = loadTs('../src/lib/errors.ts')
 const prescriptions = loadTs('../src/lib/prescriptions.ts')
 const input = (exerciseId, values = {}) => ({ exerciseId, sets: null, reps: null, durationSeconds: null, notes: null, ...values })
 const payload = (exercise_id, values = {}) => ({ exercise_id, sets: null, reps: null, duration_seconds: null, notes: null, ...values })
-const tick = () => new Promise((resolve) => setImmediate(resolve))
 function transport(responses = {}, rpcResult = { data: 'routine-id' }) {
   const calls = []
   return { calls, supabase: {
@@ -39,24 +38,24 @@ function transport(responses = {}, rpcResult = { data: 'routine-id' }) {
       const operations = []
       calls.push({ table, operations })
       const chain = {}
-      for (const method of ['select', 'eq', 'order', 'in', 'gte', 'lte', 'neq', 'is']) chain[method] = (...args) => { operations.push([method, ...args]); return chain }
+      for (const method of ['select', 'eq', 'order', 'in', 'gte', 'lte', 'neq', 'is', 'range']) chain[method] = (...args) => { operations.push([method, ...args]); return chain }
       chain.then = (resolve, reject) => Promise.resolve(typeof responses[table] === 'function' ? responses[table](operations) : responses[table] ?? { data: [] }).then(resolve, reject)
       return chain
     },
   } }
 }
-const dataModule = (t) => loadTs('../src/lib/supabaseData.ts', { './supabase': t, './prescriptions': prescriptions })
+const dataModule = (t) => loadTs('../src/lib/supabaseData.ts', { './supabase': t, './prescriptions': prescriptions, './videoPreview': loadTs('../src/lib/videoPreview.ts') })
 
 test('catalog loads UUIDs and descriptions in stable server order, preserving duplicate labels', async () => {
   const t = transport({ exercises: { data: catalog.map((item) => ({ ...item, desc: item.description })) } })
-  const { loadExercises } = loadTs('../src/lib/exerciseData.ts', { './supabase': t, './prescriptions': prescriptions })
+  const { loadExercises } = loadTs('../src/lib/exerciseData.ts', { './supabase': t, './prescriptions': prescriptions, './videoPreview': loadTs('../src/lib/videoPreview.ts') })
   assert.deepEqual(await loadExercises(), catalog)
-  assert.deepEqual(t.calls, [{ table: 'exercises', operations: [['select', 'id, name, desc'], ['order', 'name'], ['order', 'id']] }])
+  assert.deepEqual(t.calls, [{ table: 'exercises', operations: [['select', 'id, name, desc, exercise_media(media)'], ['order', 'name'], ['order', 'id'], ['range', 0, 499]] }])
 })
 test('empty catalog and catalog read errors are surfaced without sample-data fallback', async () => {
   for (const result of [{ data: [] }, { error: { code: '42501', message: 'Denied' } }]) {
     const t = transport({ exercises: result })
-    const { loadExercises } = loadTs('../src/lib/exerciseData.ts', { './supabase': t, './prescriptions': prescriptions })
+    const { loadExercises } = loadTs('../src/lib/exerciseData.ts', { './supabase': t, './prescriptions': prescriptions, './videoPreview': loadTs('../src/lib/videoPreview.ts') })
     await assert.rejects(loadExercises(), result.error ? (error) => error.cause === result.error && error.code === 'FORBIDDEN' && error.sourceCode === '42501' : /catalog is unavailable/)
   }
 })
@@ -106,218 +105,6 @@ test('existing assignment contract and snapshot reads remain unchanged', async (
   const [assignment] = await data.loadRoutineAssignments(['profile'], '2026-10-20', '2026-10-26')
   assert.deepEqual(assignment.exercises, [{ id: 'snapshot', name: 'Original exercise', position: 0, sets: null, reps: null, durationSeconds: null, notes: null }])
   assert.equal(assignment.routineName, 'Original name')
-})
-
-function flatten(node) {
-  if (Array.isArray(node)) return node.flatMap(flatten)
-  if (node == null || typeof node === 'boolean') return []
-  return [node, ...flatten(node.props?.children)]
-}
-const text = (node) => flatten(node).filter((item) => typeof item === 'string').join(' ')
-function hooks() {
-  const state = []; const effects = []; let cursor = 0; let mounted = false
-  return {
-    react: {
-      useState(initial) { const index = cursor++; if (!(index in state)) state[index] = typeof initial === 'function' ? initial() : initial; return [state[index], (value) => { state[index] = typeof value === 'function' ? value(state[index]) : value }] },
-      useRef(initial) { const index = cursor++; if (!(index in state)) state[index] = { current: initial }; return state[index] },
-      useMemo: (fn) => fn(), useCallback: (fn) => fn,
-      useEffect: (effect) => { if (!mounted) effects.push(effect) },
-    },
-    render(fn) { cursor = 0; return flatten(fn()) },
-    mount() { mounted = true; effects.splice(0).forEach((effect) => effect()) },
-  }
-}
-const mui = Object.fromEntries(['Alert', 'Autocomplete', 'Box', 'Button', 'IconButton', 'InputAdornment', 'OutlinedInput', 'Stack', 'TextField', 'Typography', 'AppBar', 'Avatar', 'Container', 'Divider', 'Menu', 'MenuItem', 'Toolbar', 'Dialog', 'DialogActions', 'DialogContent', 'DialogContentText', 'DialogTitle'].map((name) => [name, name]))
-mui.useTheme = () => ({ palette: { mode: 'light', divider: '#ddd', background: { paper: '#fff' }, text: { primary: '#000' } } })
-function pageHarness({ routines = [], saveRoutine = async () => {}, deleteRoutine = async () => {}, loadExercises = async () => catalog } = {}) {
-  const hook = hooks()
-  const page = loadTs('../src/pages/RoutinesPage.tsx', {
-    react: hook.react, '@mui/material': mui,
-    'react-router-dom': { useOutletContext: () => ({ routines, saveRoutine, deleteRoutine }) },
-    '../components/RoutineDemo': { RoutineDemo: 'RoutineDemo' },
-    '../lib/exerciseData': { loadExercises }, '../lib/errors': errors, '../lib/prescriptions': prescriptions,
-  })
-  const render = () => hook.render(page.SavedRoutinesPage)
-  render(); hook.mount()
-  return { page, render, button: (label) => render().find((node) => node.type === 'Button' && text(node) === label)?.props,
-    field: (label) => render().find((node) => node.type === 'TextField' && node.props.label === label)?.props,
-    editor: () => render().find((node) => node.type === page.ExerciseEditor)?.props,
-  }
-}
-test('Routines page opens the Supabase saved editor by default', () => {
-  const h = pageHarness()
-  const root = hooks().render(h.page.RoutinesPage)
-  assert.equal(root.find((node) => node.type === 'RoutineDemo'), undefined)
-  assert.equal(root.find((node) => node.type === 'Box' && node.props.children?.type === h.page.SavedRoutinesPage).props.sx.display, 'block')
-})
-test('searchable exercise controls select by UUID, distinguish duplicate labels, and preserve reorder/remove operations', () => {
-  const h = pageHarness()
-  let selections = [{ key: '1', exerciseId: a }, { key: '2', exerciseId: b }]
-  const render = () => flatten(h.page.ExerciseEditor({ exercises: selections, catalog, disabled: false, onChange: (next) => { selections = next } }))
-  let controls = render().filter((node) => node.type === 'Autocomplete')
-  assert.equal(controls[0].props.freeSolo, undefined)
-  assert.equal(controls[0].props.getOptionKey(catalog[0]), a)
-  assert.equal(controls[0].props.isOptionEqualToValue(catalog[0], catalog[1]), false)
-  controls[0].props.onChange(null, catalog[1])
-  assert.equal(selections[0].exerciseId, b)
-  render().find((node) => node.props?.['aria-label'] === 'Move exercise 2 up').props.onClick()
-  assert.equal(selections[0].key, '2')
-  render().find((node) => node.props?.['aria-label'] === 'Remove exercise 1').props.onClick()
-  assert.equal(selections.length, 1)
-})
-test('editor enforces clinically plausible per-field bounds tighter than the raw storage limit', () => {
-  const h = pageHarness()
-  const selections = [{ key: '1', exerciseId: a, sets: '20', reps: '500', durationSeconds: '3600' }]
-  const fieldErrors = () => flatten(h.page.ExerciseEditor({ exercises: selections, catalog, disabled: false, onChange: () => {} }))
-    .filter((node) => node.type === 'TextField' && /^(Sets|Reps|Duration)/.test(node.props.label)).map((node) => node.props.error)
-  assert.deepEqual(fieldErrors(), [false, false, false])
-  for (const [field, tooHigh] of [['sets', '21'], ['reps', '501'], ['durationSeconds', '3601']]) {
-    selections[0] = { ...selections[0], sets: '20', reps: '500', durationSeconds: '3600', [field]: tooHigh }
-    assert.ok(fieldErrors().some(Boolean), `${field}=${tooHigh} should be rejected even though it is within the Postgres int32 storage limit`)
-  }
-})
-test('a catalog exercise reused elsewhere in the same routine is flagged but not blocked', () => {
-  const h = pageHarness()
-  const selections = [{ key: '1', exerciseId: a }, { key: '2', exerciseId: b }, { key: '3', exerciseId: a }]
-  const rendered = flatten(h.page.ExerciseEditor({ exercises: selections, catalog, disabled: false, onChange: () => {} }))
-  const notices = rendered.filter((node) => node.type === 'Alert' && node.props.severity === 'info')
-  assert.equal(notices.length, 2)
-  assert.match(text(notices[0]), /already elsewhere in this routine/)
-})
-test('create form requires catalog selection and sends UUIDs in selected order', async () => {
-  const saves = []
-  const h = pageHarness({ saveRoutine: async (...args) => saves.push(args) })
-  await tick()
-  h.button('New Routine').onClick()
-  h.field('Routine name').onChange({ target: { value: 'My routine' } })
-  assert.equal(h.button('Create Routine').disabled, true)
-  h.editor().onChange([{ key: '1', exerciseId: b }, { key: '2', exerciseId: a }])
-  assert.equal(h.button('Create Routine').disabled, false)
-  h.button('Create Routine').onClick(); await tick()
-  assert.deepEqual(saves, [[null, 'My routine', [input(b), input(a)]]])
-  assert.ok(h.button('New Routine'))
-})
-test('edit form retains saved catalog UUIDs and requires explicit replacements for legacy data', async () => {
-  for (const legacy of [false, true]) {
-    const saves = []
-    const h = pageHarness({ routines: [{ id: 'r', name: 'Stored', exercises: [{ id: 'slot', name: 'Saved label', position: 0, exerciseId: legacy ? null : a, requiresReview: legacy }] }], saveRoutine: async (...args) => saves.push(args) })
-    await tick()
-    h.button('Edit Routine').onClick()
-    h.render().find((node) => typeof node.props?.onClick === 'function' && node.props.routine?.id === 'r').props.onClick()
-    assert.equal(h.editor().exercises[0].exerciseId, legacy ? null : a)
-    assert.equal(h.button('Finish Editing').disabled, legacy)
-    if (legacy) h.editor().onChange([{ key: 'slot', exerciseId: b }])
-    h.button('Finish Editing').onClick(); await tick()
-    assert.deepEqual(saves, [['r', 'Stored', [input(legacy ? b : a)]]])
-  }
-})
-test('duplicating a routine prefills a new routine from it and leaves the original untouched', async () => {
-  const saves = []
-  const h = pageHarness({ routines: [{ id: 'r', name: 'Stored', exercises: [{ id: 'slot', name: 'Saved label', position: 0, exerciseId: a, sets: 3, reps: 10 }] }], saveRoutine: async (...args) => saves.push(args) })
-  await tick()
-  h.button('Edit Routine').onClick()
-  h.render().find((node) => typeof node.props?.onClick === 'function' && node.props.routine?.id === 'r').props.onClick()
-  h.render().find((node) => node.type === 'Button' && text(node) === 'Duplicate as New Routine').props.onClick()
-  assert.equal(h.field('Routine name').value, 'Stored (Copy)')
-  assert.equal(h.editor().exercises[0].exerciseId, a)
-  assert.equal(h.editor().exercises[0].sets, '3')
-  assert.ok(h.button('Create Routine'))
-  h.button('Create Routine').onClick(); await tick()
-  assert.deepEqual(saves, [[null, 'Stored (Copy)', [input(a, { sets: 3, reps: 10 })]]])
-})
-test('catalog failures block saves and display a safe error', async () => {
-  const h = pageHarness({ loadExercises: async () => { throw { message: 'Catalog permission denied' } } })
-  await tick(); h.button('New Routine').onClick()
-  h.field('Routine name').onChange({ target: { value: 'Name' } })
-  h.editor().onChange([{ key: '1', exerciseId: a }])
-  assert.equal(h.button('Create Routine').disabled, true)
-  assert.match(text(h.render()), /exercise catalog could not be loaded/)
-  assert.doesNotMatch(text(h.render()), /Catalog permission denied/)
-})
-async function layoutHarness({ save = async () => 'new-id', load = async () => [] } = {}) {
-  const hook = hooks(); const writes = []; const reads = []
-  const user = { id: 'provider-a', name: 'Provider' }
-  const { DashboardWorkspace: DashboardLayout } = loadTs('../src/components/DashboardLayout.tsx', {
-    react: hook.react, '@mui/material': mui,
-    'react-router-dom': { Link: 'Link', Outlet: 'Outlet', useLocation: () => ({ pathname: '/dashboard/routines' }) },
-    '../auth/AuthContext': { useAuth: () => ({ user, logout() {} }) },
-    '../lib/week': { getCurrentWeekDates: () => ['2026-10-20', '', '', '', '', '', '2026-10-26'] },
-    '../lib/errors': errors,
-    '../hooks/useAssignmentCalendar': { useAssignmentCalendar: () => ({ assignments: {}, occupied: {}, weekDates: [], policy: null, loading: false, refresh: async () => {}, invalidate() {} }) },
-    '../hooks/useScheduleOperations': { useScheduleOperations: () => ({ pending: [], busy: [], notice: '', storageError: '' }) },
-    '../lib/scheduleRecovery': loadTs('../src/lib/scheduleRecovery.ts'),
-    '../lib/scheduling': loadTs('../src/lib/scheduling.ts'),
-    './ScheduleRoutineDialog': { ScheduleRoutineDialog: 'ScheduleRoutineDialog' },
-    '../lib/supabaseData': {
-      loadPatients: async () => [], loadRoutineAssignments: async () => [],
-      loadRoutines: async (...args) => { reads.push(args); return load(reads.length) },
-      saveRoutine: async (...args) => { writes.push(args); return save() },
-    },
-  })
-  const render = () => hook.render(DashboardLayout)
-  const context = () => render().find((node) => node.type === 'Outlet').props.context
-  render(); hook.mount(); await tick()
-  return { render, context, writes, reads }
-}
-test('successful persistence reloads routines into the existing assignment context', async () => {
-  const saved = { id: 'new-id', name: 'Saved', exercises: [] }
-  const h = await layoutHarness({ load: async (count) => count === 1 ? [] : [saved] })
-  await h.context().saveRoutine(null, 'Saved', [input(a)])
-  assert.deepEqual(h.context().routines, [saved])
-  assert.deepEqual(h.writes, [[null, 'Saved', [input(a)]]])
-  assert.deepEqual(h.reads, [['provider-a'], ['provider-a']])
-})
-test('failed reload after a confirmed save resolves as saved; retry only reads and exposes the saved routine', async () => {
-  const saved = { id: 'new-id', name: 'Saved', exercises: [] }
-  const h = await layoutHarness({ load: async (count) => {
-    if (count === 2) throw new Error('Read failed')
-    return count > 2 ? [saved] : []
-  } })
-  await h.context().saveRoutine(null, 'Saved', [input(a)])
-  const warning = h.render().find((node) => node.type === 'Alert' && node.props.severity === 'warning')
-  assert.match(text(warning), /Routine saved successfully/)
-  warning.props.action.props.onClick(); await tick()
-  assert.equal(h.writes.length, 1)
-  assert.equal(h.reads.length, 3)
-  assert.deepEqual(h.context().routines, [saved])
-  assert.equal(h.render().find((node) => node.type === 'Alert' && node.props.severity === 'warning'), undefined)
-})
-test('save failures propagate without a reload or success message', async () => {
-  const failure = { message: 'Provider access denied' }
-  const h = await layoutHarness({ save: async () => { throw failure } })
-  await assert.rejects(h.context().saveRoutine(null, 'Saved', [input(a)]), (error) => error === failure)
-  assert.equal(h.reads.length, 1)
-  assert.equal(h.render().find((node) => node.type === 'Alert' && node.props.severity === 'warning'), undefined)
-})
-
-test('repeated loading failures retain confirmed-save status and never repeat the write', async () => {
-  const h = await layoutHarness({ load: async (count) => {
-    if (count > 1 && count < 4) throw { message: 'Read denied' }
-    return []
-  } })
-  await h.context().saveRoutine(null, 'Saved', [input(a)])
-  const warning = () => h.render().find((node) => node.type === 'Alert' && node.props.severity === 'warning')
-  warning().props.action.props.onClick(); await tick()
-  assert.match(text(warning()), /Routine saved successfully/)
-  warning().props.action.props.onClick(); await tick()
-  assert.equal(warning(), undefined)
-  assert.equal(h.writes.length, 1)
-  assert.equal(h.reads.length, 4)
-})
-test('rapid create submissions share the UI save guard', async () => {
-  let resolveSave
-  const pending = new Promise((resolve) => { resolveSave = resolve })
-  const writes = []
-  const h = pageHarness({ saveRoutine: (...args) => { writes.push(args); return pending } })
-  await tick(); h.button('New Routine').onClick()
-  h.field('Routine name').onChange({ target: { value: 'Named' } })
-  h.editor().onChange([{ key: '1', exerciseId: a }])
-  const submit = h.button('Create Routine').onClick
-  submit(); submit()
-  assert.equal(writes.length, 1)
-  assert.equal(h.button('Creating…').disabled, true)
-  resolveSave(); await tick()
-  assert.ok(h.button('New Routine'))
 })
 
 test('prescriptions round-trip through create, reload, edit and clear, retaining repeated UUIDs and order', async () => {
@@ -394,59 +181,6 @@ test('numeric text validation rejects zero, negatives, decimals and overflow; bl
   assert.equal(prescriptions.parsePrescriptionText('30'), 30)
 })
 
-test('exercise controls retain all prescription values when selecting, moving and removing entries', () => {
-  const h = pageHarness()
-  let selections = [{ key: '1', exerciseId: a, sets: '2', reps: '8', durationSeconds: '30', notes: 'First' },
-    { key: '2', exerciseId: b, sets: '3', notes: 'Second' }]
-  const render = () => flatten(h.page.ExerciseEditor({ exercises: selections, catalog, disabled: false, onChange: next => { selections = next } }))
-  render().find(n => n.type === 'TextField' && n.props.label === 'Reps — exercise 1').props.onChange({ target: { value: '12' } })
-  render().find(n => n.type === 'Autocomplete').props.onChange(null, catalog[1])
-  assert.equal(selections[0].reps, '12')
-  assert.equal(selections[0].notes, 'First')
-  render().find(n => n.props?.['aria-label'] === 'Move exercise 1 down').props.onClick()
-  assert.equal(selections[1].durationSeconds, '30')
-  render().find(n => n.props?.['aria-label'] === 'Remove exercise 1').props.onClick()
-  assert.equal(selections[0].notes, 'First')
-})
-
-test('create form blocks invalid prescriptions and submits optional numeric values and notes', async () => {
-  const saves = []
-  const h = pageHarness({ saveRoutine: async (...args) => saves.push(args) })
-  await tick(); h.button('New Routine').onClick()
-  h.field('Routine name').onChange({ target: { value: 'Prescription' } })
-  for (const field of ['sets', 'reps', 'durationSeconds']) {
-    h.editor().onChange([{ key: '1', exerciseId: a, [field]: '0' }])
-    assert.equal(h.button('Create Routine').disabled, true)
-    h.button('Create Routine').onClick(); await tick()
-  }
-  assert.equal(saves.length, 0)
-  h.editor().onChange([{ key: '1', exerciseId: a, sets: '2', reps: '8', durationSeconds: '', notes: 'Control movement' }])
-  h.button('Create Routine').onClick(); await tick()
-  assert.deepEqual(saves, [[null, 'Prescription', [input(a, { sets: 2, reps: 8, notes: 'Control movement' })]]])
-})
-
-test('edit form hydrates stored prescriptions, supports clearing duration, and cancel does not save', async () => {
-  const saves = []
-  const routines = [{ id: 'r', name: 'Stored', exercises: [{ id: 'slot', name: 'Catalog', position: 0,
-    ...input(a, { sets: 2, reps: 10, durationSeconds: 30, notes: 'Original notes' }) }] }]
-  const h = pageHarness({ routines, saveRoutine: async (...args) => saves.push(args) })
-  await tick()
-  const open = () => {
-    h.button('Edit Routine').onClick()
-    h.render().find(n => n.props?.routine?.id === 'r').props.onClick()
-  }
-  open()
-  assert.deepEqual(h.editor().exercises[0], { key: 'slot', exerciseId: a, originalName: 'Catalog',
-    sets: '2', reps: '10', durationSeconds: '30', notes: 'Original notes' })
-  h.editor().onChange([{ ...h.editor().exercises[0], durationSeconds: '', notes: '' }])
-  h.button('Cancel').onClick()
-  assert.equal(saves.length, 0)
-  open()
-  h.editor().onChange([{ ...h.editor().exercises[0], durationSeconds: '', notes: 'Changed' }])
-  h.button('Finish Editing').onClick(); await tick()
-  assert.deepEqual(saves, [['r', 'Stored', [input(a, { sets: 2, reps: 10, notes: 'Changed' })]]])
-})
-
 test('assignment reads use stored prescription snapshots', async () => {
   const t = transport({
     routine_assignments: { data: [{ id: 'assignment', patient_profile_id: 'profile', routine_id: 'r',
@@ -485,49 +219,102 @@ test('deletion uses the ownership-checked delete RPC and propagates failures', a
   await assert.rejects(dataModule(transport({}, { error: failure })).deleteRoutine('foreign-id'), e => e.code === 'ROUTINE_NOT_FOUND' && e.sourceCode === 'P0002' && e.cause === failure)
 })
 
-test('routine retrieval works with the live schema without archive columns', async () => {
+test('routine retrieval hides removed templates while retaining provider scope', async () => {
   const t = transport()
   await dataModule(t).loadRoutines('provider-a')
-  assert.ok(!t.calls[0].operations.some(op => op.includes('archived_at')))
+  assert.ok(t.calls[0].operations.some(op => op[0] === 'is' && op[1] === 'archived_at' && op[2] === null))
   assert.ok(t.calls[0].operations.some(op => op[0] === 'eq' && op[1] === 'provider_id' && op[2] === 'provider-a'))
 })
 
-test('routine deletion requires confirmation, blocks duplicate requests, and returns to the list', async () => {
-  const calls = []; let finish
-  const h = pageHarness({ routines: [{ id: 'r', name: 'Stored', exercises: [] }], deleteRoutine: id => {
-    calls.push(id); return new Promise(resolve => { finish = resolve })
-  } })
-  await tick()
-  h.button('Edit Routine').onClick()
-  h.render().find(node => node.props?.routine?.id === 'r').props.onClick()
-  h.render().filter(node => node.type === 'Button' && text(node) === 'Delete Routine').at(-1).props.onClick()
-  assert.equal(calls.length, 0)
-  assert.equal(h.render().find(node => node.type === 'Dialog').props.open, true)
-  h.button('Keep Routine').onClick()
-  assert.equal(h.render().find(node => node.type === 'Dialog').props.open, false)
-  h.render().filter(node => node.type === 'Button' && text(node) === 'Delete Routine').at(-1).props.onClick()
-  const confirm = h.render().filter(node => node.type === 'Button' && text(node) === 'Delete Routine').at(0)
-  confirm.props.onClick(); confirm.props.onClick()
-  assert.deepEqual(calls, ['r'])
-  assert.ok(h.render().filter(node => node.type === 'Button' && text(node) === 'Deleting…').every(node => node.props.disabled))
-  finish(); await tick()
-  assert.ok(h.button('New Routine'))
+test('routine reads tolerate missing editor columns without losing the provider scope or available archive filter', async () => {
+  for (const missing of [['editor_document'], ['archived_at'], ['editor_document', 'archived_at']]) {
+    const t = transport({ routines: (operations) => {
+      const columns = operations.find(([method]) => method === 'select')[1]
+      const archiveFilter = operations.some(([method, column]) => method === 'is' && column === 'archived_at')
+      const absent = missing.find((column) => column === 'editor_document' ? columns.includes(column) : archiveFilter)
+      return absent ? { error: { code: '42703', message: `column routines.${absent} does not exist` } }
+        : { data: [{ id: 'r', name: 'Existing routine', exercise_list: [] }] }
+    } })
+    const [routine] = await dataModule(t).loadRoutines('provider-a')
+    assert.equal(routine.name, 'Existing routine')
+    assert.equal(t.calls.length, missing.length + 1)
+    assert.ok(t.calls.every(({ operations }) => operations.some(([method, column, id]) => method === 'eq' && column === 'provider_id' && id === 'provider-a')))
+    assert.equal(t.calls.at(-1).operations.some(([method]) => method === 'is'), !missing.includes('archived_at'))
+  }
 })
 
-test('failed deletion retains the editor and shows the error in the confirmation', async () => {
-  const h = pageHarness({ routines: [{ id: 'r', name: 'Stored', exercises: [] }], deleteRoutine: async () => { throw { message: 'Access denied' } } })
-  await tick(); h.button('Edit Routine').onClick()
-  h.render().find(node => node.props?.routine?.id === 'r').props.onClick()
-  h.render().filter(node => node.type === 'Button' && text(node) === 'Delete Routine').at(-1).props.onClick()
-  h.render().filter(node => node.type === 'Button' && text(node) === 'Delete Routine').at(0).props.onClick()
-  await tick()
-  assert.equal(h.render().find(node => node.type === 'Dialog').props.open, true)
-  assert.match(text(h.render()), /routine could not be deleted/); assert.doesNotMatch(text(h.render()), /Access denied/)
-  assert.ok(h.button('Finish Editing'))
+test('routine reads do not retry authorization failures as schema compatibility reads', async () => {
+  const t = transport({ routines: { error: { code: '42501', message: 'Denied editor_document access' } } })
+  await assert.rejects(dataModule(t).loadRoutines('provider-a'), (error) => error.code === 'FORBIDDEN')
+  assert.equal(t.calls.length, 1)
+})
+
+test('undeployed editor writes explain the missing database update instead of claiming success', async () => {
+  const t = transport({}, { error: { code: 'PGRST202', message: 'Missing RPC' } })
+  await assert.rejects(dataModule(t).loadRoutineChangeImpact('r'), /waiting for the database update/)
 })
 
 test('deletion of assigned routines explains the history protection', async () => {
   const t = transport({}, { error: { code: '23503', message: 'Foreign key violation' } })
   await assert.rejects(dataModule(t).deleteRoutine('assigned-id'), /patient assignments and cannot be deleted/)
   assert.equal(t.calls.length, 1)
+})
+
+const editorDocument = () => ({ id: 'draft', name: 'Saved editor plan', description: 'Routine instructions', source: 'provider', exercises: [{
+  id: 'exercise', name: 'Custom exercise', description: 'Movement instructions', sets: '3', repetitions: '8', duration: '30', rest: '45', notes: 'Provider notes', media: [],
+}] })
+
+test('main editor persists the full document and passes the reviewed impact token for edits', async () => {
+  const t = transport()
+  const doc = editorDocument()
+  assert.equal(await dataModule(t).saveRoutineDocument(null, doc), 'routine-id')
+  await dataModule(t).saveRoutineDocument('routine-id', doc, 'reviewed-token')
+  assert.deepEqual(t.calls, [
+    { rpc: 'save_editor_routine', args: { p_routine_id: null, p_document: doc, p_token: null } },
+    { rpc: 'save_editor_routine', args: { p_routine_id: 'routine-id', p_document: doc, p_token: 'reviewed-token' } },
+  ])
+})
+
+test('deletion sends the reviewed token and stale impact errors require a new confirmation', async () => {
+  const t = transport()
+  await dataModule(t).deleteRoutine('routine-id', 'reviewed-token')
+  assert.deepEqual(t.calls, [{ rpc: 'apply_routine_change', args: { p_routine_id: 'routine-id', p_action: 'delete', p_token: 'reviewed-token' } }])
+  const failure = transport({}, { error: { code: '40001', message: 'Untrusted backend message' } })
+  await assert.rejects(dataModule(failure).saveRoutineDocument('r', editorDocument(), 'stale'), (error) => error.code === 'CONFLICT' && error.sourceCode === '40001' && /Review the refreshed list/.test(error.message))
+  assert.equal(failure.calls.length, 1)
+})
+
+test('impact reads fail closed instead of treating errors or malformed responses as an empty patient list', async () => {
+  for (const result of [{ data: null }, { data: { patients: [] } }, { error: { code: '42501' } }]) {
+    const t = transport({}, result)
+    await assert.rejects(dataModule(t).loadRoutineChangeImpact('r'))
+    assert.equal(t.calls[0].rpc, 'preview_routine_change')
+  }
+})
+
+test('private media resolves for viewing and stores durable paths rather than expiring signed URLs', async () => {
+  const doc = editorDocument()
+  doc.exercises[0].media = [{ id: 'media', kind: 'image', name: 'Picture', caption: 'Caption', storagePath: 'provider/file.png', url: '' }]
+  const t = transport({ routines: { data: [{ id: 'r', name: doc.name, description: doc.description, editor_document: doc, exercise_list: [] }] } })
+  const signed = []
+  t.supabase.storage = { from: (bucket) => ({ createSignedUrl: async (path, seconds) => { signed.push([bucket, path, seconds]); return { data: { signedUrl: 'https://example.invalid/signed.png?token=temporary' } } } }) }
+  const [loaded] = await dataModule(t).loadRoutines('provider')
+  assert.equal(loaded.editorDocument.exercises[0].media[0].url, 'https://example.invalid/signed.png?token=temporary')
+  await dataModule(t).saveRoutineDocument('r', loaded.editorDocument, 'reviewed')
+  const persisted = t.calls.at(-1).args.p_document.exercises[0].media[0]
+  assert.equal(persisted.storagePath, 'provider/file.png')
+  assert.equal(persisted.url, '')
+  assert.equal(loaded.editorDocument.exercises[0].media[0].url, 'https://example.invalid/signed.png?token=temporary')
+  assert.deepEqual(signed, [['routine-media', 'provider/file.png', 3600]])
+})
+
+test('patient media loader signs private assignment files and preserves uploaded video playback', async () => {
+  const calls = []
+  const { loadAssignmentDemonstrations } = loadTs('../../Mobile_App/milestone/lib/exerciseDemonstrations.js', { './supabase': { supabase: {
+    rpc: async () => ({ data: [{ assignment_exercise_id: 'snapshot', instructions: 'Instructions', media: [{ kind: 'video-link', storagePath: 'provider/file.mp4', url: '', title: 'Video', preview: { kind: 'video', url: '' } }] }] }),
+    storage: { from: (bucket) => ({ createSignedUrl: async (path) => { calls.push([bucket, path]); return { data: { signedUrl: 'https://example.invalid/video.mp4?token=temporary' } } } }) },
+  } } })
+  const result = await loadAssignmentDemonstrations('assignment')
+  assert.equal(result.get('snapshot').media[0].preview.url, 'https://example.invalid/video.mp4?token=temporary')
+  assert.deepEqual(calls, [['routine-media', 'provider/file.mp4']])
 })

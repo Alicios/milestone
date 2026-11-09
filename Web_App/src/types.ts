@@ -91,7 +91,18 @@ export interface ExercisePatientFeedback {
 export interface Routine {
   id: string
   name: string
+  description?: string
+  editorDocument?: import('./lib/routinePrototype').DemoRoutine | null
   exercises: RoutineExercise[]
+}
+
+export interface RoutineChangeImpact {
+  routineId: string
+  name: string
+  token: string
+  assignmentCount: number
+  preservedCount: number
+  patients: { id: string; name: string; assignmentCount: number; dates: string[] }[]
 }
 
 export type RoutineAssignmentStatus = 'scheduled' | 'completed' | 'missed' | 'modified' | 'cancelled'

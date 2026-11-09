@@ -24,7 +24,7 @@ export async function setup(context, options = {}) {
     ],
     assignments: [], snapshots: [], exerciseFeedback: [], failExerciseFeedback: false, receipts: new Map(), writes: [], previews: [], cancellations: [], reads: [],
     lostResponse: false, rejectBatch: null, failReload: false, failReceipt: false, cancelledResponseLost: false,
-    foreignDates: [], holdRead: null, ...options,
+    foreignDates: [], holdRead: null, routineChangeWrites: [], routineUploads: [], failRoutineImpact: false, ...options,
   }
   const initialSession = options.initialSession === undefined ? session : options.initialSession
   await context.addInitScript(({ sessionKey, session }) => {
@@ -38,7 +38,7 @@ export async function setup(context, options = {}) {
     const url = new URL(route.request().url())
     if (url.hostname === '127.0.0.1') return route.continue()
     if (url.hostname !== 'scrum64-test.supabase.co') return route.abort()
-    const body = route.request().postDataJSON() || {}
+    const body = url.pathname.startsWith('/storage/') ? {} : route.request().postDataJSON() || {}
     const reply = (data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) })
     const failure = (code, message) => reply({ code, message }, 400)
     if (url.pathname.includes('/auth/')) {
@@ -47,7 +47,38 @@ export async function setup(context, options = {}) {
       return reply(session.user)
     }
     const name = url.pathname.split('/').at(-1)
+    if (url.pathname.startsWith('/storage/v1/object/sign/')) return route.request().method() === 'GET'
+      ? route.fulfill({ contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jhAAAAABJRU5ErkJggg==', 'base64') })
+      : reply({ signedURL: `/object/sign/routine-media/fixture.png?token=fixture` })
+    if (url.pathname.startsWith('/storage/v1/object/routine-media/')) {
+      state.routineUploads.push(url.pathname)
+      return reply({ Key: url.pathname.split('/object/')[1] })
+    }
     if (url.pathname.includes('/rpc/')) {
+      const eligibleRoutineAssignments = (id) => state.assignments.filter((a) => a.routine_id === id && a.scheduled_date >= policy.today && ['scheduled', 'modified'].includes(a.status) && !a.patient_in_progress && !a.patient_result_source)
+      const routineImpact = (id) => {
+        const routine = state.routines.find((r) => r.id === id)
+        const eligible = eligibleRoutineAssignments(id)
+        const profiles = [...new Set(eligible.map((a) => a.patient_profile_id))]
+        const patients = profiles.map((id) => ({ id, name: id === profile ? 'Synthetic Browser Patient' : 'Second Browser Patient', assignmentCount: eligible.filter((a) => a.patient_profile_id === id).length, dates: eligible.filter((a) => a.patient_profile_id === id).map((a) => a.scheduled_date) }))
+        return { routineId: id, name: routine?.name, token: token([routine, eligible.map((a) => a.id)]), patients, assignmentCount: eligible.length, preservedCount: state.assignments.filter((a) => a.routine_id === id).length - eligible.length }
+      }
+      if (name === 'preview_routine_change') return state.failRoutineImpact ? failure('42501', 'Impact denied') : reply(routineImpact(body.p_routine_id))
+      if (name === 'save_editor_routine' || name === 'apply_routine_change') {
+        const id = body.p_routine_id || randomUUID()
+        if (body.p_routine_id && body.p_token !== routineImpact(id).token) return failure('40001', 'Routine changed')
+        state.routineChangeWrites.push(body)
+        const affected = eligibleRoutineAssignments(id)
+        for (const assignment of affected) assignment.status = 'cancelled'
+        if (body.p_action === 'delete') state.routines = state.routines.filter((r) => r.id !== id)
+        else {
+          const document = body.p_document
+          const routine = { id, name: document.name.trim(), description: document.description, editor_document: { ...document, id, source: 'provider' }, exercise_list: document.exercises.map((e) => ({ exercise_id: e.catalogId || null, name: e.name, sets: e.sets ? Number(e.sets) : null, reps: e.repetitions ? Number(e.repetitions) : null, duration_seconds: e.duration ? Number(e.duration) : null, notes: e.notes || null })) }
+          state.routines = [...state.routines.filter((r) => r.id !== id), routine]
+          for (const old of affected) state.assignments.push({ ...old, id: randomUUID(), status: 'scheduled', routine_name_snapshot: routine.name })
+        }
+        return reply(id)
+      }
       if (name === 'get_patient_onboarding_statuses') return reply([])
       if (name === 'get_routine_scheduling_policy') return reply(policy)
       if (name === 'get_patient_schedule_occupancy') return reply([

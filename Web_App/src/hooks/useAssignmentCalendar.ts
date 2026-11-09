@@ -3,11 +3,13 @@ import { loadRoutineAssignments } from '../lib/supabaseData'
 import { loadScheduleOccupancy, loadSchedulingPolicy } from '../lib/schedulingData'
 import { RequestEpoch, scheduleError, weekDatesFor, type OccupiedDate, type SchedulingPolicy } from '../lib/scheduling'
 import type { RoutineAssignment } from '../types'
+import { monthDatesFor } from '../lib/calendarMonth'
 
 export type AssignmentCalendar = Record<string, Record<string, RoutineAssignment[]>>
 export function useAssignmentCalendar(providerId: string | undefined, profileIds: string[]) {
   const [policy, setPolicy] = useState<SchedulingPolicy | null>(null)
   const [selectedWeek, setSelectedWeek] = useState('')
+  const [calendarMonth, setCalendarMonth] = useState<string | null>(null)
   const [rows, setRows] = useState<{ key: string; assignments: AssignmentCalendar; occupied: Record<string, OccupiedDate[]> } | null>(null)
   const [error, setError] = useState('')
   const [policyError, setPolicyError] = useState('')
@@ -18,7 +20,10 @@ export function useAssignmentCalendar(providerId: string | undefined, profileIds
   const ids = [...profileIds].sort().join(',')
   const weekStart = selectedWeek || (policy ? weekDatesFor(policy.today)[0] : '')
   const weekDates = useMemo(() => weekStart ? weekDatesFor(weekStart) : [], [weekStart])
-  const key = `${providerId}/${ids}/${weekStart}`
+  const calendarDates = useMemo(() => calendarMonth ? monthDatesFor(calendarMonth) : weekDates, [calendarMonth, weekDates])
+  const rangeStart = calendarDates[0]
+  const rangeEnd = calendarDates.at(-1)
+  const key = `${providerId}/${ids}/${rangeStart}/${rangeEnd}`
   const activeKey = useRef(key)
   activeKey.current = key
   const activeProvider = useRef(providerId)
@@ -46,8 +51,8 @@ export function useAssignmentCalendar(providerId: string | undefined, profileIds
       try {
         const profiles = ids ? ids.split(',') : []
         const [assignments, occupied] = await Promise.all([
-          loadRoutineAssignments(profiles, weekDates[0], weekDates[6]),
-          Promise.all(profiles.map(async (id) => [id, await loadScheduleOccupancy(id, weekDates[0], weekDates[6])] as const)),
+          loadRoutineAssignments(profiles, rangeStart, rangeEnd!),
+          Promise.all(profiles.map(async (id) => [id, await loadScheduleOccupancy(id, rangeStart, rangeEnd!)] as const)),
         ])
         if (!eligible()) return
         const grouped: AssignmentCalendar = {}
@@ -67,11 +72,11 @@ export function useAssignmentCalendar(providerId: string | undefined, profileIds
     inFlight.current = { key, current, promise }
     void promise.finally(() => { if (inFlight.current?.promise === promise) inFlight.current = null }).catch(() => {})
     return promise
-  }, [providerId, ids, weekStart, weekDates, key])
+  }, [providerId, ids, weekStart, rangeStart, rangeEnd, key])
   const invalidate = useCallback(() => { epoch.current.invalidate(); setRows(null) }, [])
 
   useEffect(() => {
-    setPolicy(null); setSelectedWeek(''); setRows(null); setError(''); setPolicyError('')
+    setPolicy(null); setSelectedWeek(''); setCalendarMonth(null); setRows(null); setError(''); setPolicyError('')
     void refreshPolicy()
     return () => { policyEpoch.current.invalidate(); epoch.current.invalidate() }
   }, [refreshPolicy])
@@ -90,7 +95,7 @@ export function useAssignmentCalendar(providerId: string | undefined, profileIds
     const timer = window.setInterval(() => { if (document.visibilityState === 'visible') reload() }, 60_000)
     return () => { window.removeEventListener('focus', reload); window.removeEventListener('storage', storageChanged); document.removeEventListener('visibilitychange', becameVisible); window.clearInterval(timer) }
   }, [refresh, refreshPolicy, invalidate])
-  return { policy, weekDates, setWeek: setSelectedWeek, refreshPolicy, refresh, invalidate,
+  return { policy, weekDates, calendarDates, calendarMonth, setCalendarMonth, setWeek: setSelectedWeek, refreshPolicy, refresh, invalidate,
     assignments: rows?.key === key ? rows.assignments : {}, occupied: rows?.key === key ? rows.occupied : {},
     loading: loading || !rows || rows.key !== key, refreshing: loading, error: policyError || error }
 }

@@ -4,8 +4,9 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined'
 import VpnKeyOutlinedIcon from '@mui/icons-material/VpnKeyOutlined'
 import PersonRemoveOutlinedIcon from '@mui/icons-material/PersonRemoveOutlined'
-import { Alert, Box, Button, Card, Chip, Link, Stack, Tab, Tabs, Typography } from '@mui/material'
+import { Alert, Box, Button, Card, Chip, Link, Stack, Tab, Tabs, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material'
 import { PatientWeekCalendar } from '../components/PatientWeekCalendar'
+import { PatientMonthCalendar } from '../components/PatientMonthCalendar'
 import { withinHorizon } from '../lib/scheduling'
 import { prescriptionSummary } from '../lib/prescriptions'
 import { inviteExistingPatient, type PatientLoginCode } from '../lib/supabaseData'
@@ -16,7 +17,7 @@ import { DischargePatientDialog } from '../components/DischargePatientDialog'
 import { FollowUpDialog } from '../components/FollowUpDialog'
 import { PatientAvatar } from '../components/PatientAvatar'
 import { RemoveRoutineDialog } from '../components/RemoveRoutineDialog'
-import { weekdayNames, type Patient } from '../data/mockPatients'
+import { type Patient } from '../data/mockPatients'
 import { formatCalendarDate } from '../lib/week'
 import type { RoutineAssignment } from '../types'
 import { resolveRoutineStatus } from '../lib/routineStatus'
@@ -32,7 +33,7 @@ function Detail({ label, children }: { label: string; children?: ReactNode }) {
 }
 
 function PatientOverview({ patient }: { patient: Patient }) {
-  const { assignments, weekDates, policy, occupied, setWeek, assignmentsLoading, assignmentsError, retryAssignments, openSchedule, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, dischargePatient } = useOutletContext<DashboardOutletContext>()
+  const { assignments, weekDates, calendarDates, calendarMonth, setCalendarMonth, policy, occupied, setWeek, assignmentsLoading, assignmentsError, retryAssignments, openSchedule, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, dischargePatient, reinstatePatient } = useOutletContext<DashboardOutletContext>()
   const navigate = useNavigate()
   const heading = useRef<HTMLHeadingElement>(null)
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null)
@@ -40,6 +41,7 @@ function PatientOverview({ patient }: { patient: Patient }) {
   const [followUpAssignment, setFollowUpAssignment] = useState<RoutineAssignment | null>(null)
   const [editingDetails, setEditingDetails] = useState(false)
   const [confirmDischarge, setConfirmDischarge] = useState(false)
+  const [reinstating, setReinstating] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [error, setError] = useState('')
   const [inviting, setInviting] = useState(false)
@@ -94,14 +96,15 @@ function PatientOverview({ patient }: { patient: Patient }) {
             <Typography ref={heading} tabIndex={-1} component="h1" variant="h3" sx={{ fontSize: { xs: '1.8rem', sm: '2.5rem' }, overflowWrap: 'anywhere' }}>{patient.name}</Typography>
           </Box>
         </Stack>
-        <Chip label={patient.careStatus === 'active' ? 'Active patient' : 'Pending patient'} color={patient.careStatus === 'active' ? 'success' : 'default'} variant="outlined" sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }} />
+        <Chip label={patient.dischargedAt ? 'Discharged patient' : patient.careStatus === 'active' ? 'Active patient' : 'Pending patient'} color={!patient.dischargedAt && patient.careStatus === 'active' ? 'success' : 'default'} variant="outlined" sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }} />
       </Stack>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ mt: 1.5 }}>
         <Typography color="text.secondary">Start of care: {startOfCare || 'Not provided'}</Typography>
-        <Button variant="outlined" onClick={() => setEditingDetails(true)}>Edit patient details</Button>
+        <Button disabled={Boolean(patient.dischargedAt)} variant="outlined" onClick={() => setEditingDetails(true)}>Edit patient details</Button>
       </Stack>
     </Card>
 
+    {patient.dischargedAt && <Alert severity="info" sx={{ mb: 2 }}>Discharged on {new Date(patient.dischargedAt).toLocaleDateString()}. {patient.retentionEndsAt ? <>This provider's profile and history will be permanently deleted on {new Date(patient.retentionEndsAt).toLocaleDateString()}. Reinstate before then to retain them.</> : <>You can review this patient's details and clinical history below.</>}</Alert>}
     <Tabs value="overview" variant="scrollable" scrollButtons="auto" aria-label="Patient sections" sx={{ borderBottom: 1, borderColor: 'divider', mb: 1, '& .MuiTab-root': { minWidth: 0, fontSize: { xs: '.75rem', sm: '.875rem' } } }}>
       <Tab value="overview" id="patient-overview-tab" aria-controls="patient-overview-panel" label="Overview" sx={{ px: { xs: 1, sm: 2 } }} />
       <Tab disabled label="Notes · Coming Soon" sx={{ px: { xs: 1, sm: 2 } }} />
@@ -128,7 +131,7 @@ function PatientOverview({ patient }: { patient: Patient }) {
         </Card>
         <Card component="section" aria-labelledby="patient-actions-heading" sx={{ p: { xs: 2.5, sm: 3 } }}>
           <Typography id="patient-actions-heading" component="h2" variant="h6" sx={{ mb: 1 }}>Patient controls</Typography>
-          <Stack spacing={1.5} sx={{ mb: 2 }}>
+          {!patient.dischargedAt && <Stack spacing={1.5} sx={{ mb: 2 }}>
             {patient.hasAccount && <Typography variant="body2" color="success.main">This patient has an account.</Typography>}
             <Typography variant="body2" color="text.secondary">
               {!patient.email ? 'Add an email address before generating a login code.' : patient.hasAccount ? 'Generate a new login code for this patient, e.g. for a new device.' : 'Generate this patient a login code to set up their account.'}
@@ -142,29 +145,51 @@ function PatientOverview({ patient }: { patient: Patient }) {
             <Button variant="outlined" startIcon={<VpnKeyOutlinedIcon />} disabled={!patient.email || inviting} onClick={() => void invitePatient()} sx={{ alignSelf: 'flex-start' }}>
               {inviting ? 'Generating…' : 'Generate login code'}
             </Button>
-          </Stack>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Discharge this patient to hide them from active care while retaining their clinical history.</Typography>
-          <Button variant="outlined" color="error" startIcon={<PersonRemoveOutlinedIcon />} onClick={() => setConfirmDischarge(true)}>Discharge Patient</Button>
+          </Stack>}
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Discharged profiles and clinical history are retained for six months. Reinstate care before the deletion date to keep them.</Typography>
+          {patient.dischargedAt ? <Button variant="contained" disabled={reinstating} onClick={async () => {
+            setReinstating(true); setError('')
+            try { await reinstatePatient(patient.id); setFeedback('Patient reinstated to your current patient list.') }
+            catch (cause) { setError(errorMessage(cause, 'The patient could not be reinstated.')) }
+            finally { setReinstating(false) }
+          }}>{reinstating ? 'Reinstating…' : 'Reinstate patient'}</Button> : <Button variant="outlined" color="error" startIcon={<PersonRemoveOutlinedIcon />} onClick={() => setConfirmDischarge(true)}>Discharge Patient</Button>}
         </Card>
       </Box>
       <Card component="section" aria-labelledby="patient-routines-heading" sx={{ p: { xs: 2.5, sm: 3 } }}>
         <Typography id="patient-routines-heading" component="h2" variant="h6">Assigned routines</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: .5, mb: 2.5 }}>Assigned routines and patient feedback for the selected week.</Typography>
-        <Button variant="outlined" disabled={!policy || !weekDates.some((date) => withinHorizon(date, policy)) || assignmentsLoading} onClick={() => openSchedule(patient)}>Schedule week</Button>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: .5, mb: 2.5 }}>Assigned routines and patient feedback for the selected calendar view.</Typography>
+        <ToggleButtonGroup exclusive value={calendarMonth ? 'month' : 'week'} aria-label="Calendar view" size="small" sx={{ display: 'flex', width: 'fit-content', mb: 2 }} onChange={(_, view: string | null) => {
+          if (!view) return
+          setSelectedAssignmentId(null)
+          if (view === 'month') {
+            const anchor = policy && weekDates.includes(policy.today) ? policy.today : weekDates[3]
+            setCalendarMonth(`${anchor.slice(0, 7)}-01`)
+          } else {
+            if (calendarMonth && weekDates[3]?.slice(0, 7) !== calendarMonth.slice(0, 7)) setWeek(`${calendarMonth.slice(0, 7)}-07`)
+            setCalendarMonth(null)
+          }
+        }}>
+          <ToggleButton value="week" disabled={!weekDates.length}>Weekly</ToggleButton>
+          <ToggleButton value="month" disabled={!weekDates.length}>Monthly</ToggleButton>
+        </ToggleButtonGroup>
+        {!calendarMonth && <Button variant="outlined" disabled={Boolean(patient.dischargedAt) || !policy || !weekDates.some((date) => withinHorizon(date, policy)) || assignmentsLoading} onClick={() => openSchedule(patient)}>Schedule week</Button>}
         <Box sx={{ minWidth: 0, mt: 2 }}>
-          <PatientWeekCalendar patient={patient} assignments={patientAssignments} weekDates={weekDates} policy={policy}
+          {calendarMonth ? <PatientMonthCalendar patient={patient} month={calendarMonth} dates={calendarDates} assignments={patientAssignments} policy={policy}
+            occupied={occupied[patient.profileId] ?? []} loading={assignmentsLoading} selectedAssignmentId={selectedAssignmentId} detailsId="patient-assignment-details"
+            onSelect={(id) => setSelectedAssignmentId(current => current === id ? null : id)} onAssign={date => openSchedule(patient, date)}
+            onMonthChange={month => { setSelectedAssignmentId(null); setCalendarMonth(month) }} /> : <PatientWeekCalendar patient={patient} assignments={patientAssignments} weekDates={weekDates} policy={policy}
             occupied={occupied[patient.profileId] ?? []} loading={assignmentsLoading} selectedAssignmentId={selectedAssignmentId}
             detailsId="patient-assignment-details" onSelect={(id) => setSelectedAssignmentId((current) => current === id ? null : id)}
-            onAssign={(index) => openSchedule(patient, weekDates[index])} onWeekChange={setWeek} />
+            onAssign={(index) => openSchedule(patient, weekDates[index])} onWeekChange={setWeek} />}
         </Box>
         <RoutineStatusLegend />
         {assignmentsError && <Alert severity="error" sx={{ mt: 2 }} action={<Button onClick={retryAssignments}>Retry details</Button>}>{assignmentsError}</Alert>}
         <Box id="patient-assignment-details">
-          {weekDates.map((date, index) => {
+          {calendarDates.map((date) => {
             const dayAssignments = (patientAssignments[date] ?? []).filter((assignment) => assignment.status !== 'cancelled' && assignment.id === selectedAssignmentId)
             if (!dayAssignments.length) return null
             return <Box component="section" key={date} sx={{ py: 2 }}>
-              <Typography fontWeight={700}>{weekdayNames[index]}, {formatCalendarDate(date)}</Typography>
+              <Typography fontWeight={700}>{formatCalendarDate(date, { weekday: 'long', month: 'short', day: 'numeric' })}</Typography>
               <Stack spacing={1.5} sx={{ mt: dayAssignments.length ? 1.25 : 0 }}>
                 {dayAssignments.map((assignment) => <RoutineStatusCard key={assignment.id} presentation={resolveRoutineStatus(assignment, policy?.today)!}>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between">
@@ -184,7 +209,7 @@ function PatientOverview({ patient }: { patient: Patient }) {
                       })}
                       </Stack>
                     </Box>
-                    <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={.75} sx={{ flexShrink: 0 }}>
+                    <Stack alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={.75} sx={{ flexShrink: 0, display: patient.dischargedAt ? 'none' : undefined }}>
                       {assignment.followUp?.status !== 'completed' && <Button size="small" startIcon={<EventOutlinedIcon />} onClick={() => setFollowUpAssignment(assignment)}>{assignment.followUp?.status === 'scheduled' ? 'Reschedule' : 'Schedule follow-up'}</Button>}
                       {assignment.followUp?.status === 'scheduled' && <><Button size="small" color="success" onClick={() => void completeFollowUp(assignment.id).then(() => setFeedback('Follow-up marked complete.')).catch((followUpError: Error) => setError(errorMessage(followUpError, 'The follow-up could not be updated.')))}>Mark follow-up complete</Button><Button size="small" color="warning" onClick={() => void cancelFollowUp(assignment.id).then(() => setFeedback('Follow-up cancelled.')).catch((followUpError: Error) => setError(errorMessage(followUpError, 'The follow-up could not be updated.')))}>Cancel follow-up</Button></>}
                       <Button size="small" color="error" onClick={() => setRemoval(assignment)}>Cancel assignment</Button>
@@ -223,7 +248,8 @@ function PatientOverview({ patient }: { patient: Patient }) {
 
 export function PatientPage() {
   const { patientId } = useParams<{ patientId: string }>()
-  const { patients, patientsLoading, patientsError, retryPatients, retryAssignments } = useOutletContext<DashboardOutletContext>()
+  const { patients, patientsLoading, patientsError, retryPatients, retryAssignments, setCalendarMonth } = useOutletContext<DashboardOutletContext>()
+  useEffect(() => () => setCalendarMonth(null), [patientId, setCalendarMonth])
   const { key: navigationKey } = useLocation()
   // The dashboard layout survives navigation, so its calendar may contain
   // results from before the patient finished a routine on mobile.
@@ -238,7 +264,7 @@ export function PatientPage() {
       : patientsError ? <Alert severity="error" action={<Button color="inherit" onClick={retryPatients}>Retry patients</Button>}>{patientsError}</Alert>
       : patient ? <PatientOverview key={patient.id} patient={patient} /> : <Card sx={{ p: { xs: 3, sm: 5 } }} role="status">
       <Typography component="h1" variant="h4" sx={{ mb: 1 }}>Patient not found</Typography>
-      <Typography color="text.secondary">This patient is not in your active list. They may have been discharged, or the link may be incorrect.</Typography>
+      <Typography color="text.secondary">This profile is unavailable. Its retention period may have ended, or the link may be incorrect.</Typography>
       <Button component={RouterLink} to="/dashboard/patients" variant="contained" sx={{ mt: 3 }}>Return to Patients</Button>
     </Card>}
   </Box>

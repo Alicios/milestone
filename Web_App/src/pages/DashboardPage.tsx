@@ -5,7 +5,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import FilterListIcon from '@mui/icons-material/FilterList'
 import SearchIcon from '@mui/icons-material/Search'
 import SortIcon from '@mui/icons-material/Sort'
-import { Box, Button, Card, Collapse, Fade, IconButton, InputAdornment, Menu, MenuItem, OutlinedInput, Stack, Typography, useTheme } from '@mui/material'
+import { Alert, Box, Button, Card, Collapse, Fade, IconButton, InputAdornment, Menu, MenuItem, OutlinedInput, Stack, Tab, Tabs, Typography, useTheme } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 import { AssignedRoutineDetails } from '../components/AssignedRoutineDetails'
 import { type OccupiedDate, type SchedulingPolicy } from '../lib/scheduling'
@@ -17,7 +17,7 @@ import { RoutineStatusLegend } from '../components/RoutineStatus'
 import { PatientSetupBox } from '../components/PatientSetupBox'
 
 type SortOrder = 'nameAsc' | 'nameDesc'
-type StatusFilter = 'all' | RoutineVisualStatus | 'modified' | 'unassigned'
+type StatusFilter = 'all' | 'current' | 'discharged' | RoutineVisualStatus | 'modified' | 'unassigned'
 
 interface PatientRowProps {
   patient: Patient
@@ -48,7 +48,7 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
     <Stack direction="row" alignItems="center" sx={{ position: 'relative', zIndex: 1, bgcolor: '#91c8c0', border: `4px solid ${border}`, borderRadius: '10px' }}>
       <Button component={RouterLink} to={`/dashboard/patients/${encodeURIComponent(patient.id)}`} sx={{ flex: 1, minWidth: 0, minHeight: 64, justifyContent: 'flex-start', gap: { xs: 1, sm: 1.5 }, px: { xs: 1, sm: 1.5 }, color: accentText, fontSize: { xs: '1.2rem', sm: '1.65rem' }, overflowWrap: 'anywhere', textAlign: 'left', '&:hover': { bgcolor: '#82bdb5', textDecoration: 'underline' } }}>
         <PatientAvatar name={patient.name} />
-        <Box component="span" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>{patient.name}</Box>
+        <Box component="span" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>{patient.name}{patient.dischargedAt && <Typography component="span" variant="body2" sx={{ display: 'block' }}>Discharged {new Date(patient.dischargedAt).toLocaleDateString()}{patient.retentionEndsAt && <> · Deletes {new Date(patient.retentionEndsAt).toLocaleDateString()}</>}</Typography>}</Box>
       </Button>
       <IconButton onClick={onToggle} aria-label={`${expanded ? 'Collapse' : 'Expand'} weekly routines for ${patient.name}`} aria-expanded={expanded} aria-controls={`patient-week-${patient.id}`} sx={{ color: accentText, width: 44, height: 44, mr: 1, '&.Mui-focusVisible': { outline: '3px solid #eb681d', outlineOffset: 2 } }}>
         <ExpandMoreIcon sx={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 220ms ease' }} />
@@ -85,7 +85,10 @@ export function DashboardPage() {
     return [...patients]
       .filter((patient) => patient.name.toLowerCase().includes(normalizedQuery))
       .filter((patient) => {
+        if (statusFilter === 'discharged') return Boolean(patient.dischargedAt)
         if (statusFilter === 'all') return true
+        if (patient.dischargedAt) return false
+        if (statusFilter === 'current') return true
         const patientAssignments = Object.values(assignments[patient.profileId] ?? {}).flat().filter((assignment) => assignment.status !== 'cancelled')
         if (statusFilter === 'unassigned') return patientAssignments.length === 0
         return patientAssignments.some((assignment) => statusFilter === 'modified'
@@ -103,6 +106,11 @@ export function DashboardPage() {
 
   return <>
     <Typography component="h1" variant="h4" sx={{ mb: 2 }}>Patients</Typography>
+    <Tabs value={statusFilter === 'all' || statusFilter === 'discharged' ? statusFilter : 'current'} onChange={(_, value: StatusFilter) => setStatusFilter(value)} aria-label="Patient list" variant="scrollable" scrollButtons="auto" sx={{ mb: 2 }}>
+      <Tab value="all" label={`All Patients (${patients.length})`} />
+      <Tab value="current" label={`Current Patients (${patients.filter(patient => !patient.dischargedAt).length})`} />
+      <Tab value="discharged" label={`Discharged Patients (${patients.filter(patient => patient.dischargedAt).length})`} />
+    </Tabs>
     <Fade in appear timeout={320}>
       <Stack className="dashboard-overview" direction={{ xs: 'column', lg: 'row' }} spacing={{ xs: 2, lg: 5 }} alignItems="stretch">
       <Box flexGrow={1} minWidth={0}>
@@ -117,9 +125,10 @@ export function DashboardPage() {
           </Stack>
           <Menu anchorEl={sortMenuAnchor} open={Boolean(sortMenuAnchor)} onClose={() => setSortMenuAnchor(null)}><MenuItem selected={sortOrder === 'nameAsc'} onClick={() => { setSortOrder('nameAsc'); setSortMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Name A-Z</MenuItem><MenuItem selected={sortOrder === 'nameDesc'} onClick={() => { setSortOrder('nameDesc'); setSortMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Name Z-A</MenuItem></Menu>
           <Menu anchorEl={filterMenuAnchor} open={Boolean(filterMenuAnchor)} onClose={() => setFilterMenuAnchor(null)}>
-            {([['all', 'All Patients'], ...routineStatusOrder.map((status) => [status, routineStatusLabels[status]]), ['modified', 'Modified'], ['unassigned', 'Unassigned this week']] as [StatusFilter, string][]).map(([value, label]) =>
+            {([['all', 'All Patients'], ['current', 'Current Patients'], ['discharged', 'Discharged Patients'], ...routineStatusOrder.map((status) => [status, routineStatusLabels[status]]), ['modified', 'Modified'], ['unassigned', 'Unassigned this week']] as [StatusFilter, string][]).map(([value, label]) =>
               <MenuItem key={value} selected={statusFilter === value} onClick={() => { setStatusFilter(value); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>{label}</MenuItem>)}
           </Menu>
+          {statusFilter === 'discharged' && <Alert severity="info">Open a profile to review history for a discharged patient.</Alert>}
           {visiblePatients.length ? visiblePatients.map((patient) => <PatientRow key={patient.profileId} patient={patient} expanded={expanded.includes(patient.id)} onToggle={() => togglePatient(patient.id)} assignments={assignments[patient.profileId] ?? {}} weekDates={weekDates} policy={policy} occupied={occupied[patient.profileId] ?? []} loading={assignmentsLoading} error={assignmentsError} onRetry={retryAssignments} onAssign={(dayIndex) => openSchedule(patient, weekDates[dayIndex])} onWeekChange={setWeek} />) : <Card sx={{ p: 5, textAlign: 'center', border: `4px solid ${border}`, bgcolor: surface, color: text }}><Typography variant="h6" fontFamily="Georgia, serif">No patients found</Typography></Card>}
         </Stack>
       </Box>

@@ -13,6 +13,7 @@ import {
   cancelRoutineFollowUp as cancelFollowUpInDatabase,
   completeRoutineFollowUp as completeFollowUpInDatabase,
   dischargePatient as dischargePatientFromDatabase,
+  reinstatePatient as reinstatePatientInDatabase,
   deleteRoutine as deleteRoutineInDatabase,
   updatePatientDetails as updatePatientDetailsInDatabase,
   type PatientDetailsInput,
@@ -39,6 +40,9 @@ export interface DashboardOutletContext {
   routines: Routine[]
   assignments: RoutineAssignments
   weekDates: string[]
+  calendarDates: string[]
+  calendarMonth: string | null
+  setCalendarMonth: (month: string | null) => void
   openSchedule: (patient: Patient, singleDate?: string) => void
   policy: SchedulingPolicy | null
   occupied: Record<string, OccupiedDate[]>
@@ -54,6 +58,7 @@ export interface DashboardOutletContext {
   deleteRoutine: (routineId: string) => Promise<void>
   updatePatientDetails: (patientId: string, input: PatientDetailsInput) => Promise<void>
   dischargePatient: (patientId: string) => Promise<void>
+  reinstatePatient: (patientId: string) => Promise<void>
 }
 
 const teal = '#4b9da9'
@@ -108,7 +113,7 @@ export function DashboardWorkspace() {
     }
   }
   const calendar = useAssignmentCalendar(user?.id, patients.map((patient) => patient.profileId))
-  const { assignments, weekDates, policy, occupied, setWeek } = calendar
+  const { assignments, weekDates, calendarDates, calendarMonth, setCalendarMonth, policy, occupied, setWeek } = calendar
   const retryAssignments = () => { void calendar.refreshPolicy(); void calendar.refresh().catch(() => {}) }
   const [assignmentNotice, setAssignmentNotice] = useState('')
   const [target, setTarget] = useState<{ patient: Patient; singleDate?: string } | null>(null)
@@ -128,7 +133,7 @@ export function DashboardWorkspace() {
   const refreshCalendar = useRef(calendar.refresh)
   refreshCalendar.current = calendar.refresh
   const openSchedule = (patient: Patient, singleDate?: string) => {
-    if (!policy || !weekDates.length || (singleDate && !withinHorizon(singleDate, policy))) return
+    if (patient.dischargedAt || !policy || !weekDates.length || (singleDate && !withinHorizon(singleDate, policy))) return
     setTarget({ patient, singleDate })
   }
 
@@ -146,7 +151,17 @@ export function DashboardWorkspace() {
       if (active) setPatientsLoading(false)
     })
     return () => { active = false }
-  }, [user?.id, patientAttempt])
+  }, [user?.id, patientAttempt, location.key])
+
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') retryPatients() }
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -225,9 +240,20 @@ export function DashboardWorkspace() {
   const dischargePatient = async (patientId: string) => {
     await dischargePatientFromDatabase(patientId)
     if (activeProvider.current !== user?.id) return
-    setPatients((current) => current.filter((item) => item.id !== patientId))
+    retryPatients()
     calendar.invalidate()
   }
+
+  const reinstatePatient = (patientId: string) => mutations.current.run(`reinstate:${patientId}`, async () => {
+    const providerId = user?.id
+    if (!providerId) throw new AppError('AUTH_REQUIRED')
+    await reinstatePatientInDatabase(patientId)
+    if (activeProvider.current !== providerId) return
+    setPatients(current => current.map(patient => patient.id === patientId
+      ? { ...patient, dischargedAt: undefined, retentionEndsAt: undefined } : patient))
+    retryPatients()
+    calendar.invalidate()
+  })
 
   const navItems = [
     { label: 'Patients', to: '/dashboard/patients', active: isPatientsPage, icon: <PeopleAltOutlinedIcon /> },
@@ -293,7 +319,7 @@ export function DashboardWorkspace() {
         </Alert>)}
         {routineReloadError && <Alert severity="warning" action={<Button color="inherit" disabled={routinesReloading} onClick={() => void reloadRoutines()}>{routinesReloading ? 'Loading…' : 'Retry loading routines'}</Button>}>{routineReloadError}</Alert>}
       </Stack>
-      <Outlet context={{ patients, patientsLoading, patientsError, retryPatients, routines, assignments, weekDates, openSchedule, policy, occupied, setWeek, assignmentsLoading: calendar.loading, assignmentsError: calendar.error, retryAssignments, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, deleteRoutine, updatePatientDetails, dischargePatient } satisfies DashboardOutletContext} />
+      <Outlet context={{ patients, patientsLoading, patientsError, retryPatients, routines, assignments, weekDates, calendarDates, calendarMonth, setCalendarMonth, openSchedule, policy, occupied, setWeek, assignmentsLoading: calendar.loading, assignmentsError: calendar.error, retryAssignments, cancelAssignment, scheduleFollowUp, cancelFollowUp, completeFollowUp, saveRoutine, deleteRoutine, updatePatientDetails, dischargePatient, reinstatePatient } satisfies DashboardOutletContext} />
       {target && policy && <ScheduleRoutineDialog key={`${target.patient.profileId}/${target.singleDate ?? weekDates[0]}`} patientName={target.patient.name} patientProfileId={target.patient.profileId} routines={routines} weekStart={weekDates[0]} singleDate={target.singleDate} policy={policy} onCancel={() => setTarget(null)} onConfirm={async (entries) => {
         calendar.invalidate()
         try {

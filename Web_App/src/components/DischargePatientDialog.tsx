@@ -28,7 +28,7 @@ export function DischargePatientDialog({ patientName, onCancel, onDischarge }: D
     <DialogTitle id={`${id}-title`} sx={{ bgcolor: '#4b9da9', color: 'white', fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>Discharge Patient</DialogTitle>
     <DialogContent>
       <Typography id={`${id}-description`} sx={{ mt: 2, fontFamily: 'Georgia, serif', fontSize: '1.2rem', overflowWrap: 'anywhere' }}>
-        Discharging <strong>{patientName}</strong> will remove them from the active patient list. This does not permanently delete their medical record.
+        Discharging <strong>{patientName}</strong> will remove them from the active patient list. You can access their profile through the Discharged Patients filter and reinstate them for six months. After that, this provider's profile and clinical history are permanently deleted. Records held by other providers are preserved.
       </Typography>
     </DialogContent>
     <DialogActions sx={{ px: 3, pb: 3, gap: 1, flexWrap: 'wrap' }}>

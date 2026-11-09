@@ -127,17 +127,20 @@ export async function uploadProviderAvatar(userId: string, file: File) {
   }
 }
 
-type PatientProfileRow = { id: string; patient_id: string }
+type PatientProfileRow = { id: string; patient_id: string; discharged_at?: string | null; retention_ends_at?: string | null }
 export type PatientRow = { id: string; name: string; email?: string | null; phone?: string | null; primary_concern?: string | null; treatment_focus?: string | null; start_of_care?: string | null; care_status?: Patient['careStatus'] | null; auth_user_id?: string | null; pending_otp_code?: string | null; pending_otp_expires_at?: string | null }
 type StatusRow = { patient_profile_id: string; day_index: number; status: Patient['statuses'][number] }
 
 export async function loadPatients(providerId: string): Promise<Patient[]> {
   try {
-    const { data: profiles, error: profileError, status: profileStatus } = await supabase
+    const profileQuery = await supabase
       .from('provider_patient_profiles')
-      .select('id, patient_id')
+      .select('id, patient_id, discharged_at, retention_ends_at')
       .eq('provider_id', providerId)
-      .is('discharged_at', null)
+    // Discharged records remain viewable before retention cleanup is enabled.
+    const { data: profiles, error: profileError, status: profileStatus } = profileQuery.error?.code === '42703'
+      ? await supabase.from('provider_patient_profiles').select('id, patient_id, discharged_at').eq('provider_id', providerId)
+      : profileQuery
     if (profileError) throw normalizeError(profileError, { operation: 'loadPatients', status: profileStatus })
 
     const profileRows = (profiles ?? []) as PatientProfileRow[]
@@ -169,6 +172,8 @@ export async function loadPatients(providerId: string): Promise<Patient[]> {
       return {
         id: patient.id,
         profileId: profile?.id ?? '',
+        dischargedAt: profile?.discharged_at ?? undefined,
+        retentionEndsAt: profile?.retention_ends_at ?? undefined,
         name: patient.name,
         careStatus: patient.care_status ?? 'active',
         email: patient.email ?? undefined,
@@ -301,6 +306,11 @@ export async function createPatientAndInvite(name: string, email: string, fetchI
   const patientId = await createPatient(name, email)
   const code = await inviteExistingPatient(patientId, fetchImpl, true)
   return { patientId, code }
+}
+
+export async function reinstatePatient(patientId: string) {
+  const { error, status } = await supabase.rpc('reinstate_patient', { patient_id: patientId })
+  if (error) throw normalizeError(error, { operation: 'reinstatePatient', status })
 }
 
 export async function dischargePatient(patientId: string) {

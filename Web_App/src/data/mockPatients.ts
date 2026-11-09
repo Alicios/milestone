@@ -1,6 +1,8 @@
 export interface Patient {
   id: string
   profileId: string
+  dischargedAt?: string
+  retentionEndsAt?: string
   name: string
   careStatus: 'active' | 'pending'
   email?: string

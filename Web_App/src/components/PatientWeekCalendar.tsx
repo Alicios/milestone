@@ -76,7 +76,7 @@ export function PatientWeekCalendar({ patient, assignments, weekDates, policy, o
                         onClick={() => onSelect(assignment.id)} />
                     </Box></Grow>)}
                     {isOccupied ? <Typography variant="caption" color="text.secondary" sx={{ py: .75, textAlign: 'center' }}>Occupied</Typography> :
-                    <Button disabled={loading || !withinHorizon(date, policy)} onClick={() => onAssign(index)} aria-label={`Assign routine to ${patient.name} on ${weekdayNames[index]}`} sx={{ minWidth: 0, width: '100%', minHeight: 144, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: .75, color: 'text.secondary', lineHeight: 1.4, '&.MuiButton-root': { alignItems: 'center', textAlign: 'center' }, '&:hover': { bgcolor: headerSurface } }}>
+                    <Button disabled={Boolean(patient.dischargedAt) || loading || !withinHorizon(date, policy)} onClick={() => onAssign(index)} aria-label={`Assign routine to ${patient.name} on ${weekdayNames[index]}`} sx={{ minWidth: 0, width: '100%', minHeight: 144, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: .75, color: 'text.secondary', lineHeight: 1.4, '&.MuiButton-root': { alignItems: 'center', textAlign: 'center' }, '&:hover': { bgcolor: headerSurface } }}>
                       <AddIcon sx={{ color: 'primary.main', fontSize: 22 }} />
                       <Box component="span">Assign routine</Box>
                     </Button>}

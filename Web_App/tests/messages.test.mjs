@@ -3,7 +3,7 @@ import test from 'node:test'
 import { loadTs } from './helpers/modules.mjs'
 const errors = loadTs('src/lib/errors.ts')
 const secret = 'SQL clinical_notes Bearer secret-token patient@example.invalid'
-function harness({ pages = [{ data: [] }], failureTable, failure, thrown } = {}) {
+function harness({ pages = [{ data: [] }], inboxPages = [{ data: [] }], failureTable, failure, thrown } = {}) {
   const calls = []
   const supabase = { from(table) {
     const call = { table, operations: [] }; calls.push(call)
@@ -18,29 +18,57 @@ function harness({ pages = [{ data: [] }], failureTable, failure, thrown } = {})
       return Promise.resolve(result).then(resolve, reject)
     }
     return chain
+  }, rpc(name) {
+    const call = { rpc: name, operations: [] }; calls.push(call)
+    return { range(...args) { call.operations.push(['range', ...args]); return Promise.resolve(inboxPages.shift()) } }
   } }
   return { ...loadTs('src/lib/messages.ts', { './supabase': { supabase }, './errors': errors }), calls }
 }
 const row = id => ({ id: String(id), patient_profile_id: 'profile', sender_kind: 'patient', body: `Message ${id}`, created_at: '2026-10-27T12:00:00Z' })
-test('provider history loads 1001 messages in ordered 500-row pages without truncating unread counts', async () => {
-  const h = harness({ pages: [{ data: Array.from({ length: 500 }, (_, i) => row(i)) }, { data: Array.from({ length: 500 }, (_, i) => row(i + 500)) }, { data: [row(1000)] }] })
-  const [thread] = await h.loadMessageConversations('provider')
-  assert.equal(thread.messages.length, 1001); assert.equal(thread.unread, 1001)
-  assert.equal(thread.preview, 'Message 1000')
-  const history = h.calls.filter(c => c.operations.some(([name]) => name === 'range'))
-  assert.deepEqual(history.map(c => c.operations.find(([name]) => name === 'range')), [['range', 0, 499], ['range', 500, 999], ['range', 1000, 1499]])
-  for (const call of history) assert.deepEqual(call.operations.filter(([name]) => name === 'order'), [['order', 'created_at', { ascending: true }], ['order', 'id', { ascending: true }]])
+test('inbox uses summaries only, keeps empty recipients and counts beyond the history page limit', async () => {
+  const h = harness({ inboxPages: [{ data: [
+    { patient_profile_id: 'profile', patient_name: 'Pat One', last_body: 'Latest', last_message_at: '2026-11-08T12:00:00Z', unread_count: '1001', starred: true },
+    { patient_profile_id: 'empty', patient_name: 'Other', last_body: null, last_message_at: null, unread_count: 0, starred: false },
+  ] }] })
+  const rows = await h.loadMessageConversations()
+  assert.equal(rows[0].unread, 1001)
+  assert.equal(rows[0].preview, 'Latest')
+  assert.equal(rows[0].initials, 'PO')
+  assert.equal(rows[0].starred, true)
+  assert.equal(rows[1].lastMessageAt, null)
+  assert.equal(rows[1].preview, 'No messages yet')
+  assert.ok(rows.every(row => !('messages' in row)))
+  assert.deepEqual(h.calls, [{ rpc: 'get_provider_message_inbox', operations: [['range', 0, 499]] }])
 })
-for (const [table, code, status, expected] of [['provider_patient_profiles', '42501', 403, 'FORBIDDEN'], ['patients', 'XX000', 503, 'SERVICE_UNAVAILABLE'], ['message_thread_state', '42501', 403, 'FORBIDDEN']]) test(`conversation ${table} failures retain status and hide diagnostics`, async () => {
-  const native = { code, message: secret }
-  const h = harness({ failureTable: table, failure: { error: native, status } })
-  await assert.rejects(h.loadMessageConversations('provider'), e => e.code === expected && e.cause === native && e.sourceCode === code && e.httpStatus === status && !JSON.stringify(e).includes(secret))
+test('inbox paginates summaries without requesting any history', async () => {
+  const row = { patient_profile_id: 'profile', patient_name: 'Patient', unread_count: 0, starred: false, last_message_at: null }
+  const h = harness({ inboxPages: [{ data: Array(500).fill(row) }, { data: [row] }] })
+  assert.equal((await h.loadMessageConversations()).length, 501)
+  assert.deepEqual(h.calls.map(c => c.operations), [[['range', 0, 499]], [['range', 500, 999]]])
+  assert.ok(h.calls.every(c => c.rpc === 'get_provider_message_inbox'))
+})
+test('inbox failures retain status and hide diagnostics', async () => {
+  const native = { code: '42501', message: secret }
+  const h = harness({ inboxPages: [{ error: native, status: 403 }] })
+  await assert.rejects(h.loadMessageConversations(), e => e.code === 'FORBIDDEN' && e.cause === native && !JSON.stringify(e).includes(secret))
+})
+test('selected history loads 1001 messages in ordered pages scoped to one relationship', async () => {
+  const h = harness({ pages: [{ data: Array.from({ length: 500 }, (_, i) => row(i)) }, { data: Array.from({ length: 500 }, (_, i) => row(i + 500)) }, { data: [row(1000)] }] })
+  const messages = await h.loadMessageHistory('profile')
+  assert.equal(messages.length, 1001)
+  assert.equal(messages.at(-1).text, 'Message 1000')
+  assert.deepEqual(h.calls.map(c => c.operations.find(([name]) => name === 'range')), [['range', 0, 499], ['range', 500, 999], ['range', 1000, 1499]])
+  for (const call of h.calls) {
+    assert.equal(call.table, 'messages')
+    assert.deepEqual(call.operations.find(([name]) => name === 'eq'), ['eq', 'patient_profile_id', 'profile'])
+    assert.deepEqual(call.operations.filter(([name]) => name === 'order'), [['order', 'created_at', { ascending: true }], ['order', 'id', { ascending: true }]])
+  }
 })
 for (const mode of ['returned', 'thrown']) test(`later history page ${mode} failure rejects the whole read without retry`, async () => {
   const native = { code: 'XX000', status: 503, message: secret }
   const second = mode === 'returned' ? { error: native, status: 503 } : { then: (_, reject) => reject(native) }
   const h = harness({ pages: [{ data: Array.from({ length: 500 }, (_, i) => row(i)) }, second] })
-  await assert.rejects(h.loadMessageConversations('provider'), e => e.code === 'SERVICE_UNAVAILABLE' && e.httpStatus === 503 && e.cause === native && !JSON.stringify(e).includes(secret))
+  await assert.rejects(h.loadMessageHistory('profile'), e => e.code === 'SERVICE_UNAVAILABLE' && e.httpStatus === 503 && e.cause === native && !JSON.stringify(e).includes(secret))
   assert.equal(h.calls.filter(c => c.table === 'messages').length, 2)
 })
 test('message validation counts Unicode code points and performs no write for invalid text', async () => {

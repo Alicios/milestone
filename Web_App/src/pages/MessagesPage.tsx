@@ -8,7 +8,7 @@ import StarIcon from '@mui/icons-material/Star'
 import { Alert, Box, Button, FormControl, IconButton, InputAdornment, InputLabel, MenuItem, OutlinedInput, Select, Stack, Typography, useMediaQuery, useTheme } from '@mui/material'
 import { useAuth } from '../auth/AuthContext'
 import { supabase } from '../lib/supabase'
-import { loadMessageConversations, markMessageThreadRead, sendProviderMessage, setMessageThreadStarred, type Conversation } from '../lib/messages'
+import { loadMessageConversations, loadMessageHistory, markMessageThreadRead, sendProviderMessage, setMessageThreadStarred, type Conversation, type Message } from '../lib/messages'
 
 function formatMessageTime(value: string | null, detailed = false) {
   if (!value) return ''
@@ -55,8 +55,12 @@ export function MessagesPage() {
   const [sending, setSending] = useState(false)
   const [pageVisible, setPageVisible] = useState(document.visibilityState === 'visible')
   const [error, setError] = useState('')
+  const [history, setHistory] = useState<{ id: string; messages: Message[] } | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState('')
+  const [historyVersion, setHistoryVersion] = useState(0)
   const requestId = useRef(0)
-  const inboxConversations = useMemo(() => conversations.filter((conversation) => conversation.messages.length > 0), [conversations])
+  const inboxConversations = useMemo(() => conversations.filter((conversation) => conversation.lastMessageAt !== null), [conversations])
   const selected = inboxConversations.find((conversation) => conversation.id === selectedId) ?? inboxConversations[0]
   const composeRecipient = conversations.find((conversation) => conversation.id === composeRecipientId) ?? conversations[0]
   const visibleConversations = useMemo(() => inboxConversations.filter((conversation) => conversation.name.toLowerCase().includes(query.toLowerCase()) && (filter === 'all' || conversation.unread > 0)), [inboxConversations, filter, query])
@@ -65,10 +69,10 @@ export function MessagesPage() {
     if (!user) return
     const currentRequest = ++requestId.current
     try {
-      const rows = await loadMessageConversations(user.id)
+      const rows = await loadMessageConversations()
       if (currentRequest !== requestId.current) return
       setConversations(rows)
-      setSelectedId((current) => rows.some((row) => row.id === current && row.messages.length > 0) ? current : rows.find((row) => row.messages.length > 0)?.id ?? '')
+      setSelectedId((current) => rows.some((row) => row.id === current && row.lastMessageAt !== null) ? current : rows.find((row) => row.lastMessageAt !== null)?.id ?? '')
       setComposeRecipientId((current) => rows.some((row) => row.id === current) ? current : rows[0]?.id ?? '')
       setError('')
     } catch (loadError) {
@@ -81,12 +85,13 @@ export function MessagesPage() {
   useEffect(() => {
     if (!user) return
     void refresh()
+    const refreshMessages = () => { void refresh(); setHistoryVersion((version) => version + 1) }
     const channel = supabase.channel(`provider-messages-${user.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => { void refresh() })
-      .subscribe((status) => { if (status === 'SUBSCRIBED') void refresh() })
-    const onFocus = () => { void refresh() }
-    const onVisibility = () => { setPageVisible(document.visibilityState === 'visible'); if (document.visibilityState === 'visible') void refresh() }
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh() }, 15000)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, refreshMessages)
+      .subscribe((status) => { if (status === 'SUBSCRIBED') refreshMessages() })
+    const onFocus = refreshMessages
+    const onVisibility = () => { setPageVisible(document.visibilityState === 'visible'); if (document.visibilityState === 'visible') refreshMessages() }
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') refreshMessages() }, 15000)
     document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('focus', onFocus)
     return () => {
@@ -98,14 +103,33 @@ export function MessagesPage() {
     }
   }, [refresh, user])
 
+  const activeThreadId = pageVisible && !isComposing && (desktop || showConversation) ? selected?.id : undefined
+  const messages = history && history.id === activeThreadId ? history.messages : []
+
   useEffect(() => {
-    if (!pageVisible || !selected || selected.unread === 0 || isComposing || (!desktop && !showConversation)) return
-    const latest = selected.messages.at(-1)
+    if (!activeThreadId) return
+    let cancelled = false
+    setHistoryLoading(true)
+    setHistoryError('')
+    setHistory((current) => current?.id === activeThreadId ? current : null)
+    void loadMessageHistory(activeThreadId).then((rows) => {
+      if (!cancelled) setHistory({ id: activeThreadId, messages: rows })
+    }).catch((loadError) => {
+      if (!cancelled) setHistoryError(errorMessage(loadError, 'Message history could not be loaded.'))
+    }).finally(() => { if (!cancelled) setHistoryLoading(false) })
+    return () => { cancelled = true }
+  }, [activeThreadId, historyVersion, user?.id])
+
+  useEffect(() => {
+    if (!activeThreadId || historyLoading || history?.id !== activeThreadId || !selected?.unread) return
+    const latest = history.messages.at(-1)
     if (!latest) return
-    void markMessageThreadRead(selected.id, latest.createdAt)
-      .then(refresh)
-      .catch((readError: Error) => setError(errorMessage(readError, 'The message could not be marked as read.')))
-  }, [desktop, isComposing, pageVisible, refresh, selected, showConversation])
+    let cancelled = false
+    void markMessageThreadRead(activeThreadId, latest.createdAt)
+      .then(() => { if (!cancelled) void refresh() })
+      .catch((readError: Error) => { if (!cancelled) setError(errorMessage(readError, 'The message could not be marked as read.')) })
+    return () => { cancelled = true }
+  }, [activeThreadId, history, historyLoading, refresh, selected?.unread])
 
   function selectConversation(id: string) {
     setSelectedId(id)
@@ -139,6 +163,7 @@ export function MessagesPage() {
     setSending(true)
     try {
       await sendProviderMessage(recipientId, text)
+      setHistoryVersion((version) => version + 1)
       setSelectedId(recipientId)
       setDraft('')
       setIsComposing(false)
@@ -185,7 +210,7 @@ export function MessagesPage() {
         <Typography color="text.secondary" fontSize=".85rem">Patient message</Typography>
       </Stack>}
 
-      {!isComposing && selected && <Box sx={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', p: { xs: 1.5, sm: 3 }, bgcolor: threadBackground }}><Stack spacing={2}>{selected.messages.map((message) => <Box key={message.id} sx={{ alignSelf: message.from === 'provider' ? 'flex-end' : 'flex-start', maxWidth: { xs: '92%', sm: '72%' } }}><Typography color="text.secondary" fontSize=".72rem" sx={{ mb: .5, textAlign: message.from === 'provider' ? 'right' : 'left' }}>{message.from === 'provider' ? 'You' : selected.name} · {formatMessageTime(message.createdAt, true)}</Typography><Box sx={{ bgcolor: message.from === 'provider' ? providerBubble : patientBubble, border: `1px solid ${border}`, borderRadius: 2, px: 2, py: 1.25, boxShadow: '0 1px 2px rgba(24, 50, 61, .04)' }}><Typography fontSize=".95rem" lineHeight={1.55}>{message.text}</Typography></Box></Box>)}{selected.messages.length === 0 && <Typography color="text.secondary">No messages yet. Send the first one below.</Typography>}</Stack></Box>}
+      {!isComposing && selected && <Box sx={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', p: { xs: 1.5, sm: 3 }, bgcolor: threadBackground }}><Stack spacing={2}>{historyError && <Alert severity="error">{historyError}</Alert>}{historyLoading && <Typography role="status" color="text.secondary">Loading conversation...</Typography>}{messages.map((message) => <Box key={message.id} sx={{ alignSelf: message.from === 'provider' ? 'flex-end' : 'flex-start', maxWidth: { xs: '92%', sm: '72%' } }}><Typography color="text.secondary" fontSize=".72rem" sx={{ mb: .5, textAlign: message.from === 'provider' ? 'right' : 'left' }}>{message.from === 'provider' ? 'You' : selected.name} · {formatMessageTime(message.createdAt, true)}</Typography><Box sx={{ bgcolor: message.from === 'provider' ? providerBubble : patientBubble, border: `1px solid ${border}`, borderRadius: 2, px: 2, py: 1.25, boxShadow: '0 1px 2px rgba(24, 50, 61, .04)' }}><Typography fontSize=".95rem" lineHeight={1.55}>{message.text}</Typography></Box></Box>)}{!historyLoading && !historyError && history?.id === activeThreadId && messages.length === 0 && <Typography color="text.secondary">No messages yet. Send the first one below.</Typography>}</Stack></Box>}
       {isComposing && <Box sx={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', bgcolor: threadBackground, p: { xs: 1.5, sm: 3 } }}><Typography color="text.secondary" fontSize=".9rem">Write a new message to {composeRecipient?.name ?? 'your patient'}.</Typography></Box>}
 
       <Box component="form" onSubmit={(event) => { event.preventDefault(); void sendMessage() }} sx={{ flexShrink: 0, p: { xs: 1, sm: 1.5 }, borderTop: `1px solid ${border}`, bgcolor: 'background.paper' }}><Stack direction="row" spacing={1} alignItems="center"><OutlinedInput value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={isComposing ? 'Write a new message…' : 'Reply to this conversation…'} aria-label={isComposing ? 'Write a new message' : 'Write a reply'} fullWidth size="small" inputProps={{ maxLength: 4000 }} sx={{ bgcolor: threadBackground, borderRadius: 1.5, '& fieldset': { borderColor: border } }} /><IconButton type="submit" disabled={!draft.trim() || sending} aria-label="Send message" sx={{ bgcolor: teal, color: 'white', borderRadius: 1.5, '&:hover': { bgcolor: '#3e8792' } }}><SendIcon fontSize="small" /></IconButton></Stack></Box>

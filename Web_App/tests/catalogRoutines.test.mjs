@@ -165,6 +165,25 @@ test('searchable exercise controls select by UUID, distinguish duplicate labels,
   render().find((node) => node.props?.['aria-label'] === 'Remove exercise 1').props.onClick()
   assert.equal(selections.length, 1)
 })
+test('editor enforces clinically plausible per-field bounds tighter than the raw storage limit', () => {
+  const h = pageHarness()
+  const selections = [{ key: '1', exerciseId: a, sets: '20', reps: '500', durationSeconds: '3600' }]
+  const fieldErrors = () => flatten(h.page.ExerciseEditor({ exercises: selections, catalog, disabled: false, onChange: () => {} }))
+    .filter((node) => node.type === 'TextField' && /^(Sets|Reps|Duration)/.test(node.props.label)).map((node) => node.props.error)
+  assert.deepEqual(fieldErrors(), [false, false, false])
+  for (const [field, tooHigh] of [['sets', '21'], ['reps', '501'], ['durationSeconds', '3601']]) {
+    selections[0] = { ...selections[0], sets: '20', reps: '500', durationSeconds: '3600', [field]: tooHigh }
+    assert.ok(fieldErrors().some(Boolean), `${field}=${tooHigh} should be rejected even though it is within the Postgres int32 storage limit`)
+  }
+})
+test('a catalog exercise reused elsewhere in the same routine is flagged but not blocked', () => {
+  const h = pageHarness()
+  const selections = [{ key: '1', exerciseId: a }, { key: '2', exerciseId: b }, { key: '3', exerciseId: a }]
+  const rendered = flatten(h.page.ExerciseEditor({ exercises: selections, catalog, disabled: false, onChange: () => {} }))
+  const notices = rendered.filter((node) => node.type === 'Alert' && node.props.severity === 'info')
+  assert.equal(notices.length, 2)
+  assert.match(text(notices[0]), /already elsewhere in this routine/)
+})
 test('create form requires catalog selection and sends UUIDs in selected order', async () => {
   const saves = []
   const h = pageHarness({ saveRoutine: async (...args) => saves.push(args) })
@@ -191,6 +210,20 @@ test('edit form retains saved catalog UUIDs and requires explicit replacements f
     h.button('Finish Editing').onClick(); await tick()
     assert.deepEqual(saves, [['r', 'Stored', [input(legacy ? b : a)]]])
   }
+})
+test('duplicating a routine prefills a new routine from it and leaves the original untouched', async () => {
+  const saves = []
+  const h = pageHarness({ routines: [{ id: 'r', name: 'Stored', exercises: [{ id: 'slot', name: 'Saved label', position: 0, exerciseId: a, sets: 3, reps: 10 }] }], saveRoutine: async (...args) => saves.push(args) })
+  await tick()
+  h.button('Edit Routine').onClick()
+  h.render().find((node) => typeof node.props?.onClick === 'function' && node.props.routine?.id === 'r').props.onClick()
+  h.render().find((node) => node.type === 'Button' && text(node) === 'Duplicate as New Routine').props.onClick()
+  assert.equal(h.field('Routine name').value, 'Stored (Copy)')
+  assert.equal(h.editor().exercises[0].exerciseId, a)
+  assert.equal(h.editor().exercises[0].sets, '3')
+  assert.ok(h.button('Create Routine'))
+  h.button('Create Routine').onClick(); await tick()
+  assert.deepEqual(saves, [[null, 'Stored (Copy)', [input(a, { sets: 3, reps: 10 })]]])
 })
 test('catalog failures block saves and display a safe error', async () => {
   const h = pageHarness({ loadExercises: async () => { throw { message: 'Catalog permission denied' } } })

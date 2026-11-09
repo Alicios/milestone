@@ -10,7 +10,8 @@ import type { DashboardOutletContext } from '../components/DashboardLayout'
 import type { CatalogExercise, Routine } from '../types'
 import { loadExercises } from '../lib/exerciseData'
 import { errorMessage } from '../lib/errors'
-import { MAX_PRESCRIPTION_INTEGER, parsePrescriptionText, prescriptionSummary, validPrescriptionText } from '../lib/prescriptions'
+import { PRESCRIPTION_FIELD_BOUNDS, parsePrescriptionText, prescriptionSummary, validPrescriptionFieldText } from '../lib/prescriptions'
+import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined'
 import { RoutineDemo } from '../components/RoutineDemo'
 
 const teal = '#4b9da9'
@@ -77,9 +78,14 @@ export function ExerciseEditor({ exercises, catalog, disabled, onChange }: {
   disabled: boolean
   onChange: (next: ExerciseSelection[]) => void
 }) {
+  const duplicateIndices = new Set(
+    exercises.flatMap((exercise, index) => exercise.exerciseId && exercises.some((other, otherIndex) => otherIndex !== index && other.exerciseId === exercise.exerciseId) ? [index] : []),
+  )
+
   return <Stack spacing={1.5}>
     {exercises.map((exercise, index) => {
       const selected = catalog.find((item) => item.id === exercise.exerciseId) ?? null
+      const remove = () => onChange(exercises.filter((_, i) => i !== index))
       const update = (field: 'sets' | 'reps' | 'durationSeconds' | 'notes', value: string) =>
         onChange(exercises.map((item, i) => i === index ? { ...item, [field]: value } : item))
       const move = (delta: number) => {
@@ -88,8 +94,9 @@ export function ExerciseEditor({ exercises, catalog, disabled, onChange }: {
         onChange(next)
       }
       return <Stack key={exercise.key} spacing={1}>
-        {exercise.originalName && !selected && <Alert severity="warning">Saved entry: {exercise.originalName}. Select a catalog replacement or remove this entry before saving. Additional legacy fields are replaced when you save.</Alert>}
-        {exercise.exerciseId && !selected && !disabled && <Alert severity="error">This catalog exercise is unavailable. Choose a replacement.</Alert>}
+        {exercise.originalName && !selected && <Alert severity="warning" action={!disabled && <Button color="inherit" size="small" onClick={remove}>Remove</Button>}>Saved entry: {exercise.originalName}. Select a catalog replacement or remove this entry before saving. Additional legacy fields are replaced when you save.</Alert>}
+        {exercise.exerciseId && !selected && !disabled && <Alert severity="error" action={<Button color="inherit" size="small" onClick={remove}>Remove</Button>}>This catalog exercise is unavailable. Choose a replacement.</Alert>}
+        {duplicateIndices.has(index) && <Alert severity="info">This exercise is already elsewhere in this routine. That's fine if it's intentional (e.g. a warm-up and a main set) — just double-check it's not a mistake.</Alert>}
         <Autocomplete options={catalog} value={selected} disabled={disabled}
           getOptionLabel={(option) => option.name} getOptionKey={(option) => option.id}
           isOptionEqualToValue={(option, value) => option.id === value.id}
@@ -101,11 +108,11 @@ export function ExerciseEditor({ exercises, catalog, disabled, onChange }: {
           renderInput={(params) => <TextField {...params} label={`Exercise ${index + 1}`} required />} />
         {selected?.description && <Typography variant="body2">{selected.description}</Typography>}
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-          {([['sets', 'Sets'], ['reps', 'Reps'], ['durationSeconds', 'Duration (seconds)']] as const).map(([field, label]) =>
-            <TextField key={field} label={`${label} — exercise ${index + 1}`} value={exercise[field] ?? ''}
+          {(Object.keys(PRESCRIPTION_FIELD_BOUNDS) as Array<keyof typeof PRESCRIPTION_FIELD_BOUNDS>).map((field) =>
+            <TextField key={field} label={`${PRESCRIPTION_FIELD_BOUNDS[field].label} — exercise ${index + 1}`} value={exercise[field] ?? ''}
               disabled={disabled} fullWidth onChange={(event) => update(field, event.target.value)}
-              error={!validPrescriptionText(exercise[field])}
-              helperText={validPrescriptionText(exercise[field]) ? 'Optional' : `Enter a whole number from 1 to ${MAX_PRESCRIPTION_INTEGER}.`}
+              error={!validPrescriptionFieldText(field, exercise[field])}
+              helperText={validPrescriptionFieldText(field, exercise[field]) ? 'Optional' : `Enter a whole number from 1 to ${PRESCRIPTION_FIELD_BOUNDS[field].max}.`}
               slotProps={{ htmlInput: { inputMode: 'numeric' } }} />)}
         </Stack>
         <TextField label={`Notes — exercise ${index + 1}`} value={exercise.notes ?? ''} multiline minRows={2}
@@ -113,7 +120,7 @@ export function ExerciseEditor({ exercises, catalog, disabled, onChange }: {
         <Stack direction="row" spacing={1}>
           <Button disabled={disabled || index === 0} onClick={() => move(-1)} aria-label={`Move exercise ${index + 1} up`}>Move up</Button>
           <Button disabled={disabled || index === exercises.length - 1} onClick={() => move(1)} aria-label={`Move exercise ${index + 1} down`}>Move down</Button>
-          <IconButton disabled={disabled} aria-label={`Remove exercise ${index + 1}`} onClick={() => onChange(exercises.filter((_, i) => i !== index))}><CloseIcon /></IconButton>
+          <IconButton disabled={disabled} aria-label={`Remove exercise ${index + 1}`} onClick={remove}><CloseIcon /></IconButton>
         </Stack>
       </Stack>
     })}
@@ -158,7 +165,8 @@ export function SavedRoutinesPage() {
     return () => { active = false }
   }, [catalogAttempt])
   const validSelection = (items: ExerciseSelection[]) => !catalogLoading && !catalogError && items.length > 0 && items.length <= 100 && items.every((item) =>
-    catalog.some((exercise) => exercise.id === item.exerciseId) && [item.sets, item.reps, item.durationSeconds].every(validPrescriptionText))
+    catalog.some((exercise) => exercise.id === item.exerciseId)
+    && validPrescriptionFieldText('sets', item.sets) && validPrescriptionFieldText('reps', item.reps) && validPrescriptionFieldText('durationSeconds', item.durationSeconds))
   const catalogStatus = <>
     {catalogLoading && <Alert severity="info">Loading exercise catalog…</Alert>}
     {catalogError && <Alert severity="error" action={<Button onClick={() => setCatalogAttempt((n) => n + 1)}>Retry catalog</Button>}>{catalogError}</Alert>}
@@ -202,6 +210,19 @@ export function SavedRoutinesPage() {
       durationSeconds: exercise.durationSeconds?.toString() ?? '', notes: exercise.notes ?? '',
     })))
     setMode('edit')
+  }
+
+  function duplicateRoutine() {
+    if (!editingRoutine) return
+    setError('')
+    setNewName(`${editingRoutine.name} (Copy)`.slice(0, 200))
+    setNewExercises(editingRoutine.exercises.map((exercise) => ({
+      key: crypto.randomUUID(), exerciseId: exercise.requiresReview ? null : exercise.exerciseId ?? null,
+      sets: exercise.sets?.toString() ?? '', reps: exercise.reps?.toString() ?? '',
+      durationSeconds: exercise.durationSeconds?.toString() ?? '', notes: exercise.notes ?? '',
+    })))
+    setEditingId(null)
+    setMode('new')
   }
 
   async function deleteEditingRoutine() {
@@ -297,8 +318,11 @@ export function SavedRoutinesPage() {
             />
             {catalogStatus}
             <ExerciseEditor catalog={catalog} disabled={saving || catalogLoading || Boolean(catalogError)} exercises={editExercises} onChange={setEditExercises} />
-            <Button color="error" variant="outlined" startIcon={<DeleteOutlineIcon />} disabled={saving}
-              onClick={() => { setDeleteError(''); setConfirmDelete(true) }}>Delete Routine</Button>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <Button variant="outlined" startIcon={<ContentCopyOutlinedIcon />} disabled={saving} onClick={duplicateRoutine}>Duplicate as New Routine</Button>
+              <Button color="error" variant="outlined" startIcon={<DeleteOutlineIcon />} disabled={saving}
+                onClick={() => { setDeleteError(''); setConfirmDelete(true) }}>Delete Routine</Button>
+            </Stack>
             <Stack direction="row" spacing={1.5} justifyContent="flex-end" mt={2}>
               <Button disabled={saving} onClick={() => setMode('list')}>Cancel</Button>
               <Button disabled={!editName.trim() || !validSelection(editExercises) || saving} onClick={() => void finishEditing()} sx={{ ...fontSx, bgcolor: orange, color: 'white', border: `3px solid ${border}`, borderRadius: '20px', px: 3, '&:hover': { bgcolor: '#d15a17' } }}>{deleting ? 'Deleting…' : saving ? 'Saving…' : 'Finish Editing'}</Button>

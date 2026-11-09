@@ -126,12 +126,21 @@ resolution only for the local schema tested, not commit durability, hosted RLS,
 API permissions, frontend behavior, or an exact match to the hosted schema.
 Keep these verification gaps explicit even after a minimal fixture passes.
 
+## Main routine editor — deployed November 9, 2026
+
+The approved `confirmed_routine_patient_changes` migration is live, recorded as
+`20261109232513` in the hosted ledger. It enables saved editor documents, patient
+impact confirmation, history-preserving assignment replacement/cancellation, and
+private routine media. See [SCHEMA.md](SCHEMA.md) for the source-file mapping,
+preservation checks and rollback-only hosted verification results.
+
 ## Historical migrations — do not replay
 
 The migration directory is historical context, not a complete hosted baseline.
 Main has no creation migration for the existing catalog or `exercise_list`.
-Hosted routines also diverge from earlier migrations (for example, absent
-`archived_at`/`updated_at`), and recorded hosted migration timestamps differ from
+Hosted routines also diverge from earlier migrations (for example, earlier
+snapshots lacked `archived_at`/`updated_at`; the approved November 9 deployment
+added `archived_at`), and recorded hosted migration timestamps differ from
 repository filenames. Replaying files can fail, alter existing data, or replace
 functions with historical definitions. `schema.sql` is not a full reset script.
 No migrations are deployed as part of SCRUM-43. Any future deployment needs a

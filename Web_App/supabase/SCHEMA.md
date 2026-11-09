@@ -8,13 +8,14 @@ Historical migrations must not be replayed; see [README.md](README.md). Supabase
 manages authentication in `auth`; this application never stores password
 hashes in `public` tables.
 
-## Main routine editor and patient-change confirmation — pending deployment
+## Main routine editor and patient-change confirmation — deployed
 
 [20261109224647_confirmed_routine_patient_changes.sql](migrations/20261109224647_confirmed_routine_patient_changes.sql)
-has been implemented and checked against a disposable PostgreSQL baseline. It has
-**not** been applied to the shared project; deployment requires operator approval.
-Existing routines remain readable before deployment through schema-compatible
-reads. New editor saving and patient-change confirmations require this migration.
+was applied to the shared project on November 9, 2026 after explicit operator
+approval. The hosted migration ledger records
+`20261109232513_confirmed_routine_patient_changes`; the linked source file retains
+its original preparation timestamp. Do not replay it. The editor saving APIs,
+assignment-change confirmation APIs, snapshots and private media bucket are live.
 
 The advanced editor replaces the former saved-routine page. `save_editor_routine`
 persists a validated `routines.editor_document`, including custom exercises,
@@ -41,8 +42,18 @@ and legacy patient assignment APIs remain compatible.
 Validation: `npm run test:routines`, the routine editor Playwright suite, and
 `node supabase/tests/routine_changes_integration.mjs`. The latter uses disposable
 PGlite PostgreSQL and does not connect to or mutate the hosted project. Its setup
-command is documented at the top of the test. Physical-device verification and
-hosted transactional checks remain outstanding until deployment is approved.
+command is documented at the top of the test.
+
+Hosted validation also passed
+[routine_changes_hosted.sql](tests/routine_changes_hosted.sql): creation/retry,
+patient-impact scope, foreign-provider rejection, stale-confirmation rejection,
+edit/replacement, follow-up preservation, immutable history, patient media reads,
+deletion and archived-assignment rejection. A separate block exercised creation,
+editing and deletion under the actual `authenticated` role. All synthetic records
+were rolled back. Before/after fingerprints matched for 11 routines, 19
+assignments, 41 exercise snapshots, 8 feedback rows, 6 patients, 6 relationships
+and 0 follow-ups. The security advisor reported no new findings for the added
+APIs or private bucket. Physical-device upload/playback verification remains open.
 
 ## Sprint 3 catalog routines and prescriptions — deployed
 

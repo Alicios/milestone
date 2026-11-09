@@ -1,7 +1,7 @@
 # Discharged patient retention
 
-The Patients page defaults to all patients, with **All Patients**, **Current Patients**
-and **Discharged Patients** tabs and counts. **Discharged Patients** shows
+The Patients page defaults to current patients. The **Archive** button at the
+upper right opens the discharged patient list. It shows
 retained provider profiles, including discharge and deletion dates. Their details
 and routine history remain accessible; scheduling, editing and code generation
 are disabled until the provider selects **Reinstate patient**.

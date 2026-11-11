@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Milestone Provider",
+    "slug": "milestone-provider",
+    "scheme": "milestone-provider",
+    "version": "1.0.0",
+    "icon": "./assets/icon.png",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.milestone.provider",
+      "supportsTablet": true,
+      "requireFullScreen": false,
+      "config": { "usesNonExemptEncryption": false }
+    },
+    "android": { "package": "com.milestone.provider", "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#F4EACF" } },
+    "web": { "bundler": "metro", "output": "single", "name": "Milestone Provider" },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      ["expo-local-authentication", { "faceIDPermission": "Allow Milestone Provider to unlock your care workspace with Face ID." }]
+    ]
+  }
+}

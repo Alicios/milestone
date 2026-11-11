@@ -13,10 +13,10 @@ export type Exercise = {
   durationSeconds: number | null; notes: string | null; patientFeedback?: Feedback;
 };
 export type Assignment = {
-  id: string; patientProfileId: string; routineName: string; scheduledDate: string;
+  id: string; routineId?: string; updatedAt?: string; patientProfileId: string; routineName: string; scheduledDate: string;
   status: 'scheduled' | 'completed' | 'missed' | 'modified' | 'cancelled';
   patientResult?: { inProgress: boolean; issue?: 'noncritical' | 'critical'; comment: string | null; source: 'patient' | 'demo' | null };
   exercises: Exercise[]; exerciseFeedbackError?: string;
 };
-export type Conversation = { id: string; name: string; preview: string; lastMessageAt: string | null; unread: number; starred: boolean };
+export type Conversation = { id: string; name: string; preview: string; lastMessageAt: string | null; unread: number; starred: boolean; archived: boolean; archivedThroughAt: string | null };
 export type Message = { id: string; text: string; from: 'patient' | 'provider'; createdAt: string };

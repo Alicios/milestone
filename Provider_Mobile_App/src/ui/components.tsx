@@ -1,5 +1,5 @@
 import React, { type ReactNode } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text as NativeText, TextInput, View, type TextProps, type TextInputProps, type ViewStyle, type StyleProp } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text as NativeText, TextInput, useWindowDimensions, View, type TextProps, type TextInputProps, type ViewStyle, type StyleProp } from 'react-native';
 import { ArrowLeft, ArrowUpRight, ChevronRight, ShieldCheck } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
@@ -44,9 +44,14 @@ export function Empty({ title, detail }: { title: string; detail: string }) {
 }
 export function Heading({ eyebrow, title, detail, action, back = false }: { eyebrow?: string; title: string; detail?: string; action?: ReactNode; back?: boolean }) {
   const { colors } = useTheme();
+  const { width, fontScale } = useWindowDimensions();
+  const stackAction = Boolean(action) && (width < 480 || (fontScale > 1.2 && width < 768));
   return <View style={{ gap: 10, marginBottom: 24 }}>{back && <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={[styles.row, { minHeight: 44, alignSelf: 'flex-start' }]}><ArrowLeft color={colors.teal} size={19} /><Text weight="semibold" style={{ color: colors.teal }}>Back</Text></Pressable>}
     {eyebrow && <Text weight="semibold" style={{ color: colors.teal, fontSize: 11, letterSpacing: 2 }}>{eyebrow.toUpperCase()}</Text>}
-    <View style={[styles.row, { justifyContent: 'space-between', flexWrap: 'wrap' }]}><Text accessibilityRole="header" weight="bold" style={{ fontSize: 30, lineHeight: 39, flexShrink: 1 }}>{title}</Text>{action}</View>
+    <View style={{ flexDirection: stackAction ? 'column' : 'row', alignItems: stackAction ? 'stretch' : 'center', gap: 12 }}>
+      <View style={stackAction ? { width: '100%' } : { flex: 1, minWidth: 0 }}><Text accessibilityRole="header" weight="bold" style={{ fontSize: width < 480 ? 26 : 30, lineHeight: width < 480 ? 34 : 39 }}>{title}</Text></View>
+      {action && <View style={{ alignSelf: stackAction ? 'flex-start' : 'center', flexShrink: 0 }}>{action}</View>}
+    </View>
     {detail && <Text style={{ color: colors.muted }}>{detail}</Text>}
   </View>;
 }

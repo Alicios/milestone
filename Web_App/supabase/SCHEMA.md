@@ -8,6 +8,36 @@ Historical migrations must not be replayed; see [README.md](README.md). Supabase
 manages authentication in `auth`; this application never stores password
 hashes in `public` tables.
 
+## Provider mobile routine assignment changes - deployed
+
+`20261111174617_provider_quick_routine_replacement` adds
+`change_patient_routine(assignment_id, request_id, routine_id, token, expected_updated_at)`.
+The public function is a SECURITY INVOKER wrapper around the private
+`milestone_companion` implementation. A null routine/token removes the assignment;
+otherwise it cancels and replaces it with the selected saved routine in one
+transaction. Failure rolls back cancellation. It preserves original snapshots
+and cancels scheduled follow-ups rather than transferring them to a different routine.
+
+The function checks provider ownership, active care, server scheduling policy,
+the original assignment version, and absence of patient progress, results and
+exercise feedback after acquiring the shared patient lock. Completed, started,
+past and discharged-care assignments cannot be changed through this API.
+Preview tokens and shared-patient date occupancy use the existing scheduling APIs.
+The provider/request advisory lock uses the same namespace as batch scheduling.
+
+`provider_assignment_change_requests` stores immutable receipts for replacement
+and removal. Authenticated providers can SELECT only their own receipts and have
+no direct write grants. Identical retries return the existing receipt; a changed
+payload under the same request ID fails. Receipt lookup supports recovery from
+lost responses without submitting a second operation.
+
+[provider_quick_routine_replacement.sql](tests/provider_quick_routine_replacement.sql)
+passed against the hosted project under the authenticated role: assignment,
+atomic replacement, failed-save rollback, stale preview/version rejection,
+replacement/removal replay, retained snapshots, receipt-write denial, foreign
+identity isolation and protection of started care. All test writes were rolled
+back. Security Advisor findings matched the previous baseline.
+
 ## Main routine editor and patient-change confirmation — deployed
 
 [20261109224647_confirmed_routine_patient_changes.sql](migrations/20261109224647_confirmed_routine_patient_changes.sql)
@@ -221,10 +251,16 @@ timestamp, and `id` is a UUID. Sample image attachments are not stored.
 
 ### `message_thread_state`
 
-Per-participant read cursor and starred state, keyed by
+Per-participant read cursor, starred state, and conversation archive cursor, keyed by
 `(patient_profile_id, participant_user_id)`. Existing provider relationships
 were backfilled, and a trigger creates provider state for new relationships.
-The browser can update only its own `last_read_at` and `starred` values.
+Providers can read and update their own state only for their own relationships.
+The provider mobile app also updates `archived_through_at` (`timestamptz`, nullable).
+Null means inbox; a non-null value archives messages through the last displayed
+message timestamp. Empty conversations use the Unix epoch. The mobile app compares
+the latest message timestamp with the cursor, preserving PostgreSQL microseconds:
+newer activity returns the conversation to the inbox without changing messages,
+read state, or starred state. This is separate from patient discharge/retention.
 
 ### `access_requests`
 

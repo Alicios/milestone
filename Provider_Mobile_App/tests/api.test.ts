@@ -62,3 +62,28 @@ test('unavailable list statuses reject instead of becoming an unassigned result'
   const { api } = fake({ routine_assignments: { error: new Error('offline') } });
   await assert.rejects(api.assignmentStatuses(['relationship-a'], '2026-11-09', '2026-11-15'), /offline/);
 });
+
+
+test('archive state is scoped to the participant and read alongside the existing inbox RPC', async () => {
+  const cursor = '2026-11-10T18:00:00.123456Z';
+  const { api, calls } = fake({ get_provider_message_inbox: { data: [{ patient_profile_id: 'relationship-a', patient_name: 'Case A', last_message_at: cursor, last_body: 'Hello', unread_count: 1, starred: true }] }, message_thread_state: { data: [{ patient_profile_id: 'relationship-a', archived_through_at: cursor }] } });
+  const rows = await api.conversations('provider-a');
+  assert.equal(rows[0].archived, true);
+  assert.equal(rows[0].starred, true);
+  assert.equal(rows[0].unread, 1);
+  assert.ok(calls.some(call => call.table === 'message_thread_state' && call.method === 'eq' && call.args[0] === 'participant_user_id' && call.args[1] === 'provider-a'));
+});
+test('archive writes change only the cursor and verify an owned row was returned', async () => {
+  const cursor = '2026-11-10T18:00:00Z';
+  const { api, calls } = fake({ message_thread_state: { data: { patient_profile_id: 'relationship-a', archived_through_at: cursor } } });
+  assert.equal(await api.archiveConversation('relationship-a', 'provider-a', cursor), cursor);
+  assert.deepEqual(calls.find(call => call.method === 'update')?.args[0], { archived_through_at: cursor });
+  assert.ok(calls.some(call => call.method === 'eq' && call.args[0] === 'participant_user_id' && call.args[1] === 'provider-a'));
+  assert.ok(calls.some(call => call.method === 'single'));
+  const rejected = fake({ message_thread_state: { error: new Error('permission denied') } });
+  await assert.rejects(rejected.api.archiveConversation('foreign', 'provider-a', cursor), /permission denied/);
+});
+test('archive metadata failure cannot silently restore archived conversations into the inbox', async () => {
+  const { api } = fake({ get_provider_message_inbox: { data: [{ patient_profile_id: 'relationship-a' }] }, message_thread_state: { error: new Error('offline') } });
+  await assert.rejects(api.conversations('provider-a'), /offline/);
+});

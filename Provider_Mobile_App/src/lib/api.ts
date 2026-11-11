@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Assignment, Conversation, Message, Patient, Provider } from '../types';
 import { validateMessage } from './domain';
+import { archiveCursor, isConversationArchived } from './conversationArchive';
 import type { AssignmentSummary } from './patientFilters';
 
 // Paginate every list; the hosted API's row limit must not truncate a caseload.
@@ -56,9 +57,9 @@ export function createProviderApi(client: SupabaseClient) {
         patientResult: { inProgress: row.patient_in_progress, issue: row.patient_issue_severity === 'critical' || row.patient_issue_severity === 'noncritical' ? row.patient_issue_severity : undefined, comment: row.patient_comment, source: row.patient_result_source } }));
     },
     async assignments(profileId: string, from: string, to: string): Promise<Assignment[]> {
-      type Row = { id: string; patient_profile_id: string; routine_name_snapshot: string; scheduled_date: string; status: Assignment['status']; patient_in_progress: boolean; patient_issue_severity: string; patient_comment: string | null; patient_result_source: 'patient' | 'demo' | null };
+      type Row = { id: string; routine_id: string; updated_at: string; patient_profile_id: string; routine_name_snapshot: string; scheduled_date: string; status: Assignment['status']; patient_in_progress: boolean; patient_issue_severity: string; patient_comment: string | null; patient_result_source: 'patient' | 'demo' | null };
       const rows = await allRows<Row>((start, end) => client.from('routine_assignments')
-        .select('id,patient_profile_id,routine_name_snapshot,scheduled_date,status,patient_in_progress,patient_issue_severity,patient_comment,patient_result_source')
+        .select('id,routine_id,updated_at,patient_profile_id,routine_name_snapshot,scheduled_date,status,patient_in_progress,patient_issue_severity,patient_comment,patient_result_source')
         .eq('patient_profile_id', profileId).gte('scheduled_date', from).lte('scheduled_date', to).neq('status', 'cancelled')
         .order('scheduled_date').order('id').range(start, end));
       if (!rows.length) return [];
@@ -79,7 +80,7 @@ export function createProviderApi(client: SupabaseClient) {
         }
       } catch { exerciseFeedbackError = 'Patient exercise feedback could not be loaded. Pull down to retry.'; }
       return rows.map(row => ({
-        id: row.id, patientProfileId: row.patient_profile_id, routineName: row.routine_name_snapshot,
+        id: row.id, routineId: row.routine_id, updatedAt: row.updated_at, patientProfileId: row.patient_profile_id, routineName: row.routine_name_snapshot,
         scheduledDate: row.scheduled_date, status: row.status, exerciseFeedbackError,
         patientResult: { inProgress: row.patient_in_progress, issue: row.patient_issue_severity === 'critical' || row.patient_issue_severity === 'noncritical' ? row.patient_issue_severity : undefined,
           comment: row.patient_comment, source: row.patient_result_source },
@@ -91,10 +92,23 @@ export function createProviderApi(client: SupabaseClient) {
         }),
       }));
     },
-    async conversations(): Promise<Conversation[]> {
+    async conversations(providerId: string): Promise<Conversation[]> {
       type Row = { patient_profile_id: string; patient_name: string; last_body: string | null; last_message_at: string | null; unread_count: number | string; starred: boolean };
       const rows = await allRows<Row>((start, end) => client.rpc('get_provider_message_inbox').range(start, end));
-      return rows.map(row => ({ id: row.patient_profile_id, name: row.patient_name, preview: row.last_body ?? 'Start a conversation', lastMessageAt: row.last_message_at, unread: Number(row.unread_count), starred: row.starred }));
+      type ArchiveRow = { patient_profile_id: string; archived_through_at: string | null };
+      const archive = new Map<string, string | null>();
+      for (let offset = 0; offset < rows.length; offset += 100) {
+        const states = await allRows<ArchiveRow>((start, end) => client.from('message_thread_state')
+          .select('patient_profile_id,archived_through_at').eq('participant_user_id', providerId)
+          .in('patient_profile_id', rows.slice(offset, offset + 100).map(row => row.patient_profile_id))
+          .order('patient_profile_id').range(start, end));
+        for (const state of states) archive.set(state.patient_profile_id, state.archived_through_at);
+      }
+      return rows.map(row => {
+        const archivedThroughAt = archive.get(row.patient_profile_id) ?? null;
+        return { id: row.patient_profile_id, name: row.patient_name, preview: row.last_body ?? 'Start a conversation', lastMessageAt: row.last_message_at, unread: Number(row.unread_count), starred: row.starred,
+          archivedThroughAt, archived: isConversationArchived(row.last_message_at, archivedThroughAt) };
+      });
     },
     async messages(profileId: string): Promise<Message[]> {
       type Row = { id: string; body: string; sender_kind: 'patient' | 'provider'; created_at: string };
@@ -106,6 +120,15 @@ export function createProviderApi(client: SupabaseClient) {
       const body = validateMessage(text);
       const { error } = await client.from('messages').insert({ patient_profile_id: profileId, sender_kind: 'provider', body });
       if (error) throw error;
+    },
+    async archiveConversation(profileId: string, participantId: string, through: string | null): Promise<string | null> {
+      if (through !== null) archiveCursor(through);
+      const { data, error } = await client.from('message_thread_state').update({ archived_through_at: through })
+        .eq('patient_profile_id', profileId).eq('participant_user_id', participantId)
+        .select('patient_profile_id,archived_through_at').single();
+      if (error) throw error;
+      if (!data || data.patient_profile_id !== profileId) throw new Error('Conversation archive state could not be saved.');
+      return data.archived_through_at;
     },
     async markRead(profileId: string, participantId: string, through: string) {
       const { error } = await client.from('message_thread_state').update({ last_read_at: through })

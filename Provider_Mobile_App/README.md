@@ -20,10 +20,10 @@ Only public client settings belong in `EXPO_PUBLIC_*`. Never add a service-role 
 
 ## Included workflows
 
-- Patients: search active patients; inspect a separate read-only archive; view existing personal and care details.
+- Patients: search and sort the patient list; filter by current-week routine status using the same rules as the website; inspect a separate read-only archive. Tap any patient row to open their care details and routines. No patient-count summary is shown.
 - Routines: Monday–Sunday week navigation; saved assignment/exercise prescriptions; shared web status rules; patient routine comments and exercise pain/feeling/explanations with report times.
 - Messages: provider inbox, unread counts, starred threads, history, text sends, and read state shared with the website. Failed sends preserve the draft; retry is explicit. Message limits count Unicode characters, up to 4,000 after trimming.
-- Account: provider profile, system/light/dark appearance, manual lock, and sign-out on this device. Appearance resets when the app process restarts.
+- Dock: Patients, Messages, and the provider photo (or initials). The upward-opening photo menu contains Profile, App settings, Lock workspace, and Sign out. The dock remains available on patient and conversation pages and hides while the keyboard is open. Profile and App settings are separate screens; appearance resets when the app process restarts.
 
 Care-plan editing, onboarding, discharge/reinstatement, push notifications, message attachments, appointment management, and offline care storage are outside this release. The app does not classify pain scores as critical or infer completion from feedback.
 

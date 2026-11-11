@@ -8,11 +8,11 @@ export default defineConfig({
   reporter: 'list',
   use: { baseURL: 'http://localhost:8090', channel: process.env.PLAYWRIGHT_CHANNEL, trace: 'retain-on-failure', screenshot: 'only-on-failure' },
   projects: [
-    { name: 'small-phone', use: { viewport: { width: 320, height: 640 } } },
-    { name: 'phone', use: { viewport: { width: 390, height: 844 } } },
-    { name: 'phone-dark', use: { viewport: { width: 390, height: 844 }, colorScheme: 'dark' } },
-    { name: 'short-landscape', use: { viewport: { width: 740, height: 360 } } },
-    { name: 'tablet', use: { viewport: { width: 820, height: 1180 } } },
+    { name: 'small-phone', use: { hasTouch: true, viewport: { width: 320, height: 640 } } },
+    { name: 'phone', use: { hasTouch: true, viewport: { width: 390, height: 844 } } },
+    { name: 'phone-dark', use: { hasTouch: true, viewport: { width: 390, height: 844 }, colorScheme: 'dark' } },
+    { name: 'short-landscape', use: { hasTouch: true, viewport: { width: 740, height: 360 } } },
+    { name: 'tablet', use: { hasTouch: true, viewport: { width: 820, height: 1180 } } },
     { name: 'wide', use: { viewport: { width: 1280, height: 900 } } },
   ],
   webServer: {

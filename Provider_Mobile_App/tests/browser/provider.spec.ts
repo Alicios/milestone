@@ -5,7 +5,7 @@ const relationship = '20000000-0000-0000-0000-000000000001';
 const patientId = '30000000-0000-0000-0000-000000000001';
 const factor = { id: '40000000-0000-0000-0000-000000000001', factor_type: 'totp', status: 'verified', friendly_name: 'Authenticator' };
 function dateKey() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
-async function fixture(page: Page, options: { mfa?: boolean; noProvider?: boolean; feedbackFailure?: boolean; sendFailure?: boolean; delayPatients?: number } = {}) {
+async function fixture(page: Page, options: { mfa?: boolean; noProvider?: boolean; feedbackFailure?: boolean; sendFailure?: boolean; delayPatients?: number; multiplePatients?: boolean; avatar?: boolean; statusesFailure?: boolean } = {}) {
   const calls: { table: string; method: string; body: any; url: URL }[] = [];
   let starred = false;
   let read = false;
@@ -27,18 +27,20 @@ async function fixture(page: Page, options: { mfa?: boolean; noProvider?: boolea
     const body = request.postDataJSON();
     calls.push({ table, method, body, url });
     const json = (value: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) });
+    if (table === 'provider-avatar.svg') return route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#357f83" /></svg>' });
     if (url.pathname.endsWith('/token')) return json(session());
     if (url.pathname.endsWith('/user')) return json(user());
     if (url.pathname.endsWith('/challenge')) return json({ id: 'challenge-1', type: 'totp', expires_at: Math.floor(Date.now() / 1000) + 300 });
     if (url.pathname.endsWith('/verify')) { aal = 'aal2'; return json(session()); }
     if (url.pathname.endsWith('/logout')) return route.fulfill({ status: 204 });
-    if (table === 'providers') return options.noProvider ? json({ code: 'PGRST116', message: 'No row' }, 406) : json({ id: providerId, name: 'Alex Morgan', professional_title: 'Physical Therapist', contact_email: 'provider@example.test', avatar_url: null, phone: '555-0100', medical_practices: { name: 'Milestone Care' } });
+    if (table === 'providers') return options.noProvider ? json({ code: 'PGRST116', message: 'No row' }, 406) : json({ id: providerId, name: 'Alex Morgan', professional_title: 'Physical Therapist', contact_email: 'provider@example.test', avatar_url: options.avatar ? 'https://provider-test.supabase.co/storage/v1/object/public/profile-images/provider-avatar.svg' : null, phone: '555-0100', medical_practices: { name: 'Milestone Care' } });
     if (table === 'provider_patient_profiles') {
       if (options.delayPatients) await new Promise(resolve => setTimeout(resolve, options.delayPatients));
-      return json([{ id: relationship, patient_id: patientId, discharged_at: null }, { id: 'archived-relationship', patient_id: 'archived-patient', discharged_at: '2026-10-01T12:00:00Z' }]);
+      return json([{ id: relationship, patient_id: patientId, discharged_at: null }, { id: 'archived-relationship', patient_id: 'archived-patient', discharged_at: '2026-10-01T12:00:00Z' }, ...(options.multiplePatients ? [{ id: 'relationship-casey', patient_id: 'patient-casey', discharged_at: null }] : [])]);
     }
-    if (table === 'patients') return json([{ id: patientId, name: 'Jamie Rivera', email: 'jamie@example.test', phone: '555-0101', primary_concern: 'Shoulder mobility', treatment_focus: 'Comfortable movement', start_of_care: '2026-10-01', care_status: 'active' }, { id: 'archived-patient', name: 'Taylor Chen', primary_concern: 'Knee recovery' }]);
+    if (table === 'patients') return json([{ id: patientId, name: 'Jamie Rivera', email: 'jamie@example.test', phone: '555-0101', primary_concern: 'Shoulder mobility', treatment_focus: 'Comfortable movement', start_of_care: '2026-10-01', care_status: 'active' }, { id: 'archived-patient', name: 'Taylor Chen', primary_concern: 'Knee recovery' }, ...(options.multiplePatients ? [{ id: 'patient-casey', name: 'Casey Park', primary_concern: 'Balance' }] : [])]);
     if (table === 'routine_assignments') {
+      if (options.statusesFailure && !url.searchParams.get('select')?.includes('routine_name_snapshot')) return json({ message: 'Unavailable' }, 503);
       const currentWeek = url.searchParams.getAll('scheduled_date').some(value => value === `gte.${dateKey()}` || (value.startsWith('gte.') && value.slice(4) <= dateKey())) && url.searchParams.getAll('scheduled_date').some(value => value.startsWith('lte.') && value.slice(4) >= dateKey());
       return json(currentWeek ? [{ id: 'assignment-1', patient_profile_id: relationship, routine_name_snapshot: 'Gentle shoulder mobility', scheduled_date: dateKey(), status: 'scheduled', patient_in_progress: true, patient_issue_severity: 'none', patient_comment: 'Feeling more comfortable.', patient_result_source: 'patient' }] : []);
     }
@@ -78,7 +80,9 @@ test('patient care, archive, week navigation, and feedback render across layouts
   await expect(page.getByText('Taylor Chen')).toBeVisible();
   await expect(page.getByText('Jamie Rivera')).toHaveCount(0);
   await page.getByRole('button', { name: 'Active patients' }).click();
-  await page.getByRole('button', { name: 'Open Jamie Rivera' }).click();
+  await page.getByRole('link', { name: 'Open Jamie Rivera' }).click();
+  await expect(page).toHaveURL(new RegExp('/patient/' + relationship));
+  await expect(page.getByRole('tab', { name: 'Patients', exact: true })).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('button', { name: /Gentle shoulder mobility/ }).click();
   await expect(page.getByText('Shoulder rolls', { exact: false })).toBeVisible();
   await expect(page.getByText('Pain 2/10 · Feeling good')).toBeVisible();
@@ -118,7 +122,8 @@ test('MFA prevents care queries until verified, and manual lock hides care data'
   await page.getByRole('textbox', { name: 'Authentication code' }).fill('123456');
   await page.getByRole('button', { name: 'Verify and continue' }).click();
   await expect(page.getByRole('heading', { name: 'Your patients' })).toBeVisible();
-  await page.getByRole('tab', { name: 'Account' }).click();
+  await page.getByRole('tab', { name: 'Open profile menu' }).click();
+  await page.getByRole('menuitem', { name: 'App settings', exact: true }).click();
   await page.getByRole('button', { name: 'Dark', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Dark · Selected' })).toBeVisible();
   await page.getByRole('button', { name: 'Lock workspace' }).click();
@@ -134,7 +139,9 @@ test('non-provider identities cannot load patients or messages', async ({ page }
 });
 test('feedback failure is visible while prescriptions remain readable', async ({ page }) => {
   await fixture(page, { feedbackFailure: true }); await signIn(page);
-  await page.getByRole('button', { name: 'Open Jamie Rivera' }).click();
+  await page.getByRole('link', { name: 'Open Jamie Rivera' }).click();
+  await expect(page).toHaveURL(new RegExp('/patient/' + relationship));
+  await expect(page.getByRole('tab', { name: 'Patients', exact: true })).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('button', { name: /Gentle shoulder mobility/ }).click();
   await expect(page.getByText('Patient exercise feedback could not be loaded. Pull down to retry.')).toBeVisible();
   await expect(page.getByText('2 sets · 10 reps · 30 seconds')).toBeVisible();
@@ -142,7 +149,8 @@ test('feedback failure is visible while prescriptions remain readable', async ({
 });
 test('sign-out prevents pending patient responses from restoring private content', async ({ page }) => {
   await fixture(page, { delayPatients: 1500 }); await signIn(page);
-  await page.getByRole('tab', { name: 'Account' }).click();
+  await page.getByRole('tab', { name: 'Open profile menu' }).click();
+  await page.getByRole('menuitem', { name: 'App settings', exact: true }).click();
   await page.getByRole('button', { name: 'Sign out on this device' }).click();
   await expect(page.getByRole('button', { name: 'Sign in to your workspace' })).toBeVisible();
   await page.waitForTimeout(1700);
@@ -164,4 +172,62 @@ test('leaving the foreground locks the workspace before returning', async ({ pag
   });
   await expect(page.getByText('Welcome back.')).toBeVisible();
   await expect(page.getByText('Jamie Rivera')).toHaveCount(0);
+});
+
+
+test('patient filters replace the count card and rows open the patient page by touch', async ({ page }, testInfo) => {
+  await fixture(page, { multiplePatients: true }); await signIn(page);
+  await expect(page.getByRole('link', { name: 'Open Jamie Rivera' })).toBeVisible();
+  await expect(page.getByText('patients in your care')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Filter', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Unassigned this week', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Open Casey Park' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open Jamie Rivera' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Filter', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'In progress / partially complete', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Open Jamie Rivera' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open Casey Park' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Clear filter' }).click();
+  await page.getByRole('textbox', { name: 'Find a patient' }).fill('Jamie');
+  await expect(page.getByRole('link', { name: 'Open Casey Park' })).toHaveCount(0);
+  const row = page.getByRole('link', { name: 'Open Jamie Rivera' });
+  if (testInfo.project.use.hasTouch) await row.tap(); else await row.click();
+  await expect(page).toHaveURL(new RegExp('/patient/' + relationship));
+  await expect(page.getByRole('heading', { name: 'Jamie Rivera', exact: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Open profile menu' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Patients', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Your patients' })).toBeVisible();
+  await noHorizontalOverflow(page);
+  await page.screenshot({ path: testInfo.outputPath('filtered-patients.png'), fullPage: true });
+});
+test('dock photo opens profile and app settings with dismissible upward menu', async ({ page }, testInfo) => {
+  await fixture(page, { avatar: true }); await signIn(page);
+  const photo = page.getByRole('img', { name: 'Alex Morgan profile photo' });
+  await expect(photo).toBeVisible();
+  await page.getByRole('tab', { name: 'Open profile menu' }).click();
+  await expect(page.getByRole('menu', { name: 'Profile menu' })).toBeVisible();
+  await noHorizontalOverflow(page);
+  await page.screenshot({ path: testInfo.outputPath('profile-menu.png'), fullPage: true });
+  await page.getByRole('menuitem', { name: 'Profile', exact: true }).click();
+  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page.getByRole('menu', { name: 'Profile menu' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Profile', exact: true })).toBeVisible();
+  await expect(page.getByText('Alex Morgan', { exact: true }).filter({ visible: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Open profile menu' }).click();
+  await page.getByRole('menuitem', { name: 'App settings', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'App settings', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Dark', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Dark .*Selected/ })).toBeVisible();
+  await page.getByRole('tab', { name: 'Open profile menu' }).click();
+  await page.getByRole('button', { name: 'Dismiss profile menu', exact: true }).click({ position: { x: 5, y: 5 } });
+  await expect(page.getByRole('menu', { name: 'Profile menu' })).toHaveCount(0);
+});
+test('a failed filter query never labels everyone unassigned', async ({ page }) => {
+  await fixture(page, { multiplePatients: true, statusesFailure: true }); await signIn(page);
+  await page.getByRole('button', { name: 'Filter', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Unassigned this week', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Patient routine statuses could not be loaded');
+  await expect(page.getByRole('link', { name: 'Open Jamie Rivera' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Clear filter' }).click();
+  await expect(page.getByRole('link', { name: 'Open Jamie Rivera' })).toBeVisible();
 });

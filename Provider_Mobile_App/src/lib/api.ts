@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Assignment, Conversation, Message, Patient, Provider } from '../types';
 import { validateMessage } from './domain';
+import type { AssignmentSummary } from './patientFilters';
 
 // Paginate every list; the hosted API's row limit must not truncate a caseload.
 export async function allRows<T>(query: (start: number, end: number) => PromiseLike<{ data: unknown; error: unknown }>): Promise<T[]> {
@@ -41,6 +42,18 @@ export function createProviderApi(client: SupabaseClient) {
           primaryConcern: row.primary_concern, treatmentFocus: row.treatment_focus, startOfCare: row.start_of_care,
           careStatus: row.care_status, dischargedAt: relationship.discharged_at }] : [];
       }).sort((a, b) => a.name.localeCompare(b.name));
+    },
+    async assignmentStatuses(profileIds: string[], from: string, to: string): Promise<AssignmentSummary[]> {
+      type Row = { id: string; patient_profile_id: string; scheduled_date: string; status: Assignment['status']; patient_in_progress: boolean; patient_issue_severity: string; patient_comment: string | null; patient_result_source: 'patient' | 'demo' | null };
+      const rows: Row[] = [];
+      for (let offset = 0; offset < profileIds.length; offset += 100) {
+        rows.push(...await allRows<Row>((start, end) => client.from('routine_assignments')
+          .select('id,patient_profile_id,scheduled_date,status,patient_in_progress,patient_issue_severity,patient_comment,patient_result_source')
+          .in('patient_profile_id', profileIds.slice(offset, offset + 100)).gte('scheduled_date', from).lte('scheduled_date', to)
+          .neq('status', 'cancelled').order('id').range(start, end)));
+      }
+      return rows.map(row => ({ id: row.id, patientProfileId: row.patient_profile_id, scheduledDate: row.scheduled_date, status: row.status,
+        patientResult: { inProgress: row.patient_in_progress, issue: row.patient_issue_severity === 'critical' || row.patient_issue_severity === 'noncritical' ? row.patient_issue_severity : undefined, comment: row.patient_comment, source: row.patient_result_source } }));
     },
     async assignments(profileId: string, from: string, to: string): Promise<Assignment[]> {
       type Row = { id: string; patient_profile_id: string; routine_name_snapshot: string; scheduled_date: string; status: Assignment['status']; patient_in_progress: boolean; patient_issue_severity: string; patient_comment: string | null; patient_result_source: 'patient' | 'demo' | null };

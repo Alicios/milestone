@@ -46,3 +46,19 @@ test('sending validates before network access; read/star changes include partici
   await api.star('relationship-a', 'provider-a', true);
   assert.equal(calls.filter(call => call.method === 'eq' && call.args[0] === 'participant_user_id' && call.args[1] === 'provider-a').length, 2);
 });
+
+
+test('list filters read only lightweight routine statuses, batched and relationship scoped', async () => {
+  const { api, calls } = fake({ routine_assignments: { data: [] } });
+  await api.assignmentStatuses(Array.from({ length: 101 }, (_, i) => `relationship-${i}`), '2026-11-09', '2026-11-15');
+  const groups = calls.filter(call => call.method === 'in');
+  assert.equal(groups.length, 2);
+  assert.equal((groups[0].args[1] as string[]).length, 100);
+  assert.equal((groups[1].args[1] as string[]).length, 1);
+  assert.ok(calls.every(call => call.table === 'routine_assignments'));
+  assert.ok(calls.filter(call => call.method === 'select').every(call => !(call.args[0] as string).includes('snapshot')));
+});
+test('unavailable list statuses reject instead of becoming an unassigned result', async () => {
+  const { api } = fake({ routine_assignments: { error: new Error('offline') } });
+  await assert.rejects(api.assignmentStatuses(['relationship-a'], '2026-11-09', '2026-11-15'), /offline/);
+});

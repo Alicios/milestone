@@ -4,9 +4,9 @@
 
 - TypeScript application checks passed.
 - Expo dependency compatibility check passed against SDK 58.
-- 20 automated tests passed: web routine-status parity across 90 combinations; calendar boundaries; Unicode message limits; paginated data reads; provider/MFA/session gates; partial feedback failure; chunked storage and fault recovery; device-auth result handling; and sign-out cleanup under storage/network failure.
+- 26 automated tests passed: web routine-status parity across 90 combinations; calendar boundaries; Unicode message limits; paginated data reads; provider/MFA/session gates; partial feedback failure; chunked storage and fault recovery; device-auth result handling; and sign-out cleanup under storage/network failure.
 - Android and iOS Hermes JavaScript exports and web export succeeded. These validate bundling, not compiled native applications.
-- 42 browser checks passed across six layouts. Tests exercise real app screens against intercepted synthetic Supabase responses, including patient/archive navigation, weekly routine feedback, failed sends/retry, read/star state, MFA, provider-membership denial, foreground locking, and pending requests after sign-out.
+- 60 browser checks passed across six layouts. Tests exercise real app screens against intercepted synthetic Supabase responses, including patient/archive navigation, weekly routine feedback, failed sends/retry, read/star state, MFA, provider-membership denial, foreground locking, and pending requests after sign-out. Added checks cover patient status filters (including query failure), touch navigation into patient pages, the provider photo menu, separate profile/settings pages, and dock availability on detail screens.
 - Rendered phone, tablet, dark, wide, and reduced-height surfaces were inspected. Patient-detail spacing and reduced-height conversation layout were corrected from screenshots.
 - Hosted schema inspection confirmed the selected columns, provider inbox RPC, provider-scoped RLS, and current Realtime publication. Read-only transaction assertions checked own-provider relationship access and foreign provider/profile/message/assignment/feedback/inbox denial where existing rows were available; the transaction was rolled back. No data or policies changed.
 

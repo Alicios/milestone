@@ -5,11 +5,14 @@ const relationship = '20000000-0000-0000-0000-000000000001';
 const patientId = '30000000-0000-0000-0000-000000000001';
 const factor = { id: '40000000-0000-0000-0000-000000000001', factor_type: 'totp', status: 'verified', friendly_name: 'Authenticator' };
 function dateKey() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
-async function fixture(page: Page, options: { mfa?: boolean; noProvider?: boolean; feedbackFailure?: boolean; sendFailure?: boolean; delayPatients?: number; multiplePatients?: boolean; avatar?: boolean; statusesFailure?: boolean; archiveFailure?: boolean; archiveRace?: boolean; scheduling?: boolean; uncertainSchedule?: boolean; rejectedTransport?: boolean; staleChange?: boolean; completedIssue?: boolean } = {}) {
+async function fixture(page: Page, options: { mfa?: boolean; noProvider?: boolean; feedbackFailure?: boolean; sendFailure?: boolean; delayPatients?: number; multiplePatients?: boolean; avatar?: boolean; statusesFailure?: boolean; archiveFailure?: boolean; archiveRace?: boolean; scheduling?: boolean; uncertainSchedule?: boolean; rejectedTransport?: boolean; staleChange?: boolean; completedIssue?: boolean; homeDemo?: boolean; homeFailure?: boolean } = {}) {
   const calls: { table: string; method: string; body: any; url: URL }[] = [];
   const routineA = '50000000-0000-0000-0000-000000000001';
   const routineB = '50000000-0000-0000-0000-000000000002';
   let assignment: any = { id: options.scheduling ? '60000000-0000-0000-0000-000000000001' : 'assignment-1', routine_id: routineA, updated_at: '2026-11-10T10:00:00.123456Z', patient_profile_id: relationship, routine_name_snapshot: 'Gentle shoulder mobility', scheduled_date: dateKey(), status: options.completedIssue ? 'completed' : 'scheduled', patient_in_progress: !options.scheduling && !options.completedIssue, patient_issue_severity: options.completedIssue ? 'noncritical' : 'none', patient_comment: options.scheduling ? null : 'Feeling more comfortable.', patient_result_source: 'patient' };
+  const relativeDate = (offset: number) => { const day = new Date(`${dateKey()}T12:00:00`); day.setDate(day.getDate() + offset); return `${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`; };
+  if (options.homeDemo) assignment = { ...assignment, status: 'completed', scheduled_date: relativeDate(-1), routine_name_snapshot: 'Feet Fun', patient_in_progress: false, patient_issue_severity: 'noncritical', patient_comment: 'Simulated balance issue.', patient_result_source: 'demo' };
+  const homeExtras = options.homeDemo ? [2,3].map(offset => ({ ...assignment, id: `home-completed-${offset}`, scheduled_date: relativeDate(-offset), routine_name_snapshot: offset === 2 ? 'Lower Body' : 'Upper Body', patient_issue_severity: 'none' })) : [];
   const receipts = new Map<string, any>();
   let transportFailed = false;
   const policy = { today: dateKey(), lastDate: new Date(new Date().getTime() + 13 * 86400000).toISOString().slice(0,10), timeZone: 'America/Los_Angeles', horizonDays: 14 };
@@ -45,7 +48,7 @@ async function fixture(page: Page, options: { mfa?: boolean; noProvider?: boolea
       if (options.delayPatients) await new Promise(resolve => setTimeout(resolve, options.delayPatients));
       return json([{ id: relationship, patient_id: patientId, discharged_at: null }, { id: 'archived-relationship', patient_id: 'archived-patient', discharged_at: '2026-10-01T12:00:00Z' }, ...(options.multiplePatients ? [{ id: 'relationship-casey', patient_id: 'patient-casey', discharged_at: null }] : [])]);
     }
-    if (table === 'patients') return json([{ id: patientId, name: 'Jamie Rivera', email: 'jamie@example.test', phone: '555-0101', primary_concern: 'Shoulder mobility', treatment_focus: 'Comfortable movement', start_of_care: '2026-10-01', care_status: 'active' }, { id: 'archived-patient', name: 'Taylor Chen', primary_concern: 'Knee recovery' }, ...(options.multiplePatients ? [{ id: 'patient-casey', name: 'Casey Park', primary_concern: 'Balance' }] : [])]);
+    if (table === 'patients') return json([{ id: patientId, name: options.homeDemo ? 'Frank Murgolo' : 'Jamie Rivera', email: 'jamie@example.test', phone: '555-0101', primary_concern: 'Shoulder mobility', treatment_focus: 'Comfortable movement', start_of_care: '2026-10-01', care_status: 'active' }, { id: 'archived-patient', name: 'Taylor Chen', primary_concern: 'Knee recovery' }, ...(options.multiplePatients ? [{ id: 'patient-casey', name: 'Casey Park', primary_concern: 'Balance' }] : [])]);
     if (table === 'get_routine_scheduling_policy') return json(policy);
     if (table === 'routines') return json([{ id: routineA, name: 'Gentle shoulder mobility', description: null }, { id: routineB, name: 'Balance practice', description: 'Steady movements' }]);
     if (table === 'preview_routine_schedule') {
@@ -68,9 +71,13 @@ async function fixture(page: Page, options: { mfa?: boolean; noProvider?: boolea
     }
     if (table === 'routine_assignments') {
       if (options.statusesFailure && !url.searchParams.get('select')?.includes('routine_name_snapshot')) return json({ message: 'Unavailable' }, 503);
-      const currentWeek = url.searchParams.getAll('scheduled_date').some(value => value === `gte.${dateKey()}` || (value.startsWith('gte.') && value.slice(4) <= dateKey())) && url.searchParams.getAll('scheduled_date').some(value => value.startsWith('lte.') && value.slice(4) >= dateKey());
-      return json(currentWeek && assignment ? [assignment] : []);
+      if (options.homeFailure) return json({ message: 'Unavailable' }, 503);
+      const from = url.searchParams.getAll('scheduled_date').find(value => value.startsWith('gte.'))?.slice(4) ?? '';
+      const to = url.searchParams.getAll('scheduled_date').find(value => value.startsWith('lte.'))?.slice(4) ?? '9999-12-31';
+      return json([...(assignment ? [assignment] : []), ...homeExtras].filter(row => row.scheduled_date >= from && row.scheduled_date <= to));
     }
+    if (options.homeDemo && table === 'routine_assignment_exercises') return json([assignment, ...homeExtras].map((row, i) => ({ id: `home-exercise-${i}`, routine_assignment_id: row.id, exercise_name_snapshot: i === 0 ? 'Feet-Together Balance' : 'Comfortable stretch', position: 0, sets_snapshot: 2, reps_snapshot: 5, timer_seconds_snapshot: null, notes_snapshot: null })));
+    if (options.homeDemo && table === 'routine_assignment_exercise_feedback') return json([assignment, ...homeExtras].map((row, i) => ({ routine_assignment_exercise_id: `home-exercise-${i}`, pain_score: i === 0 ? 6 : 2, feeling: i === 0 ? 'difficult' : 'good', explanation: i === 0 ? '[Simulated] I felt unsteady and needed to hold the chair.' : null, reported_at: `${row.scheduled_date}T20:00:00Z` })));
     if (table === 'routine_assignment_exercises') return json([{ id: 'exercise-1', routine_assignment_id: assignment?.id ?? 'assignment-1', exercise_name_snapshot: 'Shoulder rolls', position: 0, sets_snapshot: 2, reps_snapshot: 10, timer_seconds_snapshot: 30, notes_snapshot: 'Keep movement slow and comfortable.' }]);
     if (table === 'routine_assignment_exercise_feedback' && options.scheduling) return json([]);
     if (table === 'routine_assignment_exercise_feedback') return options.feedbackFailure ? json({ code: '42501', message: 'Permission denied' }, 403) : json([{ routine_assignment_exercise_id: 'exercise-1', pain_score: 2, feeling: 'good', explanation: 'Much easier today.', reported_at: `${dateKey()}T11:00:00Z` }]);
@@ -103,8 +110,8 @@ async function fixture(page: Page, options: { mfa?: boolean; noProvider?: boolea
   }
   return { calls, incoming };
 }
-async function signIn(page: Page) {
-  await page.goto('/');
+async function signIn(page: Page, path = '/patients') {
+  await page.goto(path);
   await page.getByRole('textbox', { name: 'Work email', exact: true }).fill('provider@example.test');
   await page.getByLabel('Password', { exact: true }).fill('synthetic-test-password');
   await page.getByRole('button', { name: 'Sign in to your workspace' }).click();
@@ -427,4 +434,115 @@ test('retry after a disconnected request keeps the original confirmation UUID', 
   const writes = calls.filter(call => call.table === 'change_patient_routine');
   expect(writes).toHaveLength(2);
   expect(writes[0].body).toEqual(writes[1].body);
+});
+
+// Model mobile browsers where the keyboard shrinks visualViewport but leaves
+// the layout viewport unchanged. These checks do not replace native device QA.
+async function keyboardOverlay(page: Page, open: boolean) {
+  return page.evaluate(isOpen => {
+    const height = isOpen ? window.innerHeight - Math.min(280, window.innerHeight * 0.45) : window.innerHeight;
+    Object.defineProperty(window.visualViewport!, 'height', { configurable: true, value: height });
+    Object.defineProperty(window.visualViewport!, 'offsetTop', { configurable: true, value: 0 });
+    window.visualViewport!.dispatchEvent(new Event('resize'));
+    return height;
+  }, open);
+}
+async function inputAboveKeyboard(page: Page, label: string) {
+  const input = page.getByLabel(label, { exact: true });
+  await input.focus();
+  const keyboardTop = await keyboardOverlay(page, true);
+  await expect.poll(async () => {
+    const box = await input.boundingBox();
+    return Boolean(box && box.y >= -1 && box.y + box.height <= keyboardTop + 1);
+  }).toBe(true);
+}
+
+test('keyboard overlays keep sign-in, searches, assignment fields, and composer visible', async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await fixture(page, { scheduling: true });
+  await page.goto('/');
+  await inputAboveKeyboard(page, 'Work email');
+  await inputAboveKeyboard(page, 'Password');
+  await page.screenshot({ path: testInfo.outputPath('keyboard-sign-in.png') });
+  await keyboardOverlay(page, false);
+  await signIn(page);
+  await inputAboveKeyboard(page, 'Find a patient');
+  await expect(page.getByRole('tab', { name: 'Patients', exact: true })).toHaveCount(0);
+  await keyboardOverlay(page, false);
+  await page.getByRole('tab', { name: /Messages/ }).click();
+  await inputAboveKeyboard(page, 'Find a conversation');
+  await keyboardOverlay(page, false);
+  await page.getByRole('button', { name: /^Jamie Rivera/ }).click();
+  const draft = 'First line\nSecond line\nThird line';
+  await page.getByLabel('Message', { exact: true }).fill(draft);
+  await inputAboveKeyboard(page, 'Message');
+  const keyboardTop = await keyboardOverlay(page, true);
+  await expect.poll(async () => {
+    const box = await page.getByRole('button', { name: 'Send message', exact: true }).boundingBox();
+    return Boolean(box && box.y >= 0 && box.y + box.height <= keyboardTop + 1);
+  }).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('keyboard-composer.png') });
+  await keyboardOverlay(page, false);
+  await expect(page.getByLabel('Message', { exact: true })).toHaveValue(draft);
+  const originalViewport = page.viewportSize()!;
+  const resized = { width: originalViewport.width, height: Math.max(260, originalViewport.height - 200) };
+  await page.setViewportSize(resized);
+  await keyboardOverlay(page, false);
+  await expect.poll(async () => {
+    const box = await page.getByLabel('Message', { exact: true }).boundingBox();
+    return Boolean(box && box.y >= 0 && box.y + box.height <= resized.height + 1);
+  }).toBe(true);
+  await expect(page.getByLabel('Message', { exact: true })).toHaveValue(draft);
+  await page.setViewportSize(originalViewport);
+  await keyboardOverlay(page, false);
+  await page.getByRole('tab', { name: 'Patients', exact: true }).click();
+  await page.getByRole('link', { name: 'Open Jamie Rivera' }).click();
+  await page.getByRole('button', { name: 'Change routine', exact: true }).click();
+  await inputAboveKeyboard(page, 'Search saved routines');
+  await page.screenshot({ path: testInfo.outputPath('keyboard-assignment.png') });
+  await keyboardOverlay(page, false);
+  await page.getByRole('button', { name: 'Close change routine', exact: true }).click();
+  expect(errors).toEqual([]);
+});
+
+test('keyboard overlay keeps the authenticator input visible', async ({ page }) => {
+  await fixture(page, { mfa: true });
+  await signIn(page);
+  await inputAboveKeyboard(page, 'Authentication code');
+  await keyboardOverlay(page, false);
+  await page.getByLabel('Authentication code', { exact: true }).fill('123456');
+  await page.getByRole('button', { name: 'Verify and continue' }).click();
+  await expect(page.getByRole('heading', { name: 'Your patients' })).toBeVisible();
+});
+
+
+test('Home shows completed Frank routines and the exercise issue, with dated patient navigation', async ({ page }, testInfo) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await fixture(page, { homeDemo: true }); await signIn(page, '/');
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Home', exact: true })).toHaveAttribute('aria-selected', 'true');
+  const issue = page.getByRole('button', { name: 'Review Frank Murgolo, Feet-Together Balance', exact: true });
+  await expect(issue).toContainText('Pain 6/10');
+  await expect(issue).toContainText('Routine completed with an issue');
+  await expect(issue).toContainText('Simulated result');
+  await expect(page.getByRole('button', { name: /^View completed .* for Frank Murgolo/ })).toHaveCount(3);
+  await page.screenshot({ path: testInfo.outputPath('home-overview.png') });
+  await issue.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('home-issue.png') });
+  await issue.click();
+  await expect(page.getByRole('heading', { name: 'Frank Murgolo', exact: true })).toBeVisible();
+  await expect(page.getByText('[Simulated] I felt unsteady and needed to hold the chair.', { exact: true }).filter({ visible: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Home', exact: true }).click();
+  await expect(issue).toBeVisible();
+  await page.getByRole('tab', { name: 'Patients', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Your patients' })).toBeVisible();
+  await noHorizontalOverflow(page);
+  expect(errors).toEqual([]);
+});
+
+test('Home never reports all clear after its assignment query fails', async ({ page }) => {
+  await fixture(page, { homeFailure: true }); await signIn(page, '/');
+  await expect(page.getByRole('alert')).toContainText('could not complete');
+  await expect(page.getByText('No issues reported', { exact: true })).toHaveCount(0);
 });

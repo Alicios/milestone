@@ -13,7 +13,7 @@
       "requireFullScreen": false,
       "config": { "usesNonExemptEncryption": false }
     },
-    "android": { "package": "com.milestone.provider", "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#F4EACF" } },
+    "android": { "softwareKeyboardLayoutMode": "resize", "package": "com.milestone.provider", "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#F4EACF" } },
     "web": { "bundler": "metro", "output": "single", "name": "Milestone Provider" },
     "plugins": [
       "expo-router",

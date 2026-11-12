@@ -56,12 +56,16 @@ export function createProviderApi(client: SupabaseClient) {
       return rows.map(row => ({ id: row.id, patientProfileId: row.patient_profile_id, scheduledDate: row.scheduled_date, status: row.status,
         patientResult: { inProgress: row.patient_in_progress, issue: row.patient_issue_severity === 'critical' || row.patient_issue_severity === 'noncritical' ? row.patient_issue_severity : undefined, comment: row.patient_comment, source: row.patient_result_source } }));
     },
-    async assignments(profileId: string, from: string, to: string): Promise<Assignment[]> {
+    async assignments(profileId: string | string[], from: string, to: string): Promise<Assignment[]> {
       type Row = { id: string; routine_id: string; updated_at: string; patient_profile_id: string; routine_name_snapshot: string; scheduled_date: string; status: Assignment['status']; patient_in_progress: boolean; patient_issue_severity: string; patient_comment: string | null; patient_result_source: 'patient' | 'demo' | null };
-      const rows = await allRows<Row>((start, end) => client.from('routine_assignments')
-        .select('id,routine_id,updated_at,patient_profile_id,routine_name_snapshot,scheduled_date,status,patient_in_progress,patient_issue_severity,patient_comment,patient_result_source')
-        .eq('patient_profile_id', profileId).gte('scheduled_date', from).lte('scheduled_date', to).neq('status', 'cancelled')
-        .order('scheduled_date').order('id').range(start, end));
+      if (Array.isArray(profileId) && !profileId.length) return [];
+      const rows = await allRows<Row>((start, end) => {
+        const query = client.from('routine_assignments')
+          .select('id,routine_id,updated_at,patient_profile_id,routine_name_snapshot,scheduled_date,status,patient_in_progress,patient_issue_severity,patient_comment,patient_result_source');
+        const scoped = typeof profileId === 'string' ? query.eq('patient_profile_id', profileId) : query.in('patient_profile_id', profileId);
+        return scoped.gte('scheduled_date', from).lte('scheduled_date', to).neq('status', 'cancelled')
+          .order('scheduled_date').order('id').range(start, end);
+      });
       if (!rows.length) return [];
       type ExerciseRow = { id: string; routine_assignment_id: string; exercise_name_snapshot: string; position: number; sets_snapshot: number | null; reps_snapshot: number | null; timer_seconds_snapshot: number | null; notes_snapshot: string | null };
       const exercises = await allRows<ExerciseRow>((start, end) => client.from('routine_assignment_exercises')

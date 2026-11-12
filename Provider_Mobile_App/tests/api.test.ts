@@ -87,3 +87,14 @@ test('archive metadata failure cannot silently restore archived conversations in
   const { api } = fake({ get_provider_message_inbox: { data: [{ patient_profile_id: 'relationship-a' }] }, message_thread_state: { error: new Error('offline') } });
   await assert.rejects(api.conversations('provider-a'), /offline/);
 });
+
+
+test('Home assignment batches are relationship scoped and empty caseloads make no query', async () => {
+  const { api, calls } = fake({});
+  assert.deepEqual(await api.assignments([], '2026-11-05', '2026-11-11'), []);
+  assert.equal(calls.length, 0);
+  await api.assignments(['profile-a', 'profile-b'], '2026-11-05', '2026-11-11');
+  assert.ok(calls.some(call => call.table === 'routine_assignments' && call.method === 'in' && call.args[0] === 'patient_profile_id' && JSON.stringify(call.args[1]) === JSON.stringify(['profile-a','profile-b'])));
+  assert.ok(calls.some(call => call.method === 'gte' && call.args[1] === '2026-11-05'));
+  assert.ok(calls.some(call => call.method === 'lte' && call.args[1] === '2026-11-11'));
+});

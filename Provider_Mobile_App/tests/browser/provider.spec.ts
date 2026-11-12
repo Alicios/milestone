@@ -7,6 +7,7 @@ const factor = { id: '40000000-0000-0000-0000-000000000001', factor_type: 'totp'
 function dateKey() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 async function fixture(page: Page, options: { mfa?: boolean; noProvider?: boolean; feedbackFailure?: boolean; sendFailure?: boolean; delayPatients?: number; multiplePatients?: boolean; avatar?: boolean; statusesFailure?: boolean; archiveFailure?: boolean; archiveRace?: boolean; scheduling?: boolean; uncertainSchedule?: boolean; rejectedTransport?: boolean; staleChange?: boolean; completedIssue?: boolean; homeDemo?: boolean; homeFailure?: boolean } = {}) {
   const calls: { table: string; method: string; body: any; url: URL }[] = [];
+  const appointments: any[] = [];
   const routineA = '50000000-0000-0000-0000-000000000001';
   const routineB = '50000000-0000-0000-0000-000000000002';
   let assignment: any = { id: options.scheduling ? '60000000-0000-0000-0000-000000000001' : 'assignment-1', routine_id: routineA, updated_at: '2026-11-10T10:00:00.123456Z', patient_profile_id: relationship, routine_name_snapshot: 'Gentle shoulder mobility', scheduled_date: dateKey(), status: options.completedIssue ? 'completed' : 'scheduled', patient_in_progress: !options.scheduling && !options.completedIssue, patient_issue_severity: options.completedIssue ? 'noncritical' : 'none', patient_comment: options.scheduling ? null : 'Feeling more comfortable.', patient_result_source: 'patient' };
@@ -44,6 +45,19 @@ async function fixture(page: Page, options: { mfa?: boolean; noProvider?: boolea
     if (url.pathname.endsWith('/verify')) { aal = 'aal2'; return json(session()); }
     if (url.pathname.endsWith('/logout')) return route.fulfill({ status: 204 });
     if (table === 'providers') return options.noProvider ? json({ code: 'PGRST116', message: 'No row' }, 406) : json({ id: providerId, name: 'Alex Morgan', professional_title: 'Physical Therapist', contact_email: 'provider@example.test', avatar_url: options.avatar ? 'https://provider-test.supabase.co/storage/v1/object/public/profile-images/provider-avatar.svg' : null, phone: '555-0100', medical_practices: { name: 'Milestone Care' } });
+    if (table === 'provider_appointments') {
+      if (method === 'POST') {
+        if (appointments.some(visit => visit.status === 'scheduled' && visit.starts_at < body.ends_at && visit.ends_at > body.starts_at)) return json({ code: '23P01', message: 'Overlapping appointment' }, 409);
+        appointments.push(body);
+        return route.fulfill({ status: 201 });
+      }
+      if (method === 'PATCH') {
+        const visit = appointments.find(row => `eq.${row.id}` === url.searchParams.get('id'));
+        Object.assign(visit, body); return json({ id: visit.id });
+      }
+      if (url.searchParams.has('id')) return json(appointments.find(row => `eq.${row.id}` === url.searchParams.get('id')) ?? null);
+      return json(appointments.filter(row => row.status === 'scheduled').sort((a, b) => a.starts_at.localeCompare(b.starts_at)));
+    }
     if (table === 'provider_patient_profiles') {
       if (options.delayPatients) await new Promise(resolve => setTimeout(resolve, options.delayPatients));
       return json([{ id: relationship, patient_id: patientId, discharged_at: null }, { id: 'archived-relationship', patient_id: 'archived-patient', discharged_at: '2026-10-01T12:00:00Z' }, ...(options.multiplePatients ? [{ id: 'relationship-casey', patient_id: 'patient-casey', discharged_at: null }] : [])]);
@@ -539,6 +553,45 @@ test('Home shows completed Frank routines and the exercise issue, with dated pat
   await expect(page.getByRole('heading', { name: 'Your patients' })).toBeVisible();
   await noHorizontalOverflow(page);
   expect(errors).toEqual([]);
+});
+
+test('Home books appointments, validates dates, rejects overlaps, refreshes on return, and cancels visits', async ({ page }, testInfo) => {
+  const { calls } = await fixture(page); await signIn(page, '/');
+  await expect(page.getByText('No upcoming appointments', { exact: true })).toBeVisible();
+  await expect(page.getByText('Patients', { exact: true }).filter({ hasNot: page.locator('[role="tab"]') })).toHaveCount(1);
+  await expect(page.getByText('Completed', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Make appointment', exact: true }).click();
+  await page.getByRole('radio', { name: 'Jamie Rivera' }).click();
+  await expect(page.getByRole('radio', { name: 'Taylor Chen' })).toHaveCount(0);
+  await page.getByLabel('Appointment date (YYYY-MM-DD)', { exact: true }).fill('2020-01-01');
+  await page.getByRole('button', { name: 'Book appointment', exact: true }).click();
+  await expect(page.getByText('Choose a future appointment time.', { exact: true })).toBeVisible();
+  await page.getByLabel('Appointment date (YYYY-MM-DD)', { exact: true }).fill('2035-12-01');
+  await page.getByLabel('Appointment time (HH:MM, 24-hour)', { exact: true }).fill('14:30');
+  await page.getByLabel('Duration (minutes)', { exact: true }).fill('45');
+  await page.getByLabel('Location (optional)', { exact: true }).fill('Room 2');
+  await page.getByRole('button', { name: 'Book appointment', exact: true }).click();
+  await expect(page.getByText('Appointment booked.', { exact: true })).toBeVisible();
+  await expect(page.getByText('45 minutes | Room 2', { exact: true })).toBeVisible();
+  expect(calls.filter(call => call.table === 'provider_appointments' && call.method === 'POST')).toHaveLength(1);
+  await page.getByRole('tab', { name: 'Patients', exact: true }).click();
+  await page.getByRole('tab', { name: 'Home', exact: true }).click();
+  await expect(page.getByText('45 minutes | Room 2', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Make appointment', exact: true }).click();
+  await page.getByRole('radio', { name: 'Jamie Rivera' }).click();
+  await page.getByLabel('Appointment date (YYYY-MM-DD)', { exact: true }).fill('2035-12-01');
+  await page.getByLabel('Appointment time (HH:MM, 24-hour)', { exact: true }).fill('14:30');
+  await page.getByRole('button', { name: 'Book appointment', exact: true }).click();
+  await expect(page.getByText('This appointment overlaps another visit. Choose another time.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Close make appointment', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel appointment with Jamie Rivera', exact: true }).click();
+  await page.getByRole('button', { name: 'Keep appointment', exact: true }).click();
+  await expect(page.getByText('45 minutes | Room 2', { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('home-appointments.png'), fullPage: true });
+  await noHorizontalOverflow(page);
+  await page.getByRole('button', { name: 'Cancel appointment with Jamie Rivera', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirm cancellation', exact: true }).click();
+  await expect(page.getByText('No upcoming appointments', { exact: true })).toBeVisible();
 });
 
 test('Home never reports all clear after its assignment query fails', async ({ page }) => {

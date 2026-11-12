@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { allRows, createProviderApi } from '../src/lib/api';
+import type { Appointment } from '../src/lib/appointments';
 
 type Call = { table: string; method: string; args: unknown[] };
 function fake(responses: Record<string, { data?: unknown; error?: unknown }>) {
@@ -14,6 +15,33 @@ function fake(responses: Record<string, { data?: unknown; error?: unknown }>) {
   };
   return { calls, api: createProviderApi({ from: query, rpc: query } as unknown as SupabaseClient) };
 }
+
+test('upcoming appointments are scoped to the provider and cancelled records are excluded', async () => {
+  const { api, calls } = fake({ provider_appointments: { data: [] } });
+  await api.appointments('provider-a');
+  assert.ok(calls.some(call => call.method === 'eq' && call.args[0] === 'provider_id' && call.args[1] === 'provider-a'));
+  assert.ok(calls.some(call => call.method === 'eq' && call.args[0] === 'status' && call.args[1] === 'scheduled'));
+  assert.ok(calls.some(call => call.method === 'gte' && call.args[0] === 'ends_at'));
+  assert.ok(calls.some(call => call.method === 'order' && call.args[0] === 'starts_at'));
+  const failure = fake({ provider_appointments: { error: new Error('unavailable') } });
+  await assert.rejects(failure.api.appointments('provider-a'), /unavailable/);
+});
+
+test('a repeated booking confirms an existing owned UUID; a different overlap remains an error', async () => {
+  const appointment: Appointment = { id: 'booking-a', provider_id: 'provider-a', patient_profile_id: 'relationship-a', starts_at: '2035-12-01T14:30:00Z', ends_at: '2035-12-01T15:00:00Z', location: '', status: 'scheduled' };
+  let existing = true;
+  const client = { from: () => {
+    const query: any = {};
+    for (const method of ['select', 'eq']) query[method] = () => query;
+    query.insert = async () => ({ error: { code: '23P01' } });
+    query.single = async () => ({ data: existing ? { id: appointment.id } : null, error: null });
+    return query;
+  } } as unknown as SupabaseClient;
+  const api = createProviderApi(client);
+  await api.createAppointment(appointment);
+  existing = false;
+  await assert.rejects(api.createAppointment(appointment), (error: any) => error.code === '23P01');
+});
 test('lists beyond the hosted row limit are fully paginated; errors never become empty success', async () => {
   const rows = Array.from({ length: 1001 }, (_, id) => ({ id }));
   const result = await allRows<{ id: number }>(async (start, end) => ({ data: rows.slice(start, end + 1), error: null }));

@@ -10,17 +10,19 @@ import { homeDateRange, loadHomeActivity, type Activity, type CareIssue } from '
 import { scheduling } from '../../src/ui/RoutineScheduler';
 import { Brand, Button, Card, Empty, Heading, Notice, Screen, Text } from '../../src/ui/components';
 import { useTheme } from '../../src/ui/theme';
+import { HomeAppointments } from '../../src/ui/HomeAppointments';
 
 export default function HomeScreen() {
   const { provider } = useSession();
   const { colors } = useTheme();
   const [today, setToday] = useState(localDateKey());
+  const [appointmentRefresh, setAppointmentRefresh] = useState(0);
   const policy = useResource(`home-policy-${provider!.id}`, () => scheduling.policy(), 60000);
   const date = policy.data?.today ?? today;
   const resource = useResource(`home-${provider!.id}-${date}`, () => loadHomeActivity(api, provider!.id, date), 30000);
   useEffect(() => { const timer = setInterval(() => setToday(localDateKey()), 30000); return () => clearInterval(timer); }, []);
   const data = resource.data;
-  const refresh = () => { void resource.refresh(); void policy.refresh(); setToday(localDateKey()); };
+  const refresh = () => { void resource.refresh(); void policy.refresh(); setToday(localDateKey()); setAppointmentRefresh(value => value + 1); };
   const open = ({ patient, assignment }: Activity) => router.push({ pathname: '/patient/[profileId]', params: { profileId: patient.profileId, date: assignment.scheduledDate, assignmentId: assignment.id } });
   const demo = (row: Activity) => row.assignment.patientResult?.source === 'demo' ? <Text weight="semibold" style={{ color: colors.teal, fontSize: 12 }}>Simulated result</Text> : null;
   const issueCard = (row: CareIssue) => <Pressable key={`${row.assignment.id}-${row.exercise?.id ?? 'routine'}`} accessibilityRole="button" accessibilityLabel={`Review ${row.patient.name}, ${row.exercise?.name ?? row.assignment.routineName}`} onPress={() => open(row)}>
@@ -42,7 +44,10 @@ export default function HomeScreen() {
     {resource.loading && !data && <ActivityIndicator color={colors.teal} accessibilityLabel="Loading care overview" />}
     {data && <View style={{ gap: 24 }}>
       <Text style={{ color: colors.muted }}>Last 7 days | {formatDate(homeDateRange(date).from)} | {formatDate(date)}</Text>
-      <View style={{ flexDirection: 'row', gap: 10 }}>{[[data.patients, 'Patients'], [data.completed.length, 'Completed'], [data.feedbackUnavailable ? '-' : data.issues.length, 'To review']].map(([value, label]) => <Card key={label} style={{ flex: 1, padding: 10, gap: 8 }}><Text weight="bold" style={{ fontSize: 26, lineHeight: 34 }}>{value}</Text><Text style={{ fontSize: 11, lineHeight: 17 }}>{label}</Text></Card>)}</View>
+      <Card style={{ padding: 16, gap: 8 }}><Text weight="bold" style={{ fontSize: 26, lineHeight: 34 }}>{data.feedbackUnavailable ? '-' : data.issues.length}</Text><Text style={{ fontSize: 13, lineHeight: 19 }}>To review</Text></Card>
+    </View>}
+    <HomeAppointments providerId={provider!.id} refreshKey={appointmentRefresh} />
+    {data && <View style={{ gap: 24 }}>
       <View style={{ gap: 14 }}><Text accessibilityRole="header" weight="bold" style={{ fontSize: 22, lineHeight: 30 }}>Needs attention</Text><Text style={{ color: colors.muted, fontSize: 13 }}>Reported routine issues, difficult exercises, or exercise pain of 7/10 or higher.</Text>
         {data.feedbackUnavailable && <Notice message="Some exercise feedback could not be loaded. The overview may be incomplete." onRetry={refresh} />}
         {data.issues.map(issueCard)}

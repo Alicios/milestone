@@ -3,6 +3,7 @@ import type { Assignment, Conversation, Message, Patient, Provider } from '../ty
 import { validateMessage } from './domain';
 import { archiveCursor, isConversationArchived } from './conversationArchive';
 import type { AssignmentSummary } from './patientFilters';
+import type { Appointment } from './appointments';
 
 // Paginate every list; the hosted API's row limit must not truncate a caseload.
 export async function allRows<T>(query: (start: number, end: number) => PromiseLike<{ data: unknown; error: unknown }>): Promise<T[]> {
@@ -17,6 +18,29 @@ export async function allRows<T>(query: (start: number, end: number) => PromiseL
 }
 export function createProviderApi(client: SupabaseClient) {
   return {
+    async appointments(providerId: string): Promise<Appointment[]> {
+      return allRows<Appointment>((start, end) => client.from('provider_appointments')
+        .select('id,provider_id,patient_profile_id,starts_at,ends_at,location,status')
+        .eq('provider_id', providerId).eq('status', 'scheduled').gte('ends_at', new Date().toISOString())
+        .order('starts_at').order('id').range(start, end));
+    },
+    async createAppointment(appointment: Appointment): Promise<void> {
+      const { error } = await client.from('provider_appointments').insert(appointment);
+      if (!error) return;
+      // A lost response can be retried with the same UUID without duplicating a visit.
+      if (error.code === '23505' || error.code === '23P01') {
+        const { data, error: readError } = await client.from('provider_appointments').select('id')
+          .eq('id', appointment.id).eq('provider_id', appointment.provider_id).single();
+        if (!readError && data?.id === appointment.id) return;
+      }
+      throw error;
+    },
+    async cancelAppointment(id: string, providerId: string): Promise<void> {
+      const { data, error } = await client.from('provider_appointments').update({ status: 'cancelled' })
+        .eq('id', id).eq('provider_id', providerId).select('id').single();
+      if (error) throw error;
+      if (!data) throw new Error('Appointment could not be cancelled.');
+    },
     async provider(userId: string, authEmail: string): Promise<Provider> {
       const { data, error } = await client.from('providers')
         .select('id,name,professional_title,contact_email,avatar_url,phone,medical_practices(name)').eq('id', userId).single();

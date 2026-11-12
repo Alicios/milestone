@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, View } from 'react-native';
 import { Fingerprint, LockKeyhole, ShieldCheck } from 'lucide-react-native';
 import { useSession } from './SessionProvider';
 import { isConfigured } from '../lib/supabase';
 import { Brand, Button, Card, Field, Notice, Text } from '../ui/components';
+import { KeyboardScrollView } from '../ui/KeyboardLayout';
 import { useTheme } from '../ui/theme';
 
 export function AuthScreen() {
@@ -16,7 +17,7 @@ export function AuthScreen() {
   const restoring = auth.phase === 'restoring';
   const mfa = auth.phase === 'mfa';
   const locked = auth.phase === 'locked';
-  return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
+  return <KeyboardScrollView style={{ flex: 1, backgroundColor: colors.bg }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
     <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center', gap: 30 }}>
       <Brand />
       <View style={{ gap: 12 }}><Text weight="semibold" style={{ letterSpacing: 2, fontSize: 11, color: colors.teal }}>CARE, WITHIN REACH</Text><Text accessibilityRole="header" weight="bold" style={{ fontSize: 36, lineHeight: 45 }}>{restoring ? 'Opening your\nworkspace.' : locked ? 'Welcome back.' : mfa ? 'One more\nsecure step.' : 'A little closer\nto your patients.'}</Text><Text style={{ color: colors.muted }}>{locked ? 'Unlock to return to your patients and conversations.' : mfa ? 'Enter the six-digit code from your authenticator app.' : 'Your patients, their progress, and your conversations. Together in one place.'}</Text></View>
@@ -42,5 +43,5 @@ export function AuthScreen() {
       </Card>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}><ShieldCheck size={17} color={colors.teal} /><Text style={{ fontSize: 12, color: colors.muted }}>Built around your care relationships</Text></View>
     </View>
-  </ScrollView></KeyboardAvoidingView>;
+  </KeyboardScrollView>;
 }

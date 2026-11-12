@@ -1,56 +1,58 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Keyboard, Pressable, RefreshControl, View } from 'react-native';
-import { Link } from 'expo-router';
-import { Archive, ArrowDownAZ, ArrowUpAZ, Check, SlidersHorizontal } from 'lucide-react-native';
+import { ActivityIndicator, Pressable, RefreshControl, View } from 'react-native';
+import { router } from 'expo-router';
+import { ArrowUpRight, CircleAlert, CircleCheck } from 'lucide-react-native';
 import { useSession } from '../../src/auth/SessionProvider';
-import { api } from '../../src/lib/client';
-import { localDateKey, weekDates } from '../../src/lib/domain';
-import { filterPatients, patientFilters, type PatientFilter } from '../../src/lib/patientFilters';
 import { useResource } from '../../src/hooks/useResource';
-import { ActionSheet } from '../../src/ui/ActionSheet';
-import { Avatar, Brand, Button, Card, ChevronRight, Empty, Field, Heading, Notice, Screen, Text } from '../../src/ui/components';
+import { api } from '../../src/lib/client';
+import { formatDate, localDateKey } from '../../src/lib/domain';
+import { homeDateRange, loadHomeActivity, type Activity, type CareIssue } from '../../src/lib/home';
+import { scheduling } from '../../src/ui/RoutineScheduler';
+import { Brand, Button, Card, Empty, Heading, Notice, Screen, Text } from '../../src/ui/components';
 import { useTheme } from '../../src/ui/theme';
 
-export default function PatientsScreen() {
+export default function HomeScreen() {
   const { provider } = useSession();
   const { colors } = useTheme();
-  const [search, setSearch] = useState('');
-  const [archive, setArchive] = useState(false);
-  const [filter, setFilter] = useState<PatientFilter>('all');
-  const [descending, setDescending] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
   const [today, setToday] = useState(localDateKey());
+  const policy = useResource(`home-policy-${provider!.id}`, () => scheduling.policy(), 60000);
+  const date = policy.data?.today ?? today;
+  const resource = useResource(`home-${provider!.id}-${date}`, () => loadHomeActivity(api, provider!.id, date), 30000);
   useEffect(() => { const timer = setInterval(() => setToday(localDateKey()), 30000); return () => clearInterval(timer); }, []);
-  const resource = useResource(`patients-${provider!.id}`, () => api.patients(provider!.id));
-  const dates = weekDates(0, new Date(`${today}T12:00:00`));
-  const profileIds = (resource.data ?? []).filter(patient => !patient.dischargedAt).map(patient => patient.profileId).sort();
-  const needsStatuses = !archive && filter !== 'all';
-  const statuses = useResource(`patient-filters-${provider!.id}-${dates[0]}-${needsStatuses ? profileIds.join(',') : 'off'}`, () => needsStatuses ? api.assignmentStatuses(profileIds, dates[0], dates[6]) : Promise.resolve([]));
-  const waiting = needsStatuses && statuses.loading;
-  const filterError = needsStatuses ? statuses.error : '';
-  const patients = waiting || filterError ? [] : filterPatients(resource.data ?? [], statuses.data ?? [], { query: search, archive, filter, descending, today });
-  const label = patientFilters.find(option => option.value === filter)!.label;
-  const refresh = () => { setToday(localDateKey()); void resource.refresh(); if (needsStatuses) void statuses.refresh(); };
-  return <Screen refreshControl={<RefreshControl refreshing={Boolean(resource.data) && (resource.loading || waiting)} onRefresh={refresh} tintColor={colors.teal} />}>
-    <View style={{ marginBottom: 26 }}><Brand compact /></View>
-    <Heading eyebrow={`Hello, ${provider!.name.split(' ')[0]}`} title={archive ? 'Patient archive' : 'Your patients'}
-      action={<Button secondary title={archive ? 'Active patients' : 'Archive'} icon={<Archive color={colors.teal} size={16} />} onPress={() => { setArchive(value => !value); setSearch(''); setFilter('all'); }} />} />
-    <View style={{ gap: 12, marginBottom: 20 }}><Field label="Find a patient" value={search} onChangeText={setSearch} placeholder="Search by name" autoCapitalize="none" returnKeyType="search" />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-        {!archive && <Button secondary={filter === 'all'} title="Filter" icon={<SlidersHorizontal color={filter === 'all' ? colors.teal : colors.onAccent} size={17} />} onPress={() => { Keyboard.dismiss(); setFilterOpen(true); }} />}
-        <Button secondary title={descending ? 'Name Z–A' : 'Name A–Z'} icon={descending ? <ArrowUpAZ color={colors.teal} size={17} /> : <ArrowDownAZ color={colors.teal} size={17} />} onPress={() => setDescending(value => !value)} />
-      </View>
-      {!archive && filter !== 'all' && <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}><Text style={{ fontSize: 12, color: colors.teal, flexShrink: 1 }}>{label} · This week</Text><Pressable accessibilityRole="button" onPress={() => setFilter('all')} style={{ minHeight: 44, justifyContent: 'center' }}><Text weight="semibold" style={{ fontSize: 12, color: colors.teal }}>Clear filter</Text></Pressable></View>}
-    </View>
+  const data = resource.data;
+  const refresh = () => { void resource.refresh(); void policy.refresh(); setToday(localDateKey()); };
+  const open = ({ patient, assignment }: Activity) => router.push({ pathname: '/patient/[profileId]', params: { profileId: patient.profileId, date: assignment.scheduledDate, assignmentId: assignment.id } });
+  const demo = (row: Activity) => row.assignment.patientResult?.source === 'demo' ? <Text weight="semibold" style={{ color: colors.teal, fontSize: 12 }}>Simulated result</Text> : null;
+  const issueCard = (row: CareIssue) => <Pressable key={`${row.assignment.id}-${row.exercise?.id ?? 'routine'}`} accessibilityRole="button" accessibilityLabel={`Review ${row.patient.name}, ${row.exercise?.name ?? row.assignment.routineName}`} onPress={() => open(row)}>
+    <Card style={{ borderColor: row.critical ? colors.error : colors.accent }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><CircleAlert color={row.critical ? colors.error : colors.accent} size={24} /><Text weight="bold" style={{ flex: 1, fontSize: 18 }}>{row.patient.name}</Text><ArrowUpRight color={colors.teal} size={20} /></View>
+      <Text weight="semibold" style={{ color: row.critical ? colors.error : colors.ink }}>{row.critical ? 'Critical issue reported' : 'Exercise issue reported'}</Text>
+      <Text weight="semibold" style={{ fontSize: 18 }}>{row.exercise?.name ?? row.assignment.routineName}</Text>
+      <Text style={{ color: colors.muted }}>{row.assignment.routineName} | {formatDate(row.assignment.scheduledDate)}</Text>
+      {row.exercise?.patientFeedback ? <><Text>{row.exercise.patientFeedback.explanation || 'The patient reported difficulty with this exercise.'}</Text><Text weight="semibold">Pain {row.exercise.patientFeedback.painScore}/10 | {row.exercise.patientFeedback.feeling === 'difficult' ? 'Difficult' : row.exercise.patientFeedback.feeling === 'neutral' ? 'Neutral' : 'Good'}</Text></> : <Text>{row.assignment.patientResult?.comment || 'Open the patient page to review this routine.'}</Text>}
+      {row.assignment.status === 'completed' && <Text style={{ color: colors.teal }}>Routine completed with an issue</Text>}
+      {demo(row)}
+      <Text weight="semibold" style={{ color: colors.teal }}>Review patient</Text>
+    </Card>
+  </Pressable>;
+  return <Screen refreshControl={<RefreshControl refreshing={resource.loading && Boolean(data)} onRefresh={refresh} tintColor={colors.teal} />}>
+    <View style={{ marginBottom: 24 }}><Brand compact /></View>
+    <Heading eyebrow={`Hello, ${provider!.name.split(' ')[0]}`} title="Home" detail={formatDate(date, { weekday: 'long', month: 'long', day: 'numeric' })} />
     {resource.error ? <Notice message={resource.error} onRetry={refresh} /> : null}
-    {filterError ? <Notice message="Patient routine statuses could not be loaded. Try again or clear the filter." onRetry={() => void statuses.refresh()} /> : null}
-    {(resource.loading && !resource.data || waiting) && <ActivityIndicator accessibilityLabel="Loading patients" color={colors.teal} />}
-    <View style={{ gap: 12 }}>{patients.map(patient => <Link key={patient.profileId} href={{ pathname: '/patient/[profileId]', params: { profileId: patient.profileId } }} asChild><Pressable accessibilityLabel={`Open ${patient.name}`} accessibilityHint="Opens patient details and assigned routines" style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
-      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}><Avatar name={patient.name} /><View style={{ flex: 1, gap: 3 }}><Text weight="semibold" style={{ fontSize: 16 }}>{patient.name}</Text><Text numberOfLines={2} style={{ color: colors.muted, fontSize: 12 }}>{patient.primaryConcern || patient.treatmentFocus || (archive ? 'Archived care relationship' : 'View care details and routines')}</Text></View><ChevronRight color={colors.teal} size={20} /></Card>
-    </Pressable></Link>)}</View>
-    {!resource.loading && !resource.error && !waiting && !filterError && !patients.length && <Empty title={search || filter !== 'all' ? 'No matching patients' : archive ? 'No archived patients' : 'Your patients will appear here'} detail={search || filter !== 'all' ? 'Try another name or clear your filters.' : archive ? 'Discharged patients will appear here.' : 'Patients added on the provider website will appear here.'} />}
-    <ActionSheet visible={filterOpen} title="Filter patients" onClose={() => setFilterOpen(false)} footer={<Text style={{ color: colors.muted, fontSize: 11, padding: 8 }}>Based on routines assigned for the current week.</Text>}>
-      {patientFilters.map(option => <Pressable key={option.value} accessibilityRole="menuitem" accessibilityLabel={option.label} accessibilityState={{ selected: filter === option.value }} onPress={() => { setFilter(option.value); setFilterOpen(false); }} style={({ pressed }) => ({ minHeight: 48, padding: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: pressed || filter === option.value ? colors.soft : 'transparent' })}><Text style={{ flex: 1, fontSize: 13 }}>{option.label}</Text>{filter === option.value && <Check color={colors.teal} size={17} />}</Pressable>)}
-    </ActionSheet>
+    {resource.loading && !data && <ActivityIndicator color={colors.teal} accessibilityLabel="Loading care overview" />}
+    {data && <View style={{ gap: 24 }}>
+      <Text style={{ color: colors.muted }}>Last 7 days | {formatDate(homeDateRange(date).from)} | {formatDate(date)}</Text>
+      <View style={{ flexDirection: 'row', gap: 10 }}>{[[data.patients, 'Patients'], [data.completed.length, 'Completed'], [data.feedbackUnavailable ? '-' : data.issues.length, 'To review']].map(([value, label]) => <Card key={label} style={{ flex: 1, padding: 10, gap: 8 }}><Text weight="bold" style={{ fontSize: 26, lineHeight: 34 }}>{value}</Text><Text style={{ fontSize: 11, lineHeight: 17 }}>{label}</Text></Card>)}</View>
+      <View style={{ gap: 14 }}><Text accessibilityRole="header" weight="bold" style={{ fontSize: 22, lineHeight: 30 }}>Needs attention</Text><Text style={{ color: colors.muted, fontSize: 13 }}>Reported routine issues, difficult exercises, or exercise pain of 7/10 or higher.</Text>
+        {data.feedbackUnavailable && <Notice message="Some exercise feedback could not be loaded. The overview may be incomplete." onRetry={refresh} />}
+        {data.issues.map(issueCard)}
+        {!data.issues.length && !data.feedbackUnavailable && !resource.error && <Empty title="No issues reported" detail="No routine or exercise issues were reported in the last 7 days." />}
+      </View>
+      <View style={{ gap: 14 }}><Text accessibilityRole="header" weight="bold" style={{ fontSize: 22, lineHeight: 30 }}>Recent completions</Text>
+        {data.completed.slice(0, 10).map(row => <Pressable key={row.assignment.id} accessibilityRole="button" accessibilityLabel={`View completed ${row.assignment.routineName} for ${row.patient.name}`} onPress={() => open(row)}><Card><View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}><CircleCheck color={colors.teal} size={24} /><View style={{ flex: 1, gap: 4 }}><Text weight="semibold" style={{ fontSize: 18 }}>{row.patient.name}</Text><Text>{row.assignment.routineName}</Text></View><ArrowUpRight color={colors.teal} size={20} /></View><Text style={{ color: colors.muted }}>{formatDate(row.assignment.scheduledDate)} | Completed</Text>{demo(row)}</Card></Pressable>)}
+        {!data.completed.length && !resource.error && <Empty title="No completions yet" detail="Completed routines from the last 7 days will appear here." />}
+      </View>
+      <Button secondary title="View all patients" onPress={() => router.navigate('/patients')} />
+    </View>}
   </Screen>;
 }

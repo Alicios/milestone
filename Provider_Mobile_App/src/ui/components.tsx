@@ -1,8 +1,9 @@
 import React, { type ReactNode } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text as NativeText, TextInput, useWindowDimensions, View, type TextProps, type TextInputProps, type ViewStyle, type StyleProp } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text as NativeText, TextInput, useWindowDimensions, View, type TextProps, type TextInputProps, type ViewStyle, type StyleProp } from 'react-native';
 import { ArrowLeft, ArrowUpRight, ChevronRight, ShieldCheck } from 'lucide-react-native';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
+import { KeyboardScrollView, useFocusedField } from './KeyboardLayout';
 import { useTheme } from './theme';
 import { initials, type RoutineStatus } from '../lib/domain';
 
@@ -32,7 +33,9 @@ export function Button({ title, onPress, secondary = false, disabled = false, bu
 }
 export function Field({ label, hideLabel = false, ...props }: TextInputProps & { label: string; hideLabel?: boolean }) {
   const { colors } = useTheme();
-  return <View style={{ gap: 7 }}>{!hideLabel && <Text weight="semibold" style={{ fontSize: 13 }}>{label}</Text>}<TextInput {...props} accessibilityLabel={label} placeholderTextColor={colors.muted} style={[styles.input, { color: colors.ink, backgroundColor: colors.surface, borderColor: colors.border }, props.style]} /></View>;
+  const input = React.useRef<React.ComponentRef<typeof TextInput>>(null);
+  const reveal = useFocusedField();
+  return <View style={{ gap: 7 }}>{!hideLabel && <Text weight="semibold" style={{ fontSize: 13 }}>{label}</Text>}<TextInput {...props} ref={input} onFocus={event => { reveal(input.current); props.onFocus?.(event); }} onBlur={event => { reveal(null); props.onBlur?.(event); }} accessibilityLabel={label} placeholderTextColor={colors.muted} style={[styles.input, { color: colors.ink, backgroundColor: colors.surface, borderColor: colors.border }, props.style]} /></View>;
 }
 export function Notice({ message, onRetry }: { message: string; onRetry?: () => void }) {
   const { colors } = useTheme();
@@ -74,7 +77,7 @@ export function Detail({ label, value }: { label: string; value?: string | null 
 }
 export function Screen({ children, refreshControl }: { children: ReactNode; refreshControl?: React.ReactElement }) {
   const { colors } = useTheme();
-  return <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} keyboardShouldPersistTaps="handled" refreshControl={refreshControl} contentContainerStyle={{ flexGrow: 1 }}><View style={styles.container}>{children}</View></ScrollView>;
+  return <KeyboardScrollView style={{ flex: 1, backgroundColor: colors.bg }} keyboardShouldPersistTaps="handled" refreshControl={refreshControl} contentContainerStyle={{ flexGrow: 1 }}><View style={styles.container}>{children}</View></KeyboardScrollView>;
 }
 export const styles = StyleSheet.create({
   container: { width: '100%', maxWidth: 1050, alignSelf: 'center', paddingHorizontal: 22, paddingTop: 28, paddingBottom: 36 },

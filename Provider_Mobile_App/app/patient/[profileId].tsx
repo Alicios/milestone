@@ -14,7 +14,7 @@ import { routinePresentation } from '../../src/lib/routinePresentation';
 import { useTheme } from '../../src/ui/theme';
 
 export default function PatientScreen() {
-  const { profileId: parameter } = useLocalSearchParams<{ profileId: string }>();
+  const { profileId: parameter, date: requestedDate, assignmentId: requestedAssignment } = useLocalSearchParams<{ profileId: string; date?: string; assignmentId?: string }>();
   const profileId = Array.isArray(parameter) ? parameter[0] : parameter;
   const { provider } = useSession();
   const { colors } = useTheme();
@@ -30,6 +30,15 @@ export default function PatientScreen() {
   const [scheduleBlocked, setScheduleBlocked] = useState(true);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const linkedDate = Array.isArray(requestedDate) ? requestedDate[0] : requestedDate;
+  const linkedAssignment = Array.isArray(requestedAssignment) ? requestedAssignment[0] : requestedAssignment;
+  useEffect(() => {
+    if (!linkedDate || !/^\d{4}-\d{2}-\d{2}$/.test(linkedDate) || !Number.isFinite(Date.parse(linkedDate))) return;
+    const targetWeek = weekDatesFor(linkedDate)[0];
+    const currentWeek = weekDatesFor(clinicalToday ?? today)[0];
+    setOffset(Math.round((Date.parse(targetWeek) - Date.parse(currentWeek)) / 604800000));
+    setSelectedDay(linkedDate); setExpanded(linkedAssignment ?? null);
+  }, [profileId, linkedDate, linkedAssignment, clinicalToday]);
   const day = selectedDay && dates.includes(selectedDay) ? selectedDay : dates.includes(clinicalToday ?? today) ? (clinicalToday ?? today) : dates[0];
   const patients = useResource(`patient-${provider!.id}-${profileId}`, () => api.patients(provider!.id));
   const routines = useResource(`assignments-${profileId}-${dates[0]}`, () => api.assignments(profileId, dates[0], dates[6]));
@@ -52,7 +61,7 @@ export default function PatientScreen() {
         {detailsOpen && <View style={{ flexDirection: width >= 760 ? 'row' : 'column', gap: 24 }}><View style={{ flex: width >= 760 ? 1 : undefined, gap: 18 }}><Detail label="Treatment focus" value={patient.treatmentFocus} /><Detail label="Start of care" value={patient.startOfCare ? formatDate(patient.startOfCare, { month: 'long', day: 'numeric', year: 'numeric' }) : null} /></View><View style={{ flex: width >= 760 ? 1 : undefined, gap: 18 }}><Detail label="Email" value={patient.email} /><Detail label="Phone" value={patient.phone} />{patient.dischargedAt && <Detail label="Discharged" value={new Date(patient.dischargedAt).toLocaleDateString()} />}</View></View>}
         <Button secondary title="Open conversation" icon={<MessageCircle size={18} color={colors.teal} />} onPress={() => router.push({ pathname: '/conversation/[profileId]', params: { profileId } })} />
       </Card>
-      <View style={{ gap: 14 }}><View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}><View style={{ flex: 1, minWidth: 150 }}><Text accessibilityRole="header" weight="bold" style={{ fontSize: 21 }}>Assigned routines</Text><Text style={{ color: colors.muted, fontSize: 12 }}>Prescriptions and patient feedback</Text></View><Button secondary title="This week" onPress={() => { setOffset(0); setSelectedDay(null); setExpanded(null); }} /></View>
+      <View style={{ gap: 14 }}><View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}><View style={{ flex: 1, minWidth: 150 }}><Text accessibilityRole="header" weight="bold" style={{ fontSize: 21 }}>Assigned routines</Text><Text style={{ color: colors.muted, fontSize: 12 }}>Prescriptions and patient feedback</Text></View><Button secondary title="Today" onPress={() => { setOffset(0); setSelectedDay(clinicalToday ?? today); setExpanded(null); }} /></View>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <Pressable accessibilityRole="button" accessibilityLabel="Previous week" onPress={() => moveWeek(-1)} style={{ padding: 12, minHeight: 44 }}><ChevronLeft size={22} color={colors.teal} /></Pressable>
           <Text weight="semibold" style={{ flex: 1, textAlign: 'center', fontSize: 15 }}>{formatDate(dates[0], { month: 'long', year: 'numeric' })}{dates[0].slice(0, 7) !== dates[6].slice(0, 7) ? ` – ${formatDate(dates[6], { month: 'long', year: 'numeric' })}` : ''}</Text>

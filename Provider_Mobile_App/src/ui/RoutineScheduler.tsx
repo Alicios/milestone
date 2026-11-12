@@ -120,24 +120,24 @@ export function RoutineScheduler({ providerId, profileId, intent, onClose, onSav
   const currentEntry = preview?.entries[0];
   const title = intent?.remove ? 'Remove routine' : intent?.assignment ? 'Change routine' : 'Assign routine';
   return <>
-    {message ? <Text accessibilityRole="status" style={{ color: colors.teal }}>{message}</Text> : null}
+    {message ? <Text role="status" accessibilityLiveRegion="polite" style={{ color: colors.teal }}>{message}</Text> : null}
     {pending ? <Card><Text weight="semibold">Saved schedule request</Text><Text style={{ fontSize: 13 }}>Check its result before making another change.</Text>{error ? <Notice message={error} /> : null}<Button secondary busy={busy} title="Check saved request" onPress={() => void save(false, true)} /><Button disabled={busy} title="Retry same request" onPress={() => void save(true)} /></Card> : !intent && error ? <Notice message={error} /> : null}
     <ActionSheet dialog visible={Boolean(intent) && !pending} title={title} onClose={() => { if (!busy) onClose(); }}>
-      <View style={{ gap: 14, padding: 6 }}>
-        <Text weight="semibold">{intent ? formatDate(intent.date, { weekday: 'long', month: 'short', day: 'numeric' }) : ''}</Text>
+      <View style={{ gap: 20, paddingBottom: 8 }}>
+        <Text weight="semibold" style={{ fontSize: 18, lineHeight: 26 }}>{intent ? formatDate(intent.date, { weekday: 'long', month: 'short', day: 'numeric' }) : ''}</Text>
         {error ? <Notice message={error} /> : null}
-        {intent?.remove ? <><Text>Remove {intent.assignment?.routineName} from this day?</Text><Text style={{ color: colors.muted, fontSize: 13 }}>The cancelled assignment remains in care history. Scheduled follow-ups are cancelled.</Text><Button title="Confirm removal" busy={busy} disabled={!ready} onPress={() => void save()} /></> : currentEntry ? <>
-          <Text weight="semibold">{currentEntry.routineName}</Text>
-          <Text style={{ color: colors.muted, fontSize: 12 }}>{intent?.assignment ? `Replaces ${intent.assignment.routineName} on this day. Its scheduled follow-ups will be cancelled.` : 'Review this prescription before assigning.'}</Text>
-          {currentEntry.exercises.map((exercise, index) => <View key={index} style={{ gap: 4 }}><Text weight="semibold" style={{ fontSize: 13 }}>{index + 1}. {exercise.name}</Text><Text style={{ fontSize: 12 }}>{[exercise.sets != null ? `${exercise.sets} sets` : '', exercise.reps != null ? `${exercise.reps} reps` : '', exercise.durationSeconds != null ? `${exercise.durationSeconds} seconds` : ''].filter(Boolean).join(' · ') || 'No dosage specified'}</Text>{exercise.notes && <Text style={{ color: colors.muted, fontSize: 12 }}>{exercise.notes}</Text>}</View>)}
+        {intent?.remove ? <><Text>Remove {intent.assignment?.routineName} from this day?</Text><Text style={{ color: colors.muted, fontSize: 16, lineHeight: 24 }}>The cancelled assignment remains in care history. Scheduled follow-ups are cancelled.</Text><Button title="Confirm removal" busy={busy} disabled={!ready} onPress={() => void save()} /></> : currentEntry ? <>
+          <Text weight="semibold" style={{ fontSize: 20, lineHeight: 28 }}>{currentEntry.routineName}</Text>
+          <Text style={{ color: colors.muted, fontSize: 16, lineHeight: 24 }}>{intent?.assignment ? `Replaces ${intent.assignment.routineName} on this day. Its scheduled follow-ups will be cancelled.` : 'Review this prescription before assigning.'}</Text>
+          {currentEntry.exercises.map((exercise, index) => <View key={index} style={{ gap: 8, padding: 16, borderRadius: 12, backgroundColor: colors.soft }}><Text weight="semibold" style={{ fontSize: 18, lineHeight: 26 }}>{index + 1}. {exercise.name}</Text><Text style={{ fontSize: 16, lineHeight: 24 }}>{[exercise.sets != null ? `${exercise.sets} sets` : '', exercise.reps != null ? `${exercise.reps} reps` : '', exercise.durationSeconds != null ? `${exercise.durationSeconds} seconds` : ''].filter(Boolean).join(' · ') || 'No dosage specified'}</Text>{exercise.notes && <Text style={{ color: colors.muted, fontSize: 16, lineHeight: 24 }}>{exercise.notes}</Text>}</View>)}
           <Button title={intent?.assignment ? 'Confirm replacement' : 'Confirm assignment'} busy={busy} disabled={!ready} onPress={() => void save()} />
           <Button secondary title="Choose another routine" disabled={busy} onPress={() => setPreview(null)} />
         </> : <>
-          <Field label="Search saved routines" value={search} onChangeText={setSearch} autoCapitalize="none" />
+          <View style={{ gap: 10 }}><Text weight="semibold" style={{ fontSize: 16 }}>Search saved routines</Text><Field hideLabel label="Search saved routines" style={{ fontSize: 16, minHeight: 56 }} value={search} onChangeText={setSearch} autoCapitalize="none" /></View>
           {routines.error ? <Notice message={routines.error} onRetry={() => void routines.refresh()} /> : null}
           {(routines.loading || busy) && <ActivityIndicator color={colors.teal} accessibilityLabel="Loading saved routine" />}
           {!routines.loading && !routines.error && !routines.data?.length && <Text>No saved routines yet. Create one in the web app.</Text>}
-          {routines.data?.filter(row => row.id !== intent?.assignment?.routineId && `${row.name} ${row.description ?? ''}`.toLowerCase().includes(search.toLowerCase())).map(row => <Pressable key={row.id} accessibilityRole="button" accessibilityLabel={`Preview ${row.name}`} disabled={busy} onPress={() => void choose(row.id)} style={{ paddingVertical: 12, minHeight: 48, borderBottomWidth: 1, borderBottomColor: colors.border }}><Text weight="semibold">{row.name}</Text>{row.description && <Text style={{ fontSize: 12, color: colors.muted }}>{row.description}</Text>}</Pressable>)}
+          {routines.data?.filter(row => row.id !== intent?.assignment?.routineId && `${row.name} ${row.description ?? ''}`.toLowerCase().includes(search.toLowerCase())).map(row => <Pressable key={row.id} accessibilityRole="button" accessibilityLabel={`Preview ${row.name}`} disabled={busy} onPress={() => void choose(row.id)} style={{ paddingVertical: 18, paddingHorizontal: 16, gap: 8, minHeight: 72, borderRadius: 12, backgroundColor: colors.soft, borderBottomWidth: 1, borderBottomColor: colors.border }}><Text weight="semibold" style={{ fontSize: 18, lineHeight: 26 }}>{row.name}</Text>{row.description && <Text style={{ fontSize: 16, lineHeight: 24, color: colors.muted }}>{row.description}</Text>}</Pressable>)}
         </>}
       </View>
     </ActionSheet>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, TextInput, useWindowDimensions, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Send, Star } from 'lucide-react-native';
@@ -10,7 +10,8 @@ import { api } from '../../src/lib/client';
 import { friendlyError } from '../../src/lib/domain';
 import { supabase } from '../../src/lib/supabase';
 import { useInbox } from '../../src/messages/InboxProvider';
-import { Button, Empty, Field, Heading, Notice, Text } from '../../src/ui/components';
+import { Empty, Heading, Notice, Text } from '../../src/ui/components';
+import { useKeyboardLayout } from '../../src/hooks/useKeyboardLayout';
 import { useTheme } from '../../src/ui/theme';
 
 export default function ConversationScreen() {
@@ -19,13 +20,8 @@ export default function ConversationScreen() {
   const { provider } = useSession();
   const { colors } = useTheme();
   const { height } = useWindowDimensions();
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const { visible: keyboardVisible } = useKeyboardLayout();
   const compact = height < 500 || keyboardVisible;
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
   const inbox = useInbox();
   const conversation = inbox.conversations.find(item => item.id === profileId);
   const resource = useResource(`messages-${provider!.id}-${profileId}`, () => api.messages(profileId), 15000);
@@ -33,6 +29,8 @@ export default function ConversationScreen() {
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [starring, setStarring] = useState(false);
+  const characterCount = [...draft.trim()].length;
+  const sendDisabled = sending || !conversation || !draft.trim() || characterCount > 4000;
   const [focused, setFocused] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
@@ -79,7 +77,7 @@ export default function ConversationScreen() {
     catch (cause) { if (mounted.current) setError(friendlyError(cause)); }
     finally { if (mounted.current) setStarring(false); }
   }
-  return <SafeAreaView edges={[]} style={{ flex: 1, backgroundColor: colors.bg }}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+  return <SafeAreaView edges={[]} style={{ flex: 1, backgroundColor: colors.bg }}>
     <View style={{ paddingHorizontal: compact ? 12 : 22, paddingTop: compact ? 0 : 8, maxWidth: 1000, width: '100%', alignSelf: 'center' }}>
       {compact ? <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 56, gap: 10 }}><Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.canGoBack() ? router.back() : router.replace('/messages')} style={{ padding: 12 }}><ArrowLeft color={colors.teal} size={20} /></Pressable><Text accessibilityRole="header" weight="bold" style={{ fontSize: 18, flex: 1 }}>{conversation?.name ?? 'Messages'}</Text>{conversation && <Pressable disabled={starring} accessibilityRole="button" accessibilityLabel={conversation.starred ? 'Unstar conversation' : 'Star conversation'} onPress={() => void toggleStar()} style={{ padding: 12 }}><Star size={20} color={colors.accent} fill={conversation.starred ? colors.accent : 'transparent'} /></Pressable>}</View>
         : <Heading back eyebrow="Conversation" title={conversation?.name ?? 'Messages'} action={conversation ? <Pressable disabled={starring} accessibilityRole="button" accessibilityLabel={conversation.starred ? 'Unstar conversation' : 'Star conversation'} accessibilityState={{ selected: conversation.starred, disabled: starring }} onPress={() => void toggleStar()} style={{ padding: 12 }}><Star size={22} color={colors.accent} fill={conversation.starred ? colors.accent : 'transparent'} /></Pressable> : undefined} />}
@@ -97,8 +95,13 @@ export default function ConversationScreen() {
     </ScrollView>
     <View style={{ width: '100%', maxWidth: 1000, alignSelf: 'center', padding: compact ? 10 : 16, gap: 10, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface }}>
       {error ? <Notice message={error} /> : null}
-      <Field hideLabel={compact} label="Message" placeholder="Write a thoughtful check-in…" multiline value={draft} editable={!sending && Boolean(conversation)} onChangeText={value => { setDraft(value); inbox.drafts.current.set(profileId, value); }} style={{ minHeight: compact ? 44 : 55, maxHeight: compact ? 70 : 120, textAlignVertical: 'top' }} />
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}><Text style={{ color: [...draft.trim()].length > 4000 ? colors.error : colors.muted, fontSize: 11 }}>{[...draft.trim()].length.toLocaleString()}/4,000</Text><Button title="Send message" icon={<Send size={17} color={colors.onAccent} />} busy={sending} disabled={!conversation || !draft.trim() || [...draft.trim()].length > 4000} onPress={() => void send()} /></View>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 24, backgroundColor: colors.surface }}>
+        <TextInput accessibilityLabel="Message" placeholder="Write a message..." placeholderTextColor={colors.muted} multiline value={draft} editable={!sending && Boolean(conversation)} onChangeText={value => { setDraft(value); inbox.drafts.current.set(profileId, value); }} style={{ flex: 1, minWidth: 0, minHeight: 44, maxHeight: compact ? 70 : 120, paddingHorizontal: 10, paddingVertical: 10, fontFamily: 'Montserrat_400Regular', fontSize: 16, lineHeight: 24, color: colors.ink, textAlignVertical: 'top' }} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Send message" accessibilityState={{ disabled: sendDisabled, busy: sending }} disabled={sendDisabled} onPress={() => void send()} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent, opacity: sendDisabled ? 0.55 : pressed ? 0.8 : 1 })}>
+          {sending ? <ActivityIndicator color={colors.onAccent} accessibilityLabel="Sending message" /> : <Send size={20} color={colors.onAccent} />}
+        </Pressable>
+      </View>
+      <Text style={{ color: characterCount > 4000 ? colors.error : colors.muted, fontSize: 11 }}>{characterCount.toLocaleString()}/4,000</Text>
     </View>
-  </KeyboardAvoidingView></SafeAreaView>;
+  </SafeAreaView>;
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Text from './AppText';
 import Brand from './Brand';
@@ -7,6 +7,7 @@ import ProfileAvatar from './ProfileAvatar';
 import ArrowLeft from 'lucide-react-native/icons/arrow-left';
 import { useAppTheme, useThemedStyles } from './AppTheme';
 import useAdaptiveLayout from './useAdaptiveLayout';
+import { choosePatientMessageImage } from '../lib/messages';
 
 function time(value) { return value ? new Date(value).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''; }
 
@@ -15,11 +16,13 @@ function ProviderAvatar({ provider }) {
 }
 
 export default function MessagesScreen({ messaging, dock }) {
-  const { conversations, selected, messages, loading, error, sending, refresh, select, send } = messaging;
+  const { conversations, selected, messages, loading, error, sending, refresh, select, send, sendImage } = messaging;
   const styles = useThemedStyles(baseStyles);
   const { colors } = useAppTheme();
   const { isWide, isShort } = useAdaptiveLayout();
   const [drafts, setDrafts] = useState({});
+  const [image, setImage] = useState(null);
+  const [imageError, setImageError] = useState('');
   const [choosingProvider, setChoosingProvider] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(() => Keyboard.isVisible());
   const [webKeyboardInset, setWebKeyboardInset] = useState(0);
@@ -78,11 +81,13 @@ export default function MessagesScreen({ messaging, dock }) {
   }, [selected?.id]);
 
   function startCompose() {
+    setImage(null);
     select(null);
     setChoosingProvider(true);
   }
 
   function chooseProvider(id) {
+    setImage(null);
     focusComposer.current = true;
     setChoosingProvider(false);
     select(id);
@@ -91,7 +96,14 @@ export default function MessagesScreen({ messaging, dock }) {
   async function submit() {
     const id = selected.id;
     const text = draft;
-    if (await send(text)) setDrafts(current => current[id] === text ? { ...current, [id]: '' } : current);
+    if (await (image ? sendImage(image, text) : send(text))) {
+      setDrafts(current => current[id] === text ? { ...current, [id]: '' } : current);
+      setImage(null);
+    }
+  }
+  async function pickImage() {
+    try { const asset = await choosePatientMessageImage(); if (asset) { setImage(asset); setImageError(''); } }
+    catch (failure) { setImageError(failure.message || 'Could not select image.'); }
   }
   const showInbox = isWide || (!selected && !choosingProvider);
   const showDetail = isWide || selected || choosingProvider;
@@ -115,7 +127,7 @@ export default function MessagesScreen({ messaging, dock }) {
     <View testID="messages-panes" style={[styles.fill, isWide && styles.panes]}>
     <View testID="conversation-list" style={[styles.fill, isWide && styles.inboxPane, !showInbox && styles.hidden]} accessibilityElementsHidden={!showInbox} importantForAccessibility={showInbox ? 'auto' : 'no-hide-descendants'}>
       <ScrollView style={styles.fill} contentContainerStyle={styles.history} refreshControl={<RefreshControl refreshing={loading && Boolean(conversations.length)} onRefresh={refresh} tintColor={colors.primary} colors={[colors.primary]} />}>
-        {loading && !conversations.length ? <ActivityIndicator accessibilityLabel="Loading messages" color={colors.primary} /> : !conversations.length && !error ? <Text style={styles.muted}>No care team conversations yet. Your linked providers will appear here.</Text> : conversations.map(row => <Pressable key={row.id} accessibilityRole="button" accessibilityLabel={`Conversation with ${row.name}${row.unread ? `, ${row.unread} unread` : ''}`} accessibilityState={{ selected: selected?.id === row.id }} onPress={() => { setChoosingProvider(false); select(row.id); }} style={[styles.row, selected?.id === row.id && styles.selectedRow]}><ProviderAvatar provider={row} /><View style={styles.fill}><Text style={styles.name}>{row.name}</Text><Text style={styles.muted} numberOfLines={2}>{row.preview}</Text><Text style={styles.timestamp}>{time(row.lastMessageAt)}</Text></View>{row.unread > 0 ? <Text style={styles.badge}>{row.unread}</Text> : null}</Pressable>)}
+        {loading && !conversations.length ? <ActivityIndicator accessibilityLabel="Loading messages" color={colors.primary} /> : !conversations.length && !error ? <Text style={styles.muted}>No care team conversations yet. Your linked providers will appear here.</Text> : conversations.map(row => <Pressable key={row.id} accessibilityRole="button" accessibilityLabel={`Conversation with ${row.name}${row.unread ? `, ${row.unread} unread` : ''}`} accessibilityState={{ selected: selected?.id === row.id }} onPress={() => { setImage(null); setChoosingProvider(false); select(row.id); }} style={[styles.row, selected?.id === row.id && styles.selectedRow]}><ProviderAvatar provider={row} /><View style={styles.fill}><Text style={styles.name}>{row.name}</Text><Text style={styles.muted} numberOfLines={2}>{row.preview}</Text><Text style={styles.timestamp}>{time(row.lastMessageAt)}</Text></View>{row.unread > 0 ? <Text style={styles.badge}>{row.unread}</Text> : null}</Pressable>)}
       </ScrollView>
     </View>
     <View testID="conversation-detail" style={[styles.fill, isWide && styles.detailPane, !showDetail && styles.hidden]} accessibilityElementsHidden={!showDetail} importantForAccessibility={showDetail ? 'auto' : 'no-hide-descendants'}>
@@ -136,9 +148,11 @@ export default function MessagesScreen({ messaging, dock }) {
     </> : selected ? <>
       <View style={styles.threadHeader}><Pressable accessibilityRole="button" accessibilityLabel="Back to conversations" onPress={() => select(null)} style={styles.backButton}><ArrowLeft accessible={false} size={24} color={colors.primary} /></Pressable><ProviderAvatar provider={selected} /><View style={styles.fill}><Text accessibilityRole="header" style={styles.name}>{selected.name}</Text>{selected.title ? <Text style={styles.muted}>{selected.title}</Text> : null}</View></View>
       <ScrollView ref={history} style={styles.fill} contentContainerStyle={styles.history} onContentSizeChange={() => history.current?.scrollToEnd({ animated: false })} onLayout={() => history.current?.scrollToEnd({ animated: false })} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-        {loading ? <ActivityIndicator accessibilityLabel="Loading conversation" color={colors.primary} /> : messages.length === 0 ? <Text style={styles.muted}>No messages yet. Send your provider a message below.</Text> : messages.map(message => <View key={message.id} style={[styles.bubble, message.sender_kind === 'patient' ? styles.outgoing : styles.incoming]}><Text style={styles.body}>{message.body}</Text><Text style={styles.timestamp}>{message.sender_kind === 'patient' ? 'You' : selected.name} · {time(message.created_at)}</Text></View>)}
+        {loading ? <ActivityIndicator accessibilityLabel="Loading conversation" color={colors.primary} /> : messages.length === 0 ? <Text style={styles.muted}>No messages yet. Send your provider a message below.</Text> : messages.map(message => <View key={message.id} style={[styles.bubble, message.sender_kind === 'patient' ? styles.outgoing : styles.incoming]}>{message.image_path && (message.image_url ? <Image accessibilityLabel="Message image" source={{ uri: message.image_url }} resizeMode="contain" style={styles.messageImage} /> : <Text style={styles.muted}>Image unavailable</Text>)}{message.body ? <Text style={styles.body}>{message.body}</Text> : null}<Text style={styles.timestamp}>{message.sender_kind === 'patient' ? 'You' : selected.name} · {time(message.created_at)}</Text></View>)}
       </ScrollView>
-      <View style={styles.composer}><TextInput ref={composer} accessibilityLabel="Message to provider" placeholder="Write a message..." placeholderTextColor={colors.muted} multiline maxLength={8000} value={draft} onChangeText={value => setDrafts(current => ({ ...current, [selected.id]: value }))} style={[styles.input, { maxHeight: composerMaxHeight }]} /><Pressable accessibilityRole="button" accessibilityLabel="Send message" accessibilityState={{ disabled: sending || !draft.trim() || [...draft.trim()].length > 4000, busy: sending }} disabled={sending || !draft.trim() || [...draft.trim()].length > 4000} onPress={submit} style={[styles.send, (sending || !draft.trim() || [...draft.trim()].length > 4000) && styles.disabled]}><Text style={styles.sendText}>{sending ? 'Sending...' : 'Send'}</Text></Pressable></View>
+      {imageError ? <Text accessibilityRole="alert" style={styles.error}>{imageError}</Text> : null}
+      {image && <View style={styles.attachment}><Image source={{ uri: image.uri }} style={styles.thumbnail} /><Text style={styles.muted}>Image ready</Text><Pressable accessibilityRole="button" accessibilityLabel="Remove image" onPress={() => setImage(null)} style={styles.action}><Text style={styles.link}>Remove</Text></Pressable></View>}
+      <View style={styles.composer}><Pressable accessibilityRole="button" accessibilityLabel="Attach image" disabled={sending} onPress={pickImage} style={styles.action}><Text style={styles.link}>Image</Text></Pressable><TextInput ref={composer} accessibilityLabel="Message to provider" placeholder="Write a message..." placeholderTextColor={colors.muted} multiline maxLength={8000} value={draft} onChangeText={value => setDrafts(current => ({ ...current, [selected.id]: value }))} style={[styles.input, { maxHeight: composerMaxHeight }]} /><Pressable accessibilityRole="button" accessibilityLabel="Send message" accessibilityState={{ disabled: sending || (!draft.trim() && !image) || [...draft.trim()].length > 4000, busy: sending }} disabled={sending || (!draft.trim() && !image) || [...draft.trim()].length > 4000} onPress={submit} style={[styles.send, (sending || (!draft.trim() && !image) || [...draft.trim()].length > 4000) && styles.disabled]}><Text style={styles.sendText}>{sending ? 'Sending...' : 'Send'}</Text></Pressable></View>
       <Text style={styles.counter}>{[...draft.trim()].length}/4000</Text>
     </> : <View style={styles.placeholder}><Text style={styles.muted}>Select a conversation or compose a message to your care team.</Text></View>}
     </View>
@@ -172,6 +186,8 @@ const baseStyles = StyleSheet.create({
   row: { backgroundColor: '#FFFDF7', borderRadius: 18, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#B7CAC2' },
   badge: { color: '#FFFDF7', backgroundColor: '#193333', padding: 8, borderRadius: 16, overflow: 'hidden', fontWeight: '700' },
   bubble: { maxWidth: '90%', borderRadius: 16, padding: 14 }, outgoing: { alignSelf: 'flex-end', backgroundColor: '#9BCBC5' }, incoming: { alignSelf: 'flex-start', backgroundColor: '#FFFDF7' },
+  messageImage: { width: 240, height: 240, maxWidth: '100%', marginBottom: 6 },
+  attachment: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 }, thumbnail: { width: 48, height: 48, borderRadius: 6 },
   body: { color: '#193333', fontSize: 16, lineHeight: 23 }, timestamp: { color: '#357F83', fontSize: 11, marginTop: 6 },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 16, paddingTop: 8 },
   input: { flex: 1, minHeight: 48, maxHeight: 140, borderWidth: 1, borderColor: '#B7CAC2', borderRadius: 14, color: '#193333', backgroundColor: '#FFFDF7', padding: 12, fontSize: 16 },

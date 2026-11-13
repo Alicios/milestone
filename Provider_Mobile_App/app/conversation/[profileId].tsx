@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, TextInput, useWindowDimensions, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Send, Star } from 'lucide-react-native';
+import { ArrowLeft, ImagePlus, Send, Star } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useSession } from '../../src/auth/SessionProvider';
 import { useResource } from '../../src/hooks/useResource';
@@ -13,6 +13,7 @@ import { useInbox } from '../../src/messages/InboxProvider';
 import { Empty, Heading, Notice, Text } from '../../src/ui/components';
 import { useKeyboardLayout } from '../../src/hooks/useKeyboardLayout';
 import { useTheme } from '../../src/ui/theme';
+import { pickMessageImage, sendProviderImage, type PickedMessageImage } from '../../src/lib/messageImages';
 
 export default function ConversationScreen() {
   const { profileId: parameter } = useLocalSearchParams<{ profileId: string }>();
@@ -26,11 +27,12 @@ export default function ConversationScreen() {
   const conversation = inbox.conversations.find(item => item.id === profileId);
   const resource = useResource(`messages-${provider!.id}-${profileId}`, () => api.messages(profileId), 15000);
   const [draft, setDraft] = useState(inbox.drafts.current.get(profileId) ?? '');
+  const [image, setImage] = useState<PickedMessageImage | null>(null);
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [starring, setStarring] = useState(false);
   const characterCount = [...draft.trim()].length;
-  const sendDisabled = sending || !conversation || !draft.trim() || characterCount > 4000;
+  const sendDisabled = sending || !conversation || (!draft.trim() && !image) || characterCount > 4000;
   const [focused, setFocused] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
@@ -38,7 +40,7 @@ export default function ConversationScreen() {
   const inFlight = useRef(false);
   const bottom = useRef(true);
   const markedThrough = useRef('');
-  useEffect(() => { mounted.current = true; setDraft(inbox.drafts.current.get(profileId) ?? ''); return () => { mounted.current = false; }; }, [profileId]);
+  useEffect(() => { mounted.current = true; setDraft(inbox.drafts.current.get(profileId) ?? ''); setImage(null); return () => { mounted.current = false; }; }, [profileId]);
   useFocusEffect(useCallback(() => { setFocused(true); void inbox.refresh(); return () => setFocused(false); }, [inbox.refresh]));
   useEffect(() => {
     if (!focused) return;
@@ -63,12 +65,17 @@ export default function ConversationScreen() {
     inFlight.current = true; setSending(true); setError('');
     const text = draft;
     try {
-      await api.send(profileId, text);
+      if (image) await sendProviderImage(profileId, image, text);
+      else await api.send(profileId, text);
       if (!mounted.current) return;
-      setDraft(''); inbox.drafts.current.delete(profileId); bottom.current = true; setAtBottom(true);
+      setDraft(''); setImage(null); inbox.drafts.current.delete(profileId); bottom.current = true; setAtBottom(true);
       await Promise.all([resource.refresh(), inbox.refresh()]);
     } catch (cause) { if (mounted.current) setError(friendlyError(cause)); }
     finally { inFlight.current = false; if (mounted.current) setSending(false); }
+  }
+  async function attachImage() {
+    try { const picked = await pickMessageImage(); if (picked) { setImage(picked); setError(''); } }
+    catch (cause) { setError(friendlyError(cause)); }
   }
   async function toggleStar() {
     if (!conversation || starring) return;
@@ -91,11 +98,13 @@ export default function ConversationScreen() {
       {resource.loading && !resource.data && <ActivityIndicator accessibilityLabel="Loading messages" color={colors.teal} />}
       {!inbox.loading && !inbox.error && !conversation && <Empty title="Conversation unavailable" detail="This care relationship is not accessible. Return to Messages and refresh your inbox." />}
       {conversation && !resource.loading && !resource.error && resource.data?.length === 0 && <Empty title="Start with a hello" detail="Your messages will appear here and in your patient's Milestone app." />}
-      {conversation && resource.data?.map(message => <View key={message.id} style={{ alignSelf: message.from === 'provider' ? 'flex-end' : 'flex-start', maxWidth: '88%', borderRadius: 18, borderBottomRightRadius: message.from === 'provider' ? 5 : 18, borderBottomLeftRadius: message.from === 'patient' ? 5 : 18, padding: 15, gap: 5, backgroundColor: message.from === 'provider' ? colors.soft : colors.surface, borderColor: colors.border, borderWidth: 1 }}><Text weight="semibold" style={{ color: colors.teal, fontSize: 10 }}>{message.from === 'provider' ? 'You' : conversation.name}</Text><Text selectable>{message.text}</Text><Text style={{ fontSize: 10, lineHeight: 16, color: colors.muted }}>{new Date(message.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</Text></View>)}
+      {conversation && resource.data?.map(message => <View key={message.id} style={{ alignSelf: message.from === 'provider' ? 'flex-end' : 'flex-start', maxWidth: '88%', borderRadius: 18, borderBottomRightRadius: message.from === 'provider' ? 5 : 18, borderBottomLeftRadius: message.from === 'patient' ? 5 : 18, padding: 15, gap: 5, backgroundColor: message.from === 'provider' ? colors.soft : colors.surface, borderColor: colors.border, borderWidth: 1 }}><Text weight="semibold" style={{ color: colors.teal, fontSize: 10 }}>{message.from === 'provider' ? 'You' : conversation.name}</Text>{message.imagePath && (message.imageUrl ? <Image accessibilityLabel="Message image" source={{ uri: message.imageUrl }} resizeMode="contain" style={{ width: 240, height: 240, maxWidth: '100%', borderRadius: 8 }} /> : <Text>Image unavailable</Text>)}{message.text ? <Text selectable>{message.text}</Text> : null}<Text style={{ fontSize: 10, lineHeight: 16, color: colors.muted }}>{new Date(message.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</Text></View>)}
     </ScrollView>
     <View style={{ width: '100%', maxWidth: 1000, alignSelf: 'center', padding: compact ? 10 : 16, gap: 10, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface }}>
       {error ? <Notice message={error} /> : null}
+      {image && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}><Image source={{ uri: image.uri }} style={{ width: 48, height: 48, borderRadius: 6 }} /><Text style={{ flex: 1 }}>Image ready</Text><Pressable accessibilityRole="button" accessibilityLabel="Remove image" onPress={() => setImage(null)} style={{ padding: 10 }}><Text>Remove</Text></Pressable></View>}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 24, backgroundColor: colors.surface }}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Attach image" disabled={sending || !conversation} onPress={() => void attachImage()} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><ImagePlus size={21} color={colors.teal} /></Pressable>
         <TextInput accessibilityLabel="Message" placeholder="Write a message..." placeholderTextColor={colors.muted} multiline value={draft} editable={!sending && Boolean(conversation)} onChangeText={value => { setDraft(value); inbox.drafts.current.set(profileId, value); }} style={{ flex: 1, minWidth: 0, minHeight: 44, maxHeight: compact ? 70 : 120, paddingHorizontal: 10, paddingVertical: 10, fontFamily: 'Montserrat_400Regular', fontSize: 16, lineHeight: 24, color: colors.ink, textAlignVertical: 'top' }} />
         <Pressable accessibilityRole="button" accessibilityLabel="Send message" accessibilityState={{ disabled: sendDisabled, busy: sending }} disabled={sendDisabled} onPress={() => void send()} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent, opacity: sendDisabled ? 0.55 : pressed ? 0.8 : 1 })}>
           {sending ? <ActivityIndicator color={colors.onAccent} accessibilityLabel="Sending message" /> : <Send size={20} color={colors.onAccent} />}

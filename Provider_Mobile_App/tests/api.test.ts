@@ -47,6 +47,22 @@ test('sending validates before network access; read/star changes include partici
   assert.equal(calls.filter(call => call.method === 'eq' && call.args[0] === 'participant_user_id' && call.args[1] === 'provider-a').length, 2);
 });
 
+test('message history remains readable before the image migration is deployed', async () => {
+  const selected: string[] = [];
+  const from = () => {
+    const query: any = {};
+    query.select = (columns: string) => { selected.push(columns); return query; };
+    for (const method of ['eq', 'order', 'range']) query[method] = () => query;
+    query.then = (resolve: (result: unknown) => void) => Promise.resolve(selected.at(-1)?.includes('image_path')
+      ? { data: null, error: { code: '42703' } }
+      : { data: [{ id: 'old', body: 'Hello', sender_kind: 'patient', created_at: '2026-11-12T00:00:00Z' }], error: null }).then(resolve);
+    return query;
+  };
+  const api = createProviderApi({ from } as unknown as SupabaseClient);
+  assert.equal((await api.messages('relationship')).at(0)?.text, 'Hello');
+  assert.deepEqual(selected, ['id,body,sender_kind,created_at,image_path', 'id,body,sender_kind,created_at']);
+});
+
 
 test('list filters read only lightweight routine statuses, batched and relationship scoped', async () => {
   const { api, calls } = fake({ routine_assignments: { data: [] } });

@@ -133,7 +133,7 @@ html {
   transition: transform 900ms ease-out;
 }
 
-.about-easter-egg-image-shell:hover {
+.about-easter-egg-touch-space:hover .about-easter-egg-image-shell {
   box-shadow: 0 28px 58px rgba(11, 61, 80, .3) !important;
 }
 

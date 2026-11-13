@@ -3,12 +3,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import SearchIcon from '@mui/icons-material/Search'
 import SendIcon from '@mui/icons-material/Send'
+import AttachFileIcon from '@mui/icons-material/AttachFile'
+import DownloadIcon from '@mui/icons-material/Download'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
 import StarIcon from '@mui/icons-material/Star'
 import { Alert, Box, Button, FormControl, IconButton, InputAdornment, InputLabel, MenuItem, OutlinedInput, Select, Stack, Typography, useMediaQuery, useTheme } from '@mui/material'
 import { useAuth } from '../auth/AuthContext'
 import { supabase } from '../lib/supabase'
-import { loadMessageConversations, loadMessageHistory, markMessageThreadRead, sendProviderMessage, setMessageThreadStarred, type Conversation, type Message } from '../lib/messages'
+import { checkMessageImageSupport, downloadMessageImage, loadMessageConversations, loadMessageHistory, markMessageThreadRead, sendProviderImage, sendProviderMessage, setMessageThreadStarred, type Conversation, type Message } from '../lib/messages'
 
 function formatMessageTime(value: string | null, detailed = false) {
   if (!value) return ''
@@ -48,6 +50,8 @@ export function MessagesPage() {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
   const [draft, setDraft] = useState('')
+  const [image, setImage] = useState<File | null>(null)
+  const [imageSupported, setImageSupported] = useState<boolean | null>(null)
   const [showConversation, setShowConversation] = useState(false)
   const [isComposing, setIsComposing] = useState(false)
   const [composeRecipientId, setComposeRecipientId] = useState('')
@@ -60,6 +64,7 @@ export function MessagesPage() {
   const [historyError, setHistoryError] = useState('')
   const [historyVersion, setHistoryVersion] = useState(0)
   const requestId = useRef(0)
+  const fileInput = useRef<HTMLInputElement>(null)
   const inboxConversations = useMemo(() => conversations.filter((conversation) => conversation.lastMessageAt !== null), [conversations])
   const selected = inboxConversations.find((conversation) => conversation.id === selectedId) ?? inboxConversations[0]
   const composeRecipient = conversations.find((conversation) => conversation.id === composeRecipientId) ?? conversations[0]
@@ -84,6 +89,7 @@ export function MessagesPage() {
 
   useEffect(() => {
     if (!user) return
+    void checkMessageImageSupport().then(setImageSupported).catch(() => setImageSupported(null))
     void refresh()
     const refreshMessages = () => { void refresh(); setHistoryVersion((version) => version + 1) }
     const channel = supabase.channel(`provider-messages-${user.id}`)
@@ -133,6 +139,8 @@ export function MessagesPage() {
 
   function selectConversation(id: string) {
     setSelectedId(id)
+    setImage(null)
+    if (fileInput.current) fileInput.current.value = ''
     setIsComposing(false)
     setShowConversation(true)
   }
@@ -142,6 +150,7 @@ export function MessagesPage() {
     if (!recipient) return
     setComposeRecipientId(recipient.id)
     setDraft('')
+    setImage(null)
     setIsComposing(true)
     setShowConversation(true)
   }
@@ -159,13 +168,16 @@ export function MessagesPage() {
   async function sendMessage() {
     const text = draft.trim()
     const recipientId = isComposing ? composeRecipientId : selected?.id
-    if (!text || !recipientId || sending) return
+    if ((!text && !image) || !recipientId || sending) return
     setSending(true)
     try {
-      await sendProviderMessage(recipientId, text)
+      if (image) await sendProviderImage(recipientId, image, text)
+      else await sendProviderMessage(recipientId, text)
       setHistoryVersion((version) => version + 1)
       setSelectedId(recipientId)
       setDraft('')
+      setImage(null)
+      if (fileInput.current) fileInput.current.value = ''
       setIsComposing(false)
       await refresh()
     } catch (sendError) {
@@ -206,14 +218,23 @@ export function MessagesPage() {
       </Stack>
 
       {isComposing && <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} gap={1.5} sx={{ px: { xs: 1.5, sm: 2.5 }, py: 1.5, borderBottom: `1px solid ${border}` }}>
-        <FormControl size="small" sx={{ minWidth: { sm: 260 } }}><InputLabel id="compose-recipient-label">To</InputLabel><Select labelId="compose-recipient-label" value={composeRecipient?.id ?? ''} label="To" onChange={(event) => setComposeRecipientId(event.target.value)}>{conversations.map((conversation) => <MenuItem key={conversation.id} value={conversation.id}>{conversation.name}</MenuItem>)}</Select></FormControl>
+        <FormControl size="small" sx={{ minWidth: { sm: 260 } }}><InputLabel id="compose-recipient-label">To</InputLabel><Select labelId="compose-recipient-label" value={composeRecipient?.id ?? ''} label="To" onChange={(event) => { setComposeRecipientId(event.target.value); setImage(null) }}>{conversations.map((conversation) => <MenuItem key={conversation.id} value={conversation.id}>{conversation.name}</MenuItem>)}</Select></FormControl>
         <Typography color="text.secondary" fontSize=".85rem">Patient message</Typography>
       </Stack>}
 
-      {!isComposing && selected && <Box sx={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', p: { xs: 1.5, sm: 3 }, bgcolor: threadBackground }}><Stack spacing={2}>{historyError && <Alert severity="error">{historyError}</Alert>}{historyLoading && <Typography role="status" color="text.secondary">Loading conversation...</Typography>}{messages.map((message) => <Box key={message.id} sx={{ alignSelf: message.from === 'provider' ? 'flex-end' : 'flex-start', maxWidth: { xs: '92%', sm: '72%' } }}><Typography color="text.secondary" fontSize=".72rem" sx={{ mb: .5, textAlign: message.from === 'provider' ? 'right' : 'left' }}>{message.from === 'provider' ? 'You' : selected.name} · {formatMessageTime(message.createdAt, true)}</Typography><Box sx={{ bgcolor: message.from === 'provider' ? providerBubble : patientBubble, border: `1px solid ${border}`, borderRadius: 2, px: 2, py: 1.25, boxShadow: '0 1px 2px rgba(24, 50, 61, .04)' }}><Typography fontSize=".95rem" lineHeight={1.55}>{message.text}</Typography></Box></Box>)}{!historyLoading && !historyError && history?.id === activeThreadId && messages.length === 0 && <Typography color="text.secondary">No messages yet. Send the first one below.</Typography>}</Stack></Box>}
+      {!isComposing && selected && <Box sx={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', p: { xs: 1.5, sm: 3 }, bgcolor: threadBackground }}><Stack spacing={2}>{historyError && <Alert severity="error">{historyError}</Alert>}{historyLoading && <Typography role="status" color="text.secondary">Loading conversation...</Typography>}{messages.map((message) => <Box key={message.id} sx={{ alignSelf: message.from === 'provider' ? 'flex-end' : 'flex-start', maxWidth: { xs: '92%', sm: '72%' } }}><Typography color="text.secondary" fontSize=".72rem" sx={{ mb: .5, textAlign: message.from === 'provider' ? 'right' : 'left' }}>{message.from === 'provider' ? 'You' : selected.name} · {formatMessageTime(message.createdAt, true)}</Typography><Box sx={{ bgcolor: message.from === 'provider' ? providerBubble : patientBubble, border: `1px solid ${border}`, borderRadius: 2, px: 2, py: 1.25, boxShadow: '0 1px 2px rgba(24, 50, 61, .04)' }}>{message.imagePath && (message.imageUrl ? <Stack spacing={.5}><Box component="img" src={message.imageUrl} alt="Message attachment" sx={{ display: 'block', maxWidth: '100%', maxHeight: 320, objectFit: 'contain', borderRadius: 1 }} /><Button size="small" startIcon={<DownloadIcon />} onClick={() => void downloadMessageImage(message.imagePath!).catch((cause) => setHistoryError(errorMessage(cause, 'Image could not be downloaded.')))}>Download image</Button></Stack> : <Typography color="text.secondary">Image unavailable</Typography>)}{message.text && <Typography fontSize=".95rem" lineHeight={1.55}>{message.text}</Typography>}</Box></Box>)}{!historyLoading && !historyError && history?.id === activeThreadId && messages.length === 0 && <Typography color="text.secondary">No messages yet. Send the first one below.</Typography>}</Stack></Box>}
       {isComposing && <Box sx={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', bgcolor: threadBackground, p: { xs: 1.5, sm: 3 } }}><Typography color="text.secondary" fontSize=".9rem">Write a new message to {composeRecipient?.name ?? 'your patient'}.</Typography></Box>}
 
-      <Box component="form" onSubmit={(event) => { event.preventDefault(); void sendMessage() }} sx={{ flexShrink: 0, p: { xs: 1, sm: 1.5 }, borderTop: `1px solid ${border}`, bgcolor: 'background.paper' }}><Stack direction="row" spacing={1} alignItems="center"><OutlinedInput value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={isComposing ? 'Write a new message…' : 'Reply to this conversation…'} aria-label={isComposing ? 'Write a new message' : 'Write a reply'} fullWidth size="small" inputProps={{ maxLength: 4000 }} sx={{ bgcolor: threadBackground, borderRadius: 1.5, '& fieldset': { borderColor: border } }} /><IconButton type="submit" disabled={!draft.trim() || sending} aria-label="Send message" sx={{ bgcolor: teal, color: 'white', borderRadius: 1.5, '&:hover': { bgcolor: '#3e8792' } }}><SendIcon fontSize="small" /></IconButton></Stack></Box>
+      <Box component="form" onSubmit={(event) => { event.preventDefault(); void sendMessage() }} sx={{ flexShrink: 0, p: { xs: 1, sm: 1.5 }, borderTop: `1px solid ${border}`, bgcolor: 'background.paper' }}>
+        {imageSupported === false && <Alert severity="info" sx={{ mb: 1 }}>Image attachments are waiting for the database update. Text messages are available.</Alert>}
+        {image && <Stack direction="row" alignItems="center" gap={1}><Typography variant="caption">Image: {image.name}</Typography><Button size="small" onClick={() => { setImage(null); if (fileInput.current) fileInput.current.value = '' }}>Remove</Button></Stack>}
+        <Stack direction="row" spacing={1} alignItems="center">
+          <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024 || !file.size) { setError('Choose a JPEG, PNG, or WebP image under 10 MB.'); event.target.value = ''; return } setImage(file); setError('') }} />
+          <IconButton aria-label="Attach image" onClick={() => fileInput.current?.click()} disabled={sending || imageSupported !== true}><AttachFileIcon /></IconButton>
+          <OutlinedInput value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={isComposing ? 'Write a new message…' : 'Reply to this conversation…'} aria-label={isComposing ? 'Write a new message' : 'Write a reply'} fullWidth size="small" inputProps={{ maxLength: 4000 }} sx={{ bgcolor: threadBackground, borderRadius: 1.5, '& fieldset': { borderColor: border } }} />
+          <IconButton type="submit" disabled={(!draft.trim() && !image) || sending} aria-label="Send message" sx={{ bgcolor: teal, color: 'white', borderRadius: 1.5, '&:hover': { bgcolor: '#3e8792' } }}><SendIcon fontSize="small" /></IconButton>
+        </Stack>
+      </Box>
     </Box>}
   </Box>
 }

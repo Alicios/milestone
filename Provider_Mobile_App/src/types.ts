@@ -19,4 +19,4 @@ export type Assignment = {
   exercises: Exercise[]; exerciseFeedbackError?: string;
 };
 export type Conversation = { id: string; name: string; preview: string; lastMessageAt: string | null; unread: number; starred: boolean; archived: boolean; archivedThroughAt: string | null };
-export type Message = { id: string; text: string; from: 'patient' | 'provider'; createdAt: string };
+export type Message = { id: string; text: string; from: 'patient' | 'provider'; createdAt: string; imagePath?: string | null; imageUrl?: string | null };

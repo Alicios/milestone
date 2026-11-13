@@ -16,6 +16,15 @@ export async function allRows<T>(query: (start: number, end: number) => PromiseL
   }
 }
 export function createProviderApi(client: SupabaseClient) {
+  const signedImages = new Map<string, { url: string; expiresAt: number }>();
+  async function signedImage(path: string): Promise<string | null> {
+    const cached = signedImages.get(path);
+    if (cached && cached.expiresAt > Date.now()) return cached.url;
+    const { data } = await client.storage.from('message-images').createSignedUrl(path, 300);
+    if (!data?.signedUrl) return null;
+    signedImages.set(path, { url: data.signedUrl, expiresAt: Date.now() + 240000 });
+    return data.signedUrl;
+  }
   return {
     async provider(userId: string, authEmail: string): Promise<Provider> {
       const { data, error } = await client.from('providers')
@@ -115,10 +124,20 @@ export function createProviderApi(client: SupabaseClient) {
       });
     },
     async messages(profileId: string): Promise<Message[]> {
-      type Row = { id: string; body: string; sender_kind: 'patient' | 'provider'; created_at: string };
-      const rows = await allRows<Row>((start, end) => client.from('messages').select('id,body,sender_kind,created_at')
-        .eq('patient_profile_id', profileId).order('created_at').order('id').range(start, end));
-      return rows.map(row => ({ id: row.id, text: row.body, from: row.sender_kind, createdAt: row.created_at }));
+      type Row = { id: string; body: string; sender_kind: 'patient' | 'provider'; created_at: string; image_path: string | null };
+      let rows: Row[];
+      try {
+        rows = await allRows<Row>((start, end) => client.from('messages').select('id,body,sender_kind,created_at,image_path')
+          .eq('patient_profile_id', profileId).order('created_at').order('id').range(start, end));
+      } catch (cause) {
+        if ((cause as { code?: string })?.code !== '42703') throw cause;
+        rows = await allRows<Row>((start, end) => client.from('messages').select('id,body,sender_kind,created_at')
+          .eq('patient_profile_id', profileId).order('created_at').order('id').range(start, end));
+      }
+      return Promise.all(rows.map(async row => {
+        const imageUrl = row.image_path ? await signedImage(row.image_path) : null;
+        return { id: row.id, text: row.body, from: row.sender_kind, createdAt: row.created_at, imagePath: row.image_path ?? null, imageUrl };
+      }));
     },
     async send(profileId: string, text: string): Promise<void> {
       const body = validateMessage(text);

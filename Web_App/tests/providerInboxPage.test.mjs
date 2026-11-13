@@ -21,11 +21,12 @@ function harness(t, desktop = false) {
       loadMessageConversations: async () => summaries,
       loadMessageHistory: id => { const pending = deferred(); loads.push({ id, ...pending }); return pending.promise },
       markMessageThreadRead: async (...args) => { reads.push(args) },
-      sendProviderMessage: async () => {}, setMessageThreadStarred: async () => {},
+      sendProviderMessage: async () => {}, sendProviderImage: async () => {}, downloadMessageImage: async () => {}, setMessageThreadStarred: async () => {},
+      checkMessageImageSupport: async () => true,
     },
   }
   const user = { id: 'provider' }
-  for (const icon of ['ArrowBack','Search','Send','StarBorder','Star']) mocks[`@mui/icons-material/${icon}`] = { default: icon }
+  for (const icon of ['ArrowBack','Search','Send','StarBorder','Star','AttachFile','Download']) mocks[`@mui/icons-material/${icon}`] = { default: icon }
   const { MessagesPage } = loadTs('src/pages/MessagesPage.tsx', mocks)
   h.render(MessagesPage)
   t.after(() => { h.unmount(); Object.assign(globalThis, previous) })

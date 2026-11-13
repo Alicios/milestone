@@ -2,10 +2,11 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
+import CloseIcon from '@mui/icons-material/Close'
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined'
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined'
 import type { SvgIconComponent } from '@mui/icons-material'
-import { Box, Button, Card, CardContent, Container, Grid, Paper, Stack, Typography } from '@mui/material'
+import { Box, Button, ButtonBase, Card, CardContent, Container, Dialog, DialogContent, Grid, IconButton, Paper, Stack, Typography } from '@mui/material'
 import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
@@ -29,12 +30,19 @@ const workflowSteps = [
 
 const resources = [
   { title: 'Personalized routines', body: 'Create exercise plans that reflect each patient’s goals and care needs.', icon: AutoAwesomeOutlinedIcon },
-  { title: 'Clear daily guidance', body: 'The future patient app will show which routines to complete on assigned days.', icon: CalendarMonthOutlinedIcon },
+  { title: 'Clear daily guidance', body: 'The patient app shows which routines to complete on assigned days.', icon: CalendarMonthOutlinedIcon },
   { title: 'Connected care', body: 'Coordinate updates and communication without relying on disconnected tools.', icon: ForumOutlinedIcon },
+]
+
+const appPreviews = [
+  { title: 'Provider web workspace', body: 'Organize patients and build their exercise plans in the browser.', image: 'previews/provider-web.png', alt: 'Provider web workspace showing a patient’s weekly routine calendar and progress statuses.', shape: 'desktop' },
+  { title: 'Provider companion app', body: 'Review care activity and patient updates while away from your desk.', image: 'previews/provider-mobile.png', alt: 'Provider mobile app showing a care activity overview.', shape: 'phone' },
+  { title: 'Patient app', body: 'Give patients a daily view of their assigned routines and progress.', image: 'previews/patient-mobile.png', alt: 'Patient mobile app showing today’s routine and progress.', shape: 'phone' },
 ]
 
 export function HomePage() {
   useRedirectIfAuthenticated()
+  const [selectedPreview, setSelectedPreview] = useState<(typeof appPreviews)[number] | null>(null)
 
   return <Box className="home-page" minHeight="100vh" bgcolor="background.default" sx={{ backgroundImage: `linear-gradient(rgba(232, 221, 186, .88), rgba(232, 221, 186, .94)), url('${publicAsset('home/clinic-background.png')}')` }}>
     <PublicHeader />
@@ -82,6 +90,11 @@ export function HomePage() {
           </Paper></Reveal>
         </Box>
 
+        <Box id="app-previews" component="section" className="home-anchor" sx={{ py: { xs: 7, md: 12 } }}>
+          <Reveal><Typography variant="overline" color="secondary.main" fontWeight={800} letterSpacing=".14em">See Milestone in action</Typography><Typography variant="h2" sx={{ mt: 1, fontSize: { xs: '2.2rem', md: '3.4rem' } }}>One care plan, three connected views.</Typography><Typography color="text.secondary" lineHeight={1.7} maxWidth={700} mt={2}>Explore how the provider web workspace, provider companion app, and patient app support care between visits. These screenshots use sample data.</Typography></Reveal>
+          <Grid container spacing={3} mt={4} alignItems="stretch">{appPreviews.map((preview) => <Grid size={{ xs: 12, md: 4 }} key={preview.title}><Reveal><Card sx={{ height: '100%', borderRadius: 4, overflow: 'hidden' }}><ButtonBase onClick={(event) => { event.currentTarget.blur(); setSelectedPreview(preview) }} aria-label={`Enlarge ${preview.title} screenshot`} sx={{ width: '100%', height: { xs: 310, sm: 360 }, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, bgcolor: '#d7e9e5', '&:focus-visible': { outline: '3px solid #eb681d', outlineOffset: -3 } }}><Box component="img" src={publicAsset(preview.image)} alt={preview.alt} loading="lazy" sx={{ display: 'block', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: preview.shape === 'phone' ? 3 : 1, boxShadow: '0 12px 28px rgba(11, 61, 80, .2)' }} /></ButtonBase><CardContent sx={{ p: 3 }}><Typography variant="h6">{preview.title}</Typography><Typography color="text.secondary" lineHeight={1.7} mt={1}>{preview.body}</Typography></CardContent></Card></Reveal></Grid>)}</Grid>
+        </Box>
+
         <Box id="resources" component="section" className="home-anchor" sx={{ py: { xs: 7, md: 12 } }}>
           <Reveal><Typography variant="overline" color="secondary.main" fontWeight={800} letterSpacing=".14em">Built for connected care</Typography><Typography variant="h2" sx={{ mt: 1, maxWidth: 700, fontSize: { xs: '2.2rem', md: '3.4rem' } }}>Everything needed for the next step.</Typography><Typography color="text.secondary" lineHeight={1.7} maxWidth={620} mt={2}>Milestone keeps the provider’s plan and the patient’s next exercise steps moving in the same direction.</Typography></Reveal>
           <Grid container spacing={3} mt={4}>{resources.map(({ title, body, icon: Icon }) => <Grid size={{ xs: 12, md: 4 }} key={title}><Reveal><Card sx={{ height: '100%', borderRadius: 4 }}><CardContent sx={{ p: { xs: 3, md: 4 } }}><Icon color="secondary" sx={{ fontSize: 38 }} /><Typography variant="h6" mt={2}>{title}</Typography><Typography color="text.secondary" lineHeight={1.7} mt={1}>{body}</Typography></CardContent></Card></Reveal></Grid>)}</Grid>
@@ -90,6 +103,7 @@ export function HomePage() {
           <Reveal><Paper component="section" sx={{ my: { xs: 6, md: 10 }, p: { xs: 4, md: 7 }, bgcolor: 'secondary.main', color: 'white', borderRadius: { xs: 4, md: 6 }, textAlign: 'center' }}><Typography variant="h2" sx={{ fontSize: { xs: '2.2rem', md: '3.5rem' } }}>Ready to coordinate better care?</Typography><Typography sx={{ mt: 2, color: 'rgba(255,255,255,.84)' }}>Enter the Milestone provider workspace or create an account to manage patient care.</Typography><Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="center" spacing={2} mt={4}><Button component={RouterLink} to="/login" variant="contained" color="primary" size="large">Enter therapist portal</Button><Button component={RouterLink} to="/register" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,.7)' }} size="large">Create account</Button></Stack></Paper></Reveal>
       </Container>
     </Box>
+    <Dialog open={Boolean(selectedPreview)} onClose={() => setSelectedPreview(null)} aria-labelledby="preview-dialog-title" maxWidth="lg" fullWidth><Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, pt: 1 }}><Typography id="preview-dialog-title" variant="h6">{selectedPreview?.title}</Typography><IconButton onClick={() => setSelectedPreview(null)} aria-label="Close screenshot"><CloseIcon /></IconButton></Box><DialogContent sx={{ display: 'flex', justifyContent: 'center', bgcolor: '#d7e9e5' }}>{selectedPreview && <Box component="img" src={publicAsset(selectedPreview.image)} alt={selectedPreview.alt} sx={{ display: 'block', maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain' }} />}</DialogContent></Dialog>
     <Box component="footer" sx={{ bgcolor: 'primary.dark', color: 'white' }}>
       <Container maxWidth="lg" sx={{ py: { xs: 2.5, md: 3 } }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between">
@@ -97,7 +111,7 @@ export function HomePage() {
             <Brand light />
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,.72)' }}>Connected care for every milestone.</Typography>
           </Stack>
-          <Button component={RouterLink} to="/about" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,.6)' }}>About us</Button>
+          <Stack direction="row" spacing={1}><Button component={RouterLink} to="/faq" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,.6)' }}>FAQ</Button><Button component={RouterLink} to="/about" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,.6)' }}>About us</Button></Stack>
         </Stack>
         <Typography variant="caption" sx={{ display: 'block', mt: 2, color: 'rgba(255,255,255,.58)' }}>© 2026 LeTeam. Milestone.</Typography>
       </Container>

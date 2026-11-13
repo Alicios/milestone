@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { supabase } from './supabase';
-import { loadPatientConversations, loadPatientMessages, markPatientMessagesRead, sendPatientMessage } from './messages';
+import { loadPatientConversations, loadPatientMessages, markPatientMessagesRead, sendPatientImage, sendPatientMessage } from './messages';
 
 export default function usePatientMessages({ enabled, patientId, visible }) {
   const [conversations, setConversations] = useState([]);
@@ -90,10 +90,23 @@ export default function usePatientMessages({ enabled, patientId, visible }) {
     } finally { pendingSend.current = false; setSending(false); }
   }
 
+  async function sendImage(asset, body) {
+    if (!enabled || !selectedId || pendingSend.current) return false;
+    pendingSend.current = true; setSending(true); setError('');
+    try {
+      await sendPatientImage(selectedId, asset, body);
+      await refresh();
+      return true;
+    } catch (failure) {
+      setError(failure.message || 'Image could not be sent. Your draft is still here.');
+      return false;
+    } finally { pendingSend.current = false; setSending(false); }
+  }
+
   function select(id) {
     if (id === selectedId) return;
     generation.current += 1; setMessages([]); setLoading(true); setSelectedId(id);
   }
-  return { conversations, selected, messages, loading, error, sending, refresh, select, send,
+  return { conversations, selected, messages, loading, error, sending, refresh, select, send, sendImage,
     unread: conversations.reduce((total, row) => total + row.unread, 0) };
 }

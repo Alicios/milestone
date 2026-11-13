@@ -64,6 +64,21 @@ test('selected history loads 1001 messages in ordered pages scoped to one relati
     assert.deepEqual(call.operations.filter(([name]) => name === 'order'), [['order', 'created_at', { ascending: true }], ['order', 'id', { ascending: true }]])
   }
 })
+
+test('missing image column falls back to text history on the deployed schema', async () => {
+  const h = harness({ pages: [{ error: { code: '42703' }, status: 400 }, { data: [row('old')] }] })
+  const messages = await h.loadMessageHistory('profile')
+  assert.equal(messages[0].text, 'Message old')
+  assert.equal(messages[0].imagePath, null)
+  assert.deepEqual(h.calls.map(c => c.operations.find(([name]) => name === 'select')?.[1]),
+    ['id, sender_kind, body, created_at, image_path', 'id, sender_kind, body, created_at'])
+})
+
+test('image support probe recognizes the pending database migration', async () => {
+  const supabase = { from: () => ({ select: () => ({ limit: async () => ({ error: { code: '42703' }, status: 400 }) }) }) }
+  const { checkMessageImageSupport } = loadTs('src/lib/messages.ts', { './supabase': { supabase }, './errors': errors })
+  assert.equal(await checkMessageImageSupport(), false)
+})
 for (const mode of ['returned', 'thrown']) test(`later history page ${mode} failure rejects the whole read without retry`, async () => {
   const native = { code: 'XX000', status: 503, message: secret }
   const second = mode === 'returned' ? { error: native, status: 503 } : { then: (_, reject) => reject(native) }
@@ -89,4 +104,25 @@ for (const operation of ['sendProviderMessage', 'markMessageThreadRead', 'setMes
 test('read cursor and star updates retain their current query contracts', async () => {
   const h = harness(); await h.markMessageThreadRead('profile', 'displayed-at'); await h.setMessageThreadStarred('profile', true)
   assert.deepEqual(h.calls.map(c => c.operations), [[['update', { last_read_at: 'displayed-at' }], ['eq', 'patient_profile_id', 'profile']], [['update', { starred: true }], ['eq', 'patient_profile_id', 'profile']]])
+})
+
+test('image message uploads privately before inserting its relationship-scoped path', async () => {
+  const calls = []
+  const supabase = {
+    auth: { getUser: async () => ({ data: { user: { id: 'sender' } } }) },
+    storage: { from: bucket => ({ upload: async (path, file, options) => { calls.push({ bucket, path, file, options }); return { error: null } } }) },
+    from: table => ({
+      select: () => ({ limit: async () => ({ error: null, status: 200 }) }),
+      insert: async row => { calls.push({ table, row }); return { error: null } },
+    }),
+  }
+  const { sendProviderImage } = loadTs('src/lib/messages.ts', { './supabase': { supabase }, './errors': errors })
+  const file = { type: 'image/png', size: 123, name: 'photo.png' }
+  await sendProviderImage('profile', file, ' hello ')
+  assert.equal(calls[0].bucket, 'message-images')
+  assert.match(calls[0].path, /^profile\/sender\/[-a-f0-9]+\.png$/)
+  assert.deepEqual(calls[0].options, { contentType: 'image/png', upsert: false })
+  assert.deepEqual(calls[1].row, { patient_profile_id: 'profile', sender_kind: 'provider', body: 'hello', image_path: calls[0].path })
+  await assert.rejects(sendProviderImage('profile', { type: 'image/svg+xml', size: 123 }, ''), /JPEG, PNG, or WebP/)
+  assert.equal(calls.length, 2)
 })

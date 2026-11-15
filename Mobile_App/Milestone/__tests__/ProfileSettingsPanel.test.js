@@ -3,25 +3,25 @@ import { AccessibilityInfo, Animated, AppState, Modal, Pressable, Switch, Text, 
 import ReactTestRenderer from 'react-test-renderer';
 import UnlockGate from '../components/UnlockGate';
 import ProfileAvatar from '../components/ProfileAvatar';
-import { createPatientSession } from '../auth/patientAccount';
-const TEST_PATIENT = { id: 'test-auth-user', databasePatientId: 'a818d1ae-01d6-4e22-8e59-b45c25ed218e', fullName: 'Frank Murgolo', phone: '0000000000', email: 'frank@example.com' };
+const TEST_PATIENT = { id: 'a818d1ae-01d6-4e22-8e59-b45c25ed218e', name: 'Frank Murgolo', phone: '0000000000', email: 'provider-saved@example.com' };
 jest.mock('../lib/supabase', () => ({ isSupabaseConfigured: true, supabase: { auth: { startAutoRefresh: jest.fn(), stopAutoRefresh: jest.fn(), getSession: jest.fn(async () => ({ data: { session: { user: { id: 'test-auth-user' } } } })), onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })) } } }));
-import { loadPatientSession, savePatientSession } from '../auth/patientStorage';
+import { loadLocalExtras, saveLocalExtras } from '../auth/localPatientExtras';
 import { usePatientSession } from '../auth/PatientSession';
 import { chooseProfilePhoto } from '../auth/profilePhoto';
-import { fetchSharedPatientProfile } from '../lib/patientProfile';
+import { fetchMyPatientProfile } from '../lib/patientApi';
+import { defaultPreferences } from '../auth/preferences';
 
-jest.mock('../lib/patientProfile', () => ({ fetchSharedPatientProfile: jest.fn() }));
+jest.mock('../lib/patientApi', () => ({ fetchMyPatientProfile: jest.fn(), clearMyPendingOtp: jest.fn() }));
 
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
-jest.mock('../auth/patientStorage', () => ({ loadPatientSession: jest.fn(), savePatientSession: jest.fn() }));
+jest.mock('../auth/localPatientExtras', () => ({ loadLocalExtras: jest.fn(), saveLocalExtras: jest.fn() }));
 jest.mock('expo-localization', () => ({ getLocales: jest.fn(() => [{ regionCode: 'US' }]) }));
 jest.mock('../auth/profilePhoto', () => ({ chooseProfilePhoto: jest.fn() }));
 
 let renderer;
 let sessionApi;
 let background;
-const original = () => createPatientSession(TEST_PATIENT, { email: 'frank@example.com', preferredName: '', dateOfBirth: '', pinEnabled: false });
+const original = () => ({ preferredName: '', dateOfBirth: '', photoUri: null, pin: null, preferences: defaultPreferences() });
 function Home({ profile, onOpenProfile, onLock }) {
   sessionApi = usePatientSession();
   const [progress, setProgress] = useState(0);
@@ -40,15 +40,15 @@ function hasText(text) {
   return renderer.root.findAllByType(Text).some(node => textOf(node).includes(text));
 }
 async function open(saved = original()) {
-  loadPatientSession.mockResolvedValue(saved);
+  loadLocalExtras.mockResolvedValue(saved);
   await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(<UnlockGate rememberPatient>{props => <Home {...props} />}</UnlockGate>); });
   if (saved.pin) { await fill('Your PIN', saved.pin); await press('Unlock Milestone'); }
   await press('Open profile and settings');
 }
 beforeEach(() => {
   jest.clearAllMocks();
-  fetchSharedPatientProfile.mockResolvedValue({ databasePatientId: TEST_PATIENT.databasePatientId, fullName: 'Frank Murgolo', phone: '0000000000', email: 'provider-saved@example.com', primaryConcern: 'Ankle stiffness', treatmentFocus: 'Balance', startOfCare: '2026-09-14', careStatus: 'active' });
-  savePatientSession.mockResolvedValue(true);
+  fetchMyPatientProfile.mockResolvedValue({ ...TEST_PATIENT, primary_concern: 'Ankle stiffness', treatment_focus: 'Balance', start_of_care: '2026-09-14', care_status: 'active' });
+  saveLocalExtras.mockResolvedValue(true);
   chooseProfilePhoto.mockResolvedValue(null);
   jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
   jest.spyOn(Animated, 'timing').mockImplementation((value, config) => ({ start: callback => { value.setValue(config.toValue); callback?.({ finished: true }); }, stop: jest.fn() }));
@@ -75,11 +75,11 @@ test('keeps database fields read-only and preserves local drafts and routine pro
 
 test('refreshes provider changes without overwriting local drafts and retries failures', async () => {
   await open(); await fill('Preferred name', 'Unsaved local draft');
-  fetchSharedPatientProfile.mockRejectedValueOnce(new Error('offline'));
+  fetchMyPatientProfile.mockRejectedValueOnce(new Error('offline'));
   await press('Refresh patient details');
   expect(hasText('last loaded details')).toBe(true);
   expect(sessionApi.session.profile.email).toBe('provider-saved@example.com');
-  fetchSharedPatientProfile.mockResolvedValue({ databasePatientId: TEST_PATIENT.databasePatientId, fullName: 'Updated Frank', phone: '', email: 'updated@example.com', careStatus: 'pending' });
+  fetchMyPatientProfile.mockResolvedValue({ ...TEST_PATIENT, name: 'Updated Frank', phone: '', email: 'updated@example.com', care_status: 'pending' });
   await press('Refresh patient details');
   expect(sessionApi.session.profile.email).toBe('updated@example.com');
   expect(sessionApi.session.profile.phone).toBe('');
@@ -138,18 +138,18 @@ test('retains profile/photo drafts behind the lock when choosing a photo backgro
 });
 test('serializes persistence and merges rapid profile/settings changes', async () => {
   await open(); const finish = [];
-  savePatientSession.mockClear();
-  savePatientSession.mockImplementation(() => new Promise(resolve => finish.push(resolve)));
+  saveLocalExtras.mockClear();
+  saveLocalExtras.mockImplementation(() => new Promise(resolve => finish.push(resolve)));
   await ReactTestRenderer.act(async () => {
     sessionApi.updateProfile({ preferredName: 'First' });
     sessionApi.updatePreferences({ appearance: 'dark' });
     sessionApi.updateProfile({ photoUri: 'data:image/jpeg;base64,YWJj', email: 'ignored@example.com' });
   });
-  expect(savePatientSession).toHaveBeenCalledTimes(1);
+  expect(saveLocalExtras).toHaveBeenCalledTimes(1);
   await ReactTestRenderer.act(async () => finish.shift()(true));
-  expect(savePatientSession).toHaveBeenCalledTimes(2);
+  expect(saveLocalExtras).toHaveBeenCalledTimes(2);
   await ReactTestRenderer.act(async () => finish.shift()(false));
   expect(hasText('could not be saved')).toBe(true);
   await ReactTestRenderer.act(async () => finish.shift()(true));
-  expect(savePatientSession.mock.calls[2][0]).toEqual(expect.objectContaining({ profile: expect.objectContaining({ preferredName: 'First', email: 'provider-saved@example.com', photoUri: 'data:image/jpeg;base64,YWJj' }), preferences: expect.objectContaining({ appearance: 'dark' }) }));
+  expect(saveLocalExtras.mock.calls[2][1]).toEqual(expect.objectContaining({ preferredName: 'First', photoUri: 'data:image/jpeg;base64,YWJj', preferences: expect.objectContaining({ appearance: 'dark' }) }));
 });

@@ -303,6 +303,31 @@ external traffic and exercises the actual app UIs against shared in-memory
 responses. `supabase/tests/exercise_feedback_hosted.sql` is a rollback-only smoke
 test with Frank's approved snapshot and should be run only against that project.
 
+### 2026-11-15 — LeBron demonstration cohort setup
+
+- In hosted project `lwldkhrsngwtuhztlmul`, filled previously blank email,
+  phone, primary concern, treatment focus, and start-of-care fields for the
+  three active, unlinked patient records assigned to LeBron. Emails follow
+  Frank's fictional `@milestone.patient` format; phones use distinct `000`
+  demo numbers. Start of care is each patient's first existing assignment date
+  (November 9). Existing nonblank values and the discharged test record were
+  not changed.
+- The three accounts remain `pending` and unlinked. Contact details do not
+  create a patient login, and the fictional addresses do not receive mail.
+- Scheduled seven assignments through the provider scheduling RPC: `Feet Fun`
+  on November 15 for all four active relationships, plus `Lower Body` on
+  November 16 for John and Katherine and `Upper Body` on November 16 for Neal.
+  The preflight found no occupied dates. No historical assignments were
+  replaced or deleted.
+- Hosted readback confirmed all seven assignments are `scheduled` with two
+  exercise snapshots each. A patient-scoped read using Frank's linked Auth
+  identity returned his November 15 assignment.
+- Local validation: provider web TypeScript check, 32 patient tests, and 36
+  scheduling tests passed; provider mobile typecheck, 50 tests, and its phone
+  patient-care browser scenario passed; patient mobile 28 suites/147 tests and
+  a web export passed. Native devices and an authenticated three-app
+  walkthrough remain to be checked for the presentation.
+
 ### 2026-11-03 — Frank Murgolo previous-week demo results
 
 - Project `lwldkhrsngwtuhztlmul`; only Frank's three existing active assignments

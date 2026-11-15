@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Keyboard, Pressable, RefreshControl, View } from 'react-native';
 import { Link } from 'expo-router';
-import { Archive, ArrowDownAZ, ArrowUpAZ, Check, SlidersHorizontal } from 'lucide-react-native';
+import { Archive, ArrowUpDown, Check, SlidersHorizontal } from 'lucide-react-native';
 import { useSession } from '../../src/auth/SessionProvider';
 import { api } from '../../src/lib/client';
 import { localDateKey, weekDates } from '../../src/lib/domain';
-import { filterPatients, patientFilters, type PatientFilter } from '../../src/lib/patientFilters';
+import { filterPatients, patientFilters, patientSorts, type PatientFilter, type PatientSort } from '../../src/lib/patientFilters';
 import { useResource } from '../../src/hooks/useResource';
 import { ActionSheet } from '../../src/ui/ActionSheet';
 import { Avatar, Brand, Button, Card, ChevronRight, Empty, Field, Heading, Notice, Screen, Text } from '../../src/ui/components';
@@ -17,7 +17,8 @@ export default function PatientsScreen() {
   const [search, setSearch] = useState('');
   const [archive, setArchive] = useState(false);
   const [filter, setFilter] = useState<PatientFilter>('all');
-  const [descending, setDescending] = useState(false);
+  const [sort, setSort] = useState<PatientSort>('nameAsc');
+  const [sortOpen, setSortOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [today, setToday] = useState(localDateKey());
   useEffect(() => { const timer = setInterval(() => setToday(localDateKey()), 30000); return () => clearInterval(timer); }, []);
@@ -28,7 +29,7 @@ export default function PatientsScreen() {
   const statuses = useResource(`patient-filters-${provider!.id}-${dates[0]}-${needsStatuses ? profileIds.join(',') : 'off'}`, () => needsStatuses ? api.assignmentStatuses(profileIds, dates[0], dates[6]) : Promise.resolve([]));
   const waiting = needsStatuses && statuses.loading;
   const filterError = needsStatuses ? statuses.error : '';
-  const patients = waiting || filterError ? [] : filterPatients(resource.data ?? [], statuses.data ?? [], { query: search, archive, filter, descending, today });
+  const patients = waiting || filterError ? [] : filterPatients(resource.data ?? [], statuses.data ?? [], { query: search, archive, filter, sort, today });
   const label = patientFilters.find(option => option.value === filter)!.label;
   const refresh = () => { setToday(localDateKey()); void resource.refresh(); if (needsStatuses) void statuses.refresh(); };
   return <Screen refreshControl={<RefreshControl refreshing={Boolean(resource.data) && (resource.loading || waiting)} onRefresh={refresh} tintColor={colors.teal} />}>
@@ -38,7 +39,7 @@ export default function PatientsScreen() {
     <View style={{ gap: 12, marginBottom: 20 }}><Field label="Find a patient" value={search} onChangeText={setSearch} placeholder="Search by name" autoCapitalize="none" returnKeyType="search" />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
         {!archive && <Button secondary={filter === 'all'} title="Filter" icon={<SlidersHorizontal color={filter === 'all' ? colors.teal : colors.onAccent} size={17} />} onPress={() => { Keyboard.dismiss(); setFilterOpen(true); }} />}
-        <Button secondary title={descending ? 'Name Z–A' : 'Name A–Z'} icon={descending ? <ArrowUpAZ color={colors.teal} size={17} /> : <ArrowDownAZ color={colors.teal} size={17} />} onPress={() => setDescending(value => !value)} />
+        <Button secondary title={patientSorts.find(option => option.value === sort)!.label} icon={<ArrowUpDown color={colors.teal} size={17} />} onPress={() => { Keyboard.dismiss(); setSortOpen(true); }} />
       </View>
       {!archive && filter !== 'all' && <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}><Text style={{ fontSize: 12, color: colors.teal, flexShrink: 1 }}>{label} · This week</Text><Pressable accessibilityRole="button" onPress={() => setFilter('all')} style={{ minHeight: 44, justifyContent: 'center' }}><Text weight="semibold" style={{ fontSize: 12, color: colors.teal }}>Clear filter</Text></Pressable></View>}
     </View>
@@ -51,6 +52,9 @@ export default function PatientsScreen() {
     {!resource.loading && !resource.error && !waiting && !filterError && !patients.length && <Empty title={search || filter !== 'all' ? 'No matching patients' : archive ? 'No archived patients' : 'Your patients will appear here'} detail={search || filter !== 'all' ? 'Try another name or clear your filters.' : archive ? 'Discharged patients will appear here.' : 'Patients added on the provider website will appear here.'} />}
     <ActionSheet visible={filterOpen} title="Filter patients" onClose={() => setFilterOpen(false)} footer={<Text style={{ color: colors.muted, fontSize: 11, padding: 8 }}>Based on routines assigned for the current week.</Text>}>
       {patientFilters.map(option => <Pressable key={option.value} accessibilityRole="menuitem" accessibilityLabel={option.label} accessibilityState={{ selected: filter === option.value }} onPress={() => { setFilter(option.value); setFilterOpen(false); }} style={({ pressed }) => ({ minHeight: 48, padding: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: pressed || filter === option.value ? colors.soft : 'transparent' })}><Text style={{ flex: 1, fontSize: 13 }}>{option.label}</Text>{filter === option.value && <Check color={colors.teal} size={17} />}</Pressable>)}
+    </ActionSheet>
+    <ActionSheet visible={sortOpen} title="Sort patients" onClose={() => setSortOpen(false)}>
+      {patientSorts.map(option => <Pressable key={option.value} accessibilityRole="menuitem" accessibilityLabel={option.label} accessibilityState={{ selected: sort === option.value }} onPress={() => { setSort(option.value); setSortOpen(false); }} style={({ pressed }) => ({ minHeight: 48, padding: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: pressed || sort === option.value ? colors.soft : 'transparent' })}><Text style={{ flex: 1, fontSize: 13 }}>{option.label}</Text>{sort === option.value && <Check color={colors.teal} size={17} />}</Pressable>)}
     </ActionSheet>
   </Screen>;
 }

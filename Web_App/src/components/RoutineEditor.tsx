@@ -191,6 +191,7 @@ export function RoutineEditor({ savedRoutines, onSave, onDelete }: {
   const [openRoutineIds, setOpenRoutineIds] = useState<string[]>([])
   const [closingDraftId, setClosingDraftId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [resultsTab, setResultsTab] = useState<'routines' | 'exercises'>('routines')
   const [selectedTags, setSelectedTags] = useState<ExerciseTag[]>([])
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -203,8 +204,6 @@ export function RoutineEditor({ savedRoutines, onSave, onDelete }: {
   const [impactLoading, setImpactLoading] = useState(false)
   const [impactAttempt, setImpactAttempt] = useState(0)
   const objectUrls = useRef(new Set<string>())
-  const resultsRef = useRef<HTMLElement>(null)
-  const isBuilding = draft !== null
   const providerRoutines = useMemo(() => providerPrototypeRoutines(savedRoutines, catalog), [savedRoutines, catalog])
   const allRoutines = useMemo(() => [
     ...providerRoutines,
@@ -266,6 +265,7 @@ export function RoutineEditor({ savedRoutines, onSave, onDelete }: {
     if (draft && draft.id !== next.id) setParkedDrafts((current) => ({ ...current, [draft.id]: draft }))
     rememberTab(next.id)
     setDraft(next)
+    setResultsTab('exercises')
     setSelectedId('')
     setPickedExercise(null)
     setNotice('')
@@ -322,8 +322,6 @@ export function RoutineEditor({ savedRoutines, onSave, onDelete }: {
   }
 
   useEffect(() => () => { objectUrls.current.forEach((url) => URL.revokeObjectURL(url)) }, [])
-  useEffect(() => { if (resultsRef.current) resultsRef.current.scrollTop = 0 }, [isBuilding])
-
   useEffect(() => {
     let active = true
     setCatalogLoading(true)
@@ -443,15 +441,14 @@ export function RoutineEditor({ savedRoutines, onSave, onDelete }: {
   }
 
   const routineResults = (
-    <Box key="routine-results" component="section" aria-label="Routine results">
-          <Typography component="h3" variant="subtitle1" fontWeight={700}>Routines ({filtered.length})</Typography>
-          <Stack spacing={1} sx={{ maxHeight: { xs: 180, md: 260 }, overflowY: 'auto', pr: .5 }}>
+    <Box component="section" role="tabpanel" id="routine-search-panel" aria-labelledby="routine-search-tab" aria-label="Routine results">
+          <Stack spacing={1.5}>
             {filtered.length === 0 && <Typography variant="body2" color="text.secondary">No matching routines.</Typography>}
             {(['provider', 'template'] as const).map((source) => {
               const matches = filtered.filter((routine) => (routine.source === 'template' ? 'template' : 'provider') === source)
               return matches.length > 0 && <Box key={source}>
                 <Typography variant="caption" color="text.secondary">{source === 'template' ? 'Templates' : 'Your routines'}</Typography>
-                <Stack spacing={1} sx={{ mt: .5 }}>{matches.map((routine) => <Card key={routine.id} variant="outlined" sx={{ flexShrink: 0, borderColor: !pickedExercise && selected?.id === routine.id ? 'primary.main' : 'divider' }}>
+                <Stack spacing={1} sx={{ mt: .5 }}>{matches.map((routine) => <Card key={routine.id} variant="outlined" sx={{ minWidth: 0, borderColor: !pickedExercise && selected?.id === routine.id ? 'primary.main' : 'divider' }}>
                   <Button fullWidth aria-label={`View ${source === 'template' ? 'template' : 'my routine'}: ${routine.name}`} onClick={() => { rememberTab(routine.id); if (!draft && parkedDrafts[routine.id]) switchTab(routine.id); else { setSelectedId(routine.id); setPickedExercise(null) } }} sx={{ justifyContent: 'flex-start', textAlign: 'left', p: 1.25, color: 'text.primary', textTransform: 'none' }}>
                     <Box minWidth={0}><Typography variant="body2" fontWeight={700}>{routine.name}</Typography><Stack direction="row" spacing={1} alignItems="center" sx={{ mt: .5 }}><Chip size="small" label={source === 'template' ? 'Template' : 'My routine'} /><Typography variant="caption">{routine.exercises.length} exercises</Typography></Stack></Box>
                   </Button>
@@ -462,11 +459,10 @@ export function RoutineEditor({ savedRoutines, onSave, onDelete }: {
         </Box>
   )
   const exerciseResults = (
-    <Box key="exercise-results" component="section" aria-label="Exercise results">
-          <Typography component="h3" variant="subtitle1" fontWeight={700}>Individual exercises ({filteredExercises.length})</Typography>
-          <Stack spacing={1} sx={{ maxHeight: { xs: 260, md: 420 }, overflowY: 'auto', pr: .5 }}>
+    <Box component="section" role="tabpanel" id="exercise-search-panel" aria-labelledby="exercise-search-tab" aria-label="Exercise results">
+          <Stack spacing={1}>
             {filteredExercises.length === 0 && <Typography variant="body2" color="text.secondary">No matching exercises. Try another search or choose All.</Typography>}
-            {filteredExercises.map((exercise) => <Card key={exercise.id} variant="outlined" sx={{ flexShrink: 0, borderColor: pickedExercise?.id === exercise.id ? 'primary.main' : 'divider' }}>
+            {filteredExercises.map((exercise) => <Card key={exercise.id} variant="outlined" sx={{ minWidth: 0, borderColor: pickedExercise?.id === exercise.id ? 'primary.main' : 'divider' }}>
               <Stack direction="row" alignItems="center" spacing={.5}>
                 <Button aria-label={`Preview exercise: ${exercise.name}`} onClick={() => setPickedExercise(exercise)} sx={{ flex: 1, minWidth: 0, justifyContent: 'flex-start', textAlign: 'left', p: 1.25, color: 'text.primary', textTransform: 'none' }}>
                   <Box minWidth={0}><Typography variant="body2" fontWeight={700}>{exercise.name}</Typography><Chip size="small" label="Exercise" sx={{ my: .5 }} /><Typography variant="caption" color="text.secondary" display="block">{exerciseTags(exercise.name).map((tag) => exerciseTagOptions.find((entry) => entry.id === tag)?.label).join(' · ')}</Typography></Box>
@@ -531,11 +527,13 @@ export function RoutineEditor({ savedRoutines, onSave, onDelete }: {
       {!catalogLoading && !catalogError && <Typography variant="caption" color="text.secondary" role="status">{filtered.length} matching routines · {filteredExercises.length} matching exercises{selectedTags.length > 0 && ' · Matches any selected tag'}</Typography>}
     </Stack></CardContent></Card>
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(260px, 330px) minmax(0, 1fr)' }, gap: 2.5, alignItems: 'start' }}>
-      <Card component="aside" ref={resultsRef} variant="outlined" aria-label="Search results" sx={{ minWidth: 0, position: { md: 'sticky' }, top: { md: 96 }, maxHeight: { md: 'calc(100dvh - 112px)' }, overflowY: 'auto' }}><CardContent><Stack spacing={2}>
+      <Card component="aside" variant="outlined" aria-label="Search results" sx={{ minWidth: 0, position: { md: 'sticky' }, top: { md: 96 }, maxHeight: { md: 'calc(100dvh - 112px)' }, overflowY: { md: 'auto' } }}><CardContent><Stack spacing={2}>
         <Typography component="h2" variant="h6">Search results</Typography>
-        {draft ? exerciseResults : routineResults}
-        <Divider />
-        {draft ? routineResults : exerciseResults}
+        <Tabs aria-label="Search result categories" value={resultsTab} onChange={(_, value: 'routines' | 'exercises') => setResultsTab(value)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile>
+          <Tab value="routines" id="routine-search-tab" aria-controls="routine-search-panel" label={`Routines (${filtered.length})`} sx={{ textTransform: 'none' }} />
+          <Tab value="exercises" id="exercise-search-tab" aria-controls="exercise-search-panel" label={`Exercises (${filteredExercises.length})`} sx={{ textTransform: 'none' }} />
+        </Tabs>
+        {resultsTab === 'routines' ? routineResults : exerciseResults}
       </Stack></CardContent></Card>
       <Stack spacing={2.5} minWidth={0}>
         {openRoutines.length > 0 && <Box sx={{ minWidth: 0, borderBottom: 1, borderColor: 'divider' }}>

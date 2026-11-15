@@ -20,6 +20,7 @@ function loadTs(path, mocks = {}) {
     if (Object.hasOwn(mocks, name)) return mocks[name]
     if (name === './errors' || name === '../lib/errors') return errors
     if (name === '../lib/patientCodeEmail') return loadTs('../src/lib/patientCodeEmail.ts')
+    if (name === './videoPreview') return loadTs('../src/lib/videoPreview.ts')
     if (name === './supabase' || name === '../lib/supabaseData') throw new Error('Live Supabase imports are forbidden in tests')
     if (name.startsWith('@mui/icons-material/')) return { default: 'Icon' }
     return require(name)

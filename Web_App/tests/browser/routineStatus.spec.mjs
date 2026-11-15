@@ -18,6 +18,30 @@ async function go(page, path) {
   await page.evaluate((path) => { history.pushState({}, '', path); window.dispatchEvent(new PopStateEvent('popstate')) }, path)
 }
 
+for (const width of [390, 1280]) {
+  test(`patient header expands outside the name link at ${width}px`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width, height: 900 } })
+    await setup(context)
+    const page = await context.newPage()
+    await page.goto('/dashboard')
+
+    const expand = page.getByRole('button', { name: 'Expand weekly routines for Synthetic Browser Patient' })
+    await page.getByRole('img', { name: 'Synthetic Browser Patient profile picture placeholder' }).click()
+    await expect(page.getByRole('button', { name: 'Collapse weekly routines for Synthetic Browser Patient' })).toHaveAttribute('aria-expanded', 'true')
+    await expect(page).toHaveURL(/\/dashboard$/)
+
+    const collapse = page.getByRole('button', { name: 'Collapse weekly routines for Synthetic Browser Patient' })
+    const header = collapse.locator('..')
+    const bounds = await header.boundingBox()
+    await header.click({ position: { x: bounds.width - 8, y: bounds.height / 2 } })
+    await expect(expand).toHaveAttribute('aria-expanded', 'false')
+
+    await page.getByRole('link', { name: 'Synthetic Browser Patient' }).click()
+    await expect(page).toHaveURL(new RegExp(`/dashboard/patients/${patient}$`))
+    await context.close()
+  })
+}
+
 for (const width of [1280, 390]) for (const theme of ['light', 'dark']) {
   test(`routine colors, filters, preview and details at ${width}px ${theme}`, async ({ context, page }, testInfo) => {
     await page.setViewportSize({ width, height: 1000 })

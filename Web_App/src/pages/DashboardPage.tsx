@@ -17,7 +17,22 @@ import { resolveRoutineStatus, routineStatusLabels, routineStatusOrder, type Rou
 import { RoutineStatusLegend } from '../components/RoutineStatus'
 import { PatientSetupBox } from '../components/PatientSetupBox'
 
-type SortOrder = 'nameAsc' | 'nameDesc'
+type SortOrder = 'nameAsc' | 'nameDesc' | 'careNewest' | 'careOldest'
+const sortOptions: { value: SortOrder; label: string }[] = [
+  { value: 'nameAsc', label: 'Name A–Z' },
+  { value: 'nameDesc', label: 'Name Z–A' },
+  { value: 'careNewest', label: 'Start of care: newest' },
+  { value: 'careOldest', label: 'Start of care: oldest' },
+]
+function comparePatients(first: Patient, second: Patient, order: SortOrder) {
+  const byName = first.name.localeCompare(second.name) || first.profileId.localeCompare(second.profileId)
+  if (order === 'nameAsc') return byName
+  if (order === 'nameDesc') return -byName
+  if (!first.startOfCare) return second.startOfCare ? 1 : byName
+  if (!second.startOfCare) return -1
+  const byDate = first.startOfCare.localeCompare(second.startOfCare)
+  return (order === 'careNewest' ? -byDate : byDate) || byName
+}
 type StatusFilter = 'all' | RoutineVisualStatus | 'modified' | 'unassigned'
 
 interface PatientRowProps {
@@ -46,12 +61,14 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
   const accentText = '#102b34'
 
   return <Card sx={{ bgcolor: 'transparent', boxShadow: 'none', border: 0, overflow: 'visible', mb: 1.5 }}>
-    <Stack direction="row" alignItems="center" sx={{ position: 'relative', zIndex: 1, bgcolor: '#91c8c0', border: `4px solid ${border}`, borderRadius: '10px' }}>
-      <Button component={RouterLink} to={`/dashboard/patients/${encodeURIComponent(patient.id)}`} sx={{ flex: 1, minWidth: 0, minHeight: 64, justifyContent: 'flex-start', gap: { xs: 1, sm: 1.5 }, px: { xs: 1, sm: 1.5 }, color: accentText, fontSize: { xs: '1.2rem', sm: '1.65rem' }, overflowWrap: 'anywhere', textAlign: 'left', '&:hover': { bgcolor: '#82bdb5', textDecoration: 'underline' } }}>
+    <Stack direction="row" alignItems="center" onClick={onToggle} sx={{ position: 'relative', zIndex: 1, bgcolor: '#91c8c0', border: `4px solid ${border}`, borderRadius: '10px', cursor: 'pointer', '&:hover': { bgcolor: '#82bdb5' } }}>
+      <Stack direction="row" alignItems="center" spacing={{ xs: 1, sm: 1.5 }} sx={{ flex: 1, minWidth: 0, minHeight: 64, px: { xs: 1, sm: 1.5 } }}>
         <PatientAvatar name={patient.name} />
-        <Box component="span" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>{patient.name}{patient.dischargedAt && <Typography component="span" variant="body2" sx={{ display: 'block' }}>Discharged {new Date(patient.dischargedAt).toLocaleDateString()}{patient.retentionEndsAt && <> · Deletes {new Date(patient.retentionEndsAt).toLocaleDateString()}</>}</Typography>}</Box>
-      </Button>
-      <IconButton onClick={onToggle} aria-label={`${expanded ? 'Collapse' : 'Expand'} weekly routines for ${patient.name}`} aria-expanded={expanded} aria-controls={`patient-week-${patient.id}`} sx={{ color: accentText, width: 44, height: 44, mr: 1, '&.Mui-focusVisible': { outline: '3px solid #eb681d', outlineOffset: 2 } }}>
+        <Button component={RouterLink} to={`/dashboard/patients/${encodeURIComponent(patient.id)}`} onClick={(event) => event.stopPropagation()} sx={{ minWidth: 0, minHeight: 44, p: .5, color: accentText, fontSize: { xs: '1.2rem', sm: '1.65rem' }, overflowWrap: 'anywhere', textAlign: 'left', textTransform: 'none', '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' } }}>
+          <Box component="span" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>{patient.name}{patient.dischargedAt && <Typography component="span" variant="body2" sx={{ display: 'block' }}>Discharged {new Date(patient.dischargedAt).toLocaleDateString()}{patient.retentionEndsAt && <> · Deletes {new Date(patient.retentionEndsAt).toLocaleDateString()}</>}</Typography>}</Box>
+        </Button>
+      </Stack>
+      <IconButton onClick={(event) => { event.stopPropagation(); onToggle() }} aria-label={`${expanded ? 'Collapse' : 'Expand'} weekly routines for ${patient.name}`} aria-expanded={expanded} aria-controls={`patient-week-${patient.id}`} sx={{ color: accentText, width: 44, height: 44, mr: 1, '&.Mui-focusVisible': { outline: '3px solid #eb681d', outlineOffset: 2 } }}>
         <ExpandMoreIcon sx={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 220ms ease' }} />
       </IconButton>
     </Stack>
@@ -96,10 +113,7 @@ export function DashboardPage() {
           ? assignment.status === 'modified' && resolveRoutineStatus(assignment, policy?.today)?.status === 'neutral'
           : resolveRoutineStatus(assignment, policy?.today)?.status === statusFilter)
       })
-      .sort((first, second) => {
-        const comparison = first.name.localeCompare(second.name)
-        return sortOrder === 'nameAsc' ? comparison : -comparison
-      })
+      .sort((first, second) => comparePatients(first, second, sortOrder))
   }, [assignments, patients, query, sortOrder, statusFilter, policy?.today, archiveOpen])
   const allExpanded = visiblePatients.length > 0 && visiblePatients.every((patient) => expanded.includes(patient.id))
   const togglePatient = (id: string) => setExpanded((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
@@ -120,11 +134,11 @@ export function DashboardPage() {
             <Button onClick={toggleAll} sx={{ flexShrink: 0, bgcolor: surface, color: text, border: `4px solid ${border}`, borderRadius: '34px', px: 3, py: 1.25, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.2rem', transition: 'transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease', '&:hover': { bgcolor: isDark ? '#29454d' : '#f5f5f5', transform: 'translateY(-2px)', boxShadow: '0 6px 0 rgba(0, 0, 0, 0.14)' }, '&:active': { transform: 'translateY(0)' } }}>{allExpanded ? 'Collapse All' : 'Expand All'}</Button>
             <OutlinedInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search..." aria-label="Search patients" startAdornment={<InputAdornment position="start"><SearchIcon sx={{ bgcolor: '#4b9da9', border: `3px solid ${border}`, borderRadius: '50%', p: .5, boxSizing: 'content-box', fontSize: 42 }} /></InputAdornment>} sx={{ flexGrow: 1, minWidth: 0, bgcolor: surface, border: `4px solid ${border}`, borderRadius: '34px', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.3rem', '& fieldset': { border: 0 } }} />
             <Stack direction="row" spacing={1.5} sx={{ flexGrow: { sm: 1 }, justifyContent: { sm: 'flex-end' }, alignSelf: { xs: 'flex-end', sm: 'center' } }}>
-              <Button startIcon={<SortIcon />} onClick={(event) => setSortMenuAnchor(event.currentTarget)} sx={{ bgcolor: surface, color: text, border: `4px solid ${border}`, borderRadius: '34px', px: 3, py: 1.25, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.2rem', transition: 'transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease', '&:hover': { bgcolor: isDark ? '#29454d' : '#f5f5f5', transform: 'translateY(-2px)', boxShadow: '0 6px 0 rgba(0, 0, 0, 0.14)' }, '&:active': { transform: 'translateY(0)' } }}>Sort by</Button>
+              <Button startIcon={<SortIcon />} onClick={(event) => setSortMenuAnchor(event.currentTarget)} aria-label={`Sort patients: ${sortOptions.find(option => option.value === sortOrder)!.label}`} sx={{ bgcolor: surface, color: text, border: `4px solid ${border}`, borderRadius: '34px', px: 3, py: 1.25, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.2rem', transition: 'transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease', '&:hover': { bgcolor: isDark ? '#29454d' : '#f5f5f5', transform: 'translateY(-2px)', boxShadow: '0 6px 0 rgba(0, 0, 0, 0.14)' }, '&:active': { transform: 'translateY(0)' } }}>Sort by</Button>
               <Button disabled={archiveOpen} startIcon={<FilterListIcon />} onClick={(event) => setFilterMenuAnchor(event.currentTarget)} sx={{ bgcolor: statusFilter === 'all' ? surface : '#eb681d', color: statusFilter === 'all' ? text : 'white', border: `4px solid ${border}`, borderRadius: '34px', px: 3, py: 1.25, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '1.2rem', transition: 'transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease', '&:hover': { bgcolor: statusFilter === 'all' ? (isDark ? '#29454d' : '#f5f5f5') : '#d15a17', transform: 'translateY(-2px)', boxShadow: '0 6px 0 rgba(0, 0, 0, 0.14)' }, '&:active': { transform: 'translateY(0)' } }}>Filter</Button>
             </Stack>
           </Stack>
-          <Menu anchorEl={sortMenuAnchor} open={Boolean(sortMenuAnchor)} onClose={() => setSortMenuAnchor(null)}><MenuItem selected={sortOrder === 'nameAsc'} onClick={() => { setSortOrder('nameAsc'); setSortMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Name A-Z</MenuItem><MenuItem selected={sortOrder === 'nameDesc'} onClick={() => { setSortOrder('nameDesc'); setSortMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>Name Z-A</MenuItem></Menu>
+          <Menu anchorEl={sortMenuAnchor} open={Boolean(sortMenuAnchor)} onClose={() => setSortMenuAnchor(null)}>{sortOptions.map(option => <MenuItem key={option.value} selected={sortOrder === option.value} onClick={() => { setSortOrder(option.value); setSortMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>{option.label}</MenuItem>)}</Menu>
           <Menu anchorEl={filterMenuAnchor} open={Boolean(filterMenuAnchor)} onClose={() => setFilterMenuAnchor(null)}>
             {([['all', 'All Current Patients'], ...routineStatusOrder.map((status) => [status, routineStatusLabels[status]]), ['modified', 'Modified'], ['unassigned', 'Unassigned this week']] as [StatusFilter, string][]).map(([value, label]) =>
               <MenuItem key={value} selected={statusFilter === value} onClick={() => { setStatusFilter(value); setFilterMenuAnchor(null) }} sx={{ fontFamily: 'Georgia, serif' }}>{label}</MenuItem>)}

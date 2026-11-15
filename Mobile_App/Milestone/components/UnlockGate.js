@@ -131,6 +131,7 @@ function SessionGate({ children }) {
       {panelOpen && <ProfileSettingsPanel visible={unlocked} onClose={() => {
         setPanelOpen(false);
         requestAnimationFrame(() => {
+          if (!mounted.current || !avatarButton.current) return;
           if (Platform.OS === 'web') avatarButton.current?.focus?.();
           else { const handle = findNodeHandle(avatarButton.current); if (handle) AccessibilityInfo.setAccessibilityFocus(handle); }
         });

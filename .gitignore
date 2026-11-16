@@ -13,6 +13,7 @@
 !/Web_App/tests/browser/
 /Web_App/tests/browser/*
 !/Web_App/tests/browser/patientDetails.spec.mjs
+!/Web_App/tests/browser/patientRow.spec.mjs
 /Web_App/.vercel
 
 # Local environment and secret files

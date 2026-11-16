@@ -5,6 +5,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import CloseIcon from '@mui/icons-material/Close'
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined'
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined'
+import VideoLibraryOutlinedIcon from '@mui/icons-material/VideoLibraryOutlined'
 import type { SvgIconComponent } from '@mui/icons-material'
 import { Box, Button, ButtonBase, Card, CardContent, Container, Dialog, DialogContent, Grid, IconButton, Paper, Stack, Typography } from '@mui/material'
 import type { ReactNode } from 'react'
@@ -19,6 +20,7 @@ type Feature = { eyebrow: string; title: string; body: string; image: string; al
 
 const featureSections: Feature[] = [
   { eyebrow: 'Manage every routine', title: 'Keep each patient’s plan clear and actionable.', body: 'Create personalized exercise routines, assign them to the right days, and keep patient progress visible in one organized workspace for your care team.', image: publicAsset('Therapy-Instagram-Post-Template-Website-1-1024x576.webp'), alt: 'A therapist helping a patient exercise in a bright physical therapy clinic.', icon: InsightsOutlinedIcon },
+  { eyebrow: 'Demonstrate and follow up', title: 'Show exactly how, then see how it went.', body: 'Attach a photo or short video to any exercise so instructions are never just text on a screen, then review how each one felt straight from the patient’s own feedback — so the next adjustment is based on what actually happened, not a guess.', image: publicAsset('home/progress-review.png'), alt: 'A physical therapist reviewing a patient’s exercise feedback together on a tablet.', icon: VideoLibraryOutlinedIcon },
   { eyebrow: 'Coordinate between visits', title: 'Stay connected beyond the clinic.', body: 'Milestone gives providers a shared place for patient updates, messages, and next steps so care can continue without relying on paperwork, extra visits, or scattered email threads.', image: publicAsset('telehealth-physical-therapy-1.webp'), alt: 'A therapist supporting a patient through a remote exercise session on a tablet.', icon: ForumOutlinedIcon },
 ]
 

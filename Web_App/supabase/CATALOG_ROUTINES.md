@@ -221,6 +221,24 @@ an unguarded older writer or overwrite newer data with a stale recovery export.
 
 ## Hosted routine record update log
 
+### 2026-11-16 — LeBron patient status and two-week schedules
+
+- In hosted project `lwldkhrsngwtuhztlmul`, changed John Patientman,
+  Katherine Varela, and Neal Terrell from `pending` to `active` in response
+  to the request to remove LeBron's current patients from the pending list.
+  Frank Murgolo was already active. The discharged test relationship was left
+  in the archive.
+- Used each patient's November 9–15 assignment pattern to schedule the same
+  weekdays and routines for November 16–29: Monday through Thursday and Sunday.
+  Existing November 16 assignments for John, Katherine, and Neal were kept.
+  The provider preview and assignment RPCs created 37 new assignments, leaving
+  ten distinct scheduled dates per active patient and no duplicate active dates.
+- Hosted readback confirmed all four active patients have ten assignments in
+  the two-week window and all three status changes persisted. John, Katherine,
+  and Neal still have no linked Auth user or OTP code; changing `care_status`
+  does not create or deliver an invitation. Their fictional
+  `@milestone.patient` addresses remain demonstration data.
+
 ### 2026-11-03 — Frank exercise boxes and requested pain examples
 
 - At the user's request, each patient-page exercise now has one separate box

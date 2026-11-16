@@ -6,7 +6,7 @@ import FilterListIcon from '@mui/icons-material/FilterList'
 import SearchIcon from '@mui/icons-material/Search'
 import SortIcon from '@mui/icons-material/Sort'
 import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined'
-import { Alert, Box, Button, Card, Collapse, Fade, IconButton, InputAdornment, Menu, MenuItem, OutlinedInput, Stack, Typography, useTheme } from '@mui/material'
+import { Alert, Box, Button, ButtonBase, Card, Collapse, Fade, InputAdornment, Link, Menu, MenuItem, OutlinedInput, Stack, Typography, useTheme } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 import { AssignedRoutineDetails } from '../components/AssignedRoutineDetails'
 import { type OccupiedDate, type SchedulingPolicy } from '../lib/scheduling'
@@ -61,16 +61,18 @@ function PatientRow({ patient, expanded, onToggle, assignments, weekDates, onAss
   const accentText = '#102b34'
 
   return <Card sx={{ bgcolor: 'transparent', boxShadow: 'none', border: 0, overflow: 'visible', mb: 1.5 }}>
-    <Stack direction="row" alignItems="center" onClick={onToggle} sx={{ position: 'relative', zIndex: 1, bgcolor: '#91c8c0', border: `4px solid ${border}`, borderRadius: '10px', cursor: 'pointer', '&:hover': { bgcolor: '#82bdb5' } }}>
-      <Stack direction="row" alignItems="center" spacing={{ xs: 1, sm: 1.5 }} sx={{ flex: 1, minWidth: 0, minHeight: 64, px: { xs: 1, sm: 1.5 } }}>
-        <PatientAvatar name={patient.name} />
-        <Button component={RouterLink} to={`/dashboard/patients/${encodeURIComponent(patient.id)}`} onClick={(event) => event.stopPropagation()} sx={{ minWidth: 0, minHeight: 44, p: .5, color: accentText, fontSize: { xs: '1.2rem', sm: '1.65rem' }, overflowWrap: 'anywhere', textAlign: 'left', textTransform: 'none', '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' } }}>
-          <Box component="span" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>{patient.name}{patient.dischargedAt && <Typography component="span" variant="body2" sx={{ display: 'block' }}>Discharged {new Date(patient.dischargedAt).toLocaleDateString()}{patient.retentionEndsAt && <> · Deletes {new Date(patient.retentionEndsAt).toLocaleDateString()}</>}</Typography>}</Box>
-        </Button>
-      </Stack>
-      <IconButton onClick={(event) => { event.stopPropagation(); onToggle() }} aria-label={`${expanded ? 'Collapse' : 'Expand'} weekly routines for ${patient.name}`} aria-expanded={expanded} aria-controls={`patient-week-${patient.id}`} sx={{ color: accentText, width: 44, height: 44, mr: 1, '&.Mui-focusVisible': { outline: '3px solid #eb681d', outlineOffset: 2 } }}>
+    <Stack direction="row" alignItems="center" sx={{ position: 'relative', zIndex: 1, bgcolor: '#91c8c0', border: `4px solid ${border}`, borderRadius: '10px' }}>
+      {/* Sibling controls keep the name link independent of the full-row toggle. */}
+      <ButtonBase onClick={onToggle} aria-label={`${expanded ? 'Collapse' : 'Expand'} weekly routines for ${patient.name}`} aria-expanded={expanded} aria-controls={`patient-week-${patient.id}`} sx={{ position: 'absolute', inset: 0, borderRadius: 'inherit', color: accentText, justifyContent: 'flex-end', pr: 2, '&.Mui-focusVisible': { outline: '3px solid #eb681d', outlineOffset: 2 } }}>
         <ExpandMoreIcon sx={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 220ms ease' }} />
-      </IconButton>
+      </ButtonBase>
+      <Stack direction="row" alignItems="center" sx={{ position: 'relative', pointerEvents: 'none', flex: 1, minWidth: 0, minHeight: 64, gap: { xs: 1, sm: 1.5 }, pl: { xs: 1, sm: 1.5 }, pr: 7, py: .75, color: accentText }}>
+        <PatientAvatar name={patient.name} />
+        <Box sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+          <Link component={RouterLink} to={`/dashboard/patients/${encodeURIComponent(patient.id)}`} underline="hover" sx={{ pointerEvents: 'auto', color: 'inherit', fontWeight: 700, fontSize: { xs: '1.2rem', sm: '1.65rem' }, borderRadius: '4px', '&:hover': { bgcolor: '#82bdb5' }, '&:focus-visible': { outline: '3px solid #eb681d', outlineOffset: 2, textDecoration: 'underline' } }}>{patient.name}</Link>
+          {patient.dischargedAt && <Typography component="span" variant="body2" sx={{ display: 'block' }}>Discharged {new Date(patient.dischargedAt).toLocaleDateString()}{patient.retentionEndsAt && <> · Deletes {new Date(patient.retentionEndsAt).toLocaleDateString()}</>}</Typography>}
+        </Box>
+      </Stack>
     </Stack>
     <Collapse id={`patient-week-${patient.id}`} in={expanded} timeout={260}>
       <Box sx={{ minWidth: 0, pt: 1 }}>

@@ -24,7 +24,7 @@ for (const width of [390, 768, 1365]) for (const theme of ['light', 'dark']) {
     for (const view of ['dashboard', 'patient']) {
       await navigate(page, view === 'dashboard' ? '/dashboard' : `/dashboard/patients/${patient}`)
       if (view === 'dashboard') {
-        await page.getByRole('button', { name: `Expand weekly routines for ${patientName}` }).click()
+        await page.getByRole('button', { name: `Expand weekly routines for ${patientName}` }).locator('svg').click()
         await expect(page.locator(`#patient-week-${patient}`)).toHaveClass(/MuiCollapse-entered/)
       }
       const calendar = page.getByRole('region', { name: `Weekly calendar for ${patientName}`, exact: true })

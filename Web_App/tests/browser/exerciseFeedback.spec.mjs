@@ -42,7 +42,7 @@ for (const width of [1280, 390]) for (const theme of ['light', 'dark']) {
     await page.getByRole('button', { name: /View assigned routine Patient-rated routine/ }).click()
     await expect(page.getByLabel('Pain: 9 out of 10')).toBeVisible()
     await navigate(page, '/dashboard')
-    await page.getByRole('button', { name: 'Expand weekly routines for Synthetic Browser Patient' }).click()
+    await page.getByRole('button', { name: 'Expand weekly routines for Synthetic Browser Patient' }).locator('svg').click()
     const routine = page.getByRole('button', { name: /View assigned routine Patient-rated routine/ })
     await expect(routine).toHaveAttribute('data-routine-status', 'neutral')
     await routine.focus(); await page.keyboard.press('Enter')

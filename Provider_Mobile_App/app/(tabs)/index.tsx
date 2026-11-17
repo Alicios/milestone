@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
-import { ArrowUpRight, CircleAlert, CircleCheck } from 'lucide-react-native';
+import { ArrowUpRight, CircleAlert, CircleCheck, CircleHelp } from 'lucide-react-native';
 import { useSession } from '../../src/auth/SessionProvider';
 import { useResource } from '../../src/hooks/useResource';
 import { api } from '../../src/lib/client';
 import { formatDate, localDateKey } from '../../src/lib/domain';
 import { homeDateRange, loadHomeActivity, type Activity, type CareIssue } from '../../src/lib/home';
 import { scheduling } from '../../src/ui/RoutineScheduler';
-import { Brand, Button, Card, Empty, Heading, Notice, Screen, Text } from '../../src/ui/components';
+import { Avatar, Brand, Button, Card, Empty, Heading, Notice, Screen, Text } from '../../src/ui/components';
 import { useTheme } from '../../src/ui/theme';
 
 export default function HomeScreen() {
@@ -36,7 +36,10 @@ export default function HomeScreen() {
     </Card>
   </Pressable>;
   return <Screen refreshControl={<RefreshControl refreshing={resource.loading && Boolean(data)} onRefresh={refresh} tintColor={colors.teal} />}>
-    <View style={{ marginBottom: 24 }}><Brand compact /></View>
+    <View style={{ marginBottom: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}><Brand compact /><View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open help and tutorials" onPress={() => router.push('/tutorials')} style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><CircleHelp aria-hidden={true} color={colors.teal} size={26} /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => router.push('/profile')} style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Avatar name={provider!.name} url={provider!.avatarUrl} /></Pressable>
+    </View></View>
     <Heading eyebrow={`Hello, ${provider!.name.split(' ')[0]}`} title="Home" detail={formatDate(date, { weekday: 'long', month: 'long', day: 'numeric' })} />
     {resource.error ? <Notice message={resource.error} onRetry={refresh} /> : null}
     {resource.loading && !data && <ActivityIndicator color={colors.teal} accessibilityLabel="Loading care overview" />}

@@ -21,7 +21,7 @@ function Workspace() {
   const { colors, mode } = useTheme();
   return <KeyboardLayout><SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.bg }}>
     <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
-    {auth.phase === 'ready' && auth.provider ? <InboxProvider key={auth.provider.id}><View style={{ flex: 1 }}><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}><Stack.Screen name="(tabs)" /><Stack.Screen name="patient/[profileId]" /><Stack.Screen name="conversation/[profileId]" /><Stack.Screen name="profile" /><Stack.Screen name="settings" /></Stack></View><ProviderDock /></InboxProvider> : <AuthScreen />}
+    {auth.phase === 'ready' && auth.provider ? <InboxProvider key={auth.provider.id}><View style={{ flex: 1 }}><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}><Stack.Screen name="(tabs)" /><Stack.Screen name="patient/[profileId]" /><Stack.Screen name="conversation/[profileId]" /><Stack.Screen name="profile" /><Stack.Screen name="settings" /><Stack.Screen name="tutorials" /></Stack></View><ProviderDock /></InboxProvider> : <AuthScreen />}
     {auth.covered && <View accessibilityLabel="Workspace locked" style={{ position: 'absolute', inset: 0, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', zIndex: 100 }}><Brand /></View>}
   </SafeAreaView></KeyboardLayout>;
 }

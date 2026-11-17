@@ -2,7 +2,7 @@ import type { RoutineAssignment } from '../types'
 
 export type RoutineVisualStatus = 'neutral' | 'completed' | 'inProgress' | 'issue' | 'missed' | 'critical'
 // Signals are independent of workflow status. Explicit inputs support previews;
-// live assignments use their stored patient result by default.
+// live assignments use their stored or feedback-derived patient result by default.
 export interface RoutineProgressSignals {
   inProgress?: boolean
   issue?: 'noncritical' | 'critical'

@@ -610,6 +610,18 @@ export async function loadRoutineAssignments(profileIds: string[], startDate: st
       current.push({ ...toExercise(exercise), ...(patientFeedback ? { patientFeedback } : {}) })
       exercisesByAssignment.set(exercise.routine_assignment_id, current)
     }
+
+    const feedbackIssueByAssignment = new Map<string, 'noncritical' | 'critical'>()
+    for (const exercise of exercises) {
+      const feedback = feedbackByExercise.get(exercise.id)
+      if (!feedback) continue
+      const nextIssue = feedback.painScore >= 7
+        ? 'critical'
+        : feedback.painScore > 3 || feedback.feeling !== 'good' ? 'noncritical' : undefined
+      if (!nextIssue) continue
+      const current = feedbackIssueByAssignment.get(exercise.routine_assignment_id)
+      if (nextIssue === 'critical' || !current) feedbackIssueByAssignment.set(exercise.routine_assignment_id, nextIssue)
+    }
     const followUpByAssignment = new Map<string, FollowUpAppointment>()
     for (const followUp of followUps) {
       followUpByAssignment.set(followUp.routine_assignment_id, {
@@ -620,23 +632,31 @@ export async function loadRoutineAssignments(profileIds: string[], startDate: st
       })
     }
 
-    return rows.map((assignment) => ({
-      id: assignment.id,
-      patientProfileId: assignment.patient_profile_id,
-      routineId: assignment.routine_id,
-      scheduledDate: assignment.scheduled_date,
-      status: assignment.status,
-      routineName: assignment.routine_name_snapshot,
-      exercises: exercisesByAssignment.get(assignment.id) ?? [],
-      followUp: followUpByAssignment.get(assignment.id),
-      ...(exerciseFeedbackError ? { exerciseFeedbackError } : {}),
-      ...('patient_in_progress' in assignment ? { patientResult: {
-        inProgress: assignment.patient_in_progress === true,
-        issue: assignment.patient_issue_severity === 'noncritical' || assignment.patient_issue_severity === 'critical' ? assignment.patient_issue_severity : undefined,
-        comment: assignment.patient_comment ?? null,
-        source: assignment.patient_result_source ?? null,
-      } } : {}),
-    }))
+    return rows.map((assignment) => {
+      const feedbackIssue = feedbackIssueByAssignment.get(assignment.id)
+      const storedIssue = assignment.patient_issue_severity === 'noncritical' || assignment.patient_issue_severity === 'critical'
+        ? assignment.patient_issue_severity : undefined
+      const issue = storedIssue === 'critical' || feedbackIssue === 'critical'
+        ? 'critical' : storedIssue ?? feedbackIssue
+      const hasStoredResult = 'patient_in_progress' in assignment
+      return {
+        id: assignment.id,
+        patientProfileId: assignment.patient_profile_id,
+        routineId: assignment.routine_id,
+        scheduledDate: assignment.scheduled_date,
+        status: assignment.status,
+        routineName: assignment.routine_name_snapshot,
+        exercises: exercisesByAssignment.get(assignment.id) ?? [],
+        followUp: followUpByAssignment.get(assignment.id),
+        ...(exerciseFeedbackError ? { exerciseFeedbackError } : {}),
+        ...(hasStoredResult || feedbackIssue ? { patientResult: {
+          inProgress: assignment.patient_in_progress === true,
+          ...(issue ? { issue } : {}),
+          comment: assignment.patient_comment ?? null,
+          source: feedbackIssue ? 'patient' as const : assignment.patient_result_source ?? null,
+        } } : {}),
+      }
+    })
   } catch (error) {
     throw normalizeError(error, { operation: 'loadRoutineAssignments' })
   }

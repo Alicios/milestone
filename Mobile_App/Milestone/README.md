@@ -1,4 +1,6 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Milestone patient app
+
+The Expo / React Native patient app for assigned routines, exercise feedback, and provider messaging.
 
 ## Expo SDK 58
 
@@ -32,7 +34,7 @@ Implementation references: [React Native window dimensions](https://reactnative.
 
 Configure `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in the ignored `.env` using the existing Supabase project URL and public API key. Never put a service-role key in the mobile app. Restart Expo with `npx expo start --clear` after changing configuration.
 
-Patients sign in with their invited email address and password. The provider creates the patient and uses **Invite to App** in the web app. The invitation opens the existing web `patient-setup.html` page to set a password. The account must be linked through `patients.auth_user_id`; entering a phone number or a client patient UUID cannot grant access. There is no sample patient or automatic mock sign-in.
+Patients sign in with their invited email address and a one-time login code. The provider creates the patient with **Create & Invite Patient** or uses **Generate login code** on an existing patient. Give the patient the code directly if email delivery is unavailable or unconfirmed. The account must be linked through `patients.auth_user_id`; entering a phone number or a client patient UUID cannot grant access. There is no sample patient or automatic mock sign-in.
 
 The app restores the Supabase Auth session and loads shared details through `get_my_patient_profile`. Optional photo, preferred name, PIN, and preferences stay on this device under the authenticated user's storage key. Native photos use a separate file per account. Signing out clears the active app, including conversations and drafts. If PIN protection is enabled in Settings, backgrounding locks the dashboard; the PIN supplements account sign-in.
 
@@ -64,135 +66,28 @@ Settings offers PIN protection (the current PIN is required to change or disable
 
 `PatientSessionProvider` owns the authenticated profile, local PIN, and preferences. Updates retain the current routine and serialize account-specific local storage writes. Existing saved settings receive default appearance/reminder preferences. Storage errors show a warning while the app continues in memory.
 
-# Getting Started
+## Run and verify locally
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
-
-## Step 1: Start Metro
-
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
-
-To start the Metro dev server, run the following command from the root of your React Native project:
-
-```sh
-# Using npm
+```powershell
 npm start
-
-# OR using Yarn
-yarn start
+# Browser preview:
+npm run web
+# Source checks:
+npm run lint
+npm run typecheck
+npm test -- --runInBand
+# Production JavaScript bundles for all platforms:
+node node_modules/expo/bin/cli export --platform all --output-dir .expo/client-review
+# Responsive and feedback checks against that bundle, using installed Chrome:
+node tests/browser/adaptive-layout.mjs .expo/client-review
+node tests/browser/exercise-review.mjs .expo/client-review
 ```
 
-## Step 2: Build and run your app
+Use `npm run android` for a native Android development build. iOS development builds require macOS, Xcode, and CocoaPods. A JavaScript bundle export does not compile or install a native app.
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+## Optional PIN lock
 
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-## Device unlock
-
-Team members can open the shared sample profile with either default credential:
-
-| Unlock method | Default value |
-| --- | --- |
-| Password | `password` |
-| PIN | `0000` |
-
-Start the app with `npm start` (or `npm run web` for the browser preview). On the
-unlock screen, enter `0000`, or select **Password** and enter `password`. No
-first-run credential setup is needed. This unlocks the local sample profile;
-it does not sign in to an online Milestone account.
-
-This update applies the shared defaults once to existing device/browser unlock
-settings, replacing any previously configured PIN/password. Later launches
-preserve the saved settings, biometric preference, and failed-attempt cooldown.
-PIN entry now uses four digits.
-
-On a supported phone, select the enable switch while unlocking with your
-PIN/password. Your phone verifies
-the biometric before it is enabled. Canceling the prompt leaves the app locked.
-Biometrics must already be enrolled in the phone's settings.
-
-Use the lock icon on Home to lock the app. It also locks when backgrounded;
-exercise timers pause and the current routine remains available after unlocking.
-Five incorrect attempts trigger a cooldown that persists across app restarts.
-
-Native credential verifiers use separate random salts and PBKDF2-SHA256 and are
-saved with Expo SecureStore. The browser preview saves the verifiers in local
-browser storage and supports PIN/password only. Browser storage can be changed
-by the browser user, so this preview is not an account-security boundary.
-
-Face ID on iPhone requires a development/native build and is unavailable in Expo
-Go. Rebuild installed native apps after adding the new modules; on macOS run
-`bundle exec pod install` from `ios` before using an existing Xcode project.
-The iOS permission description and Android biometric/backup configuration are
-included. Physical face/fingerprint scanning still needs verification on a device.
-
-The shared credentials above are for team access to the local sample profile.
-No unauthenticated credential reset is provided.
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
+Patients can enable a four-digit PIN in Profile and Settings after account sign-in. That patient-chosen PIN locks the app when backgrounded and pauses exercise timers. There is no shared default PIN or password and no biometric unlock in the current patient sign-in screen. Signing out returns to account sign-in.
 
 ## Hidden LeTeam selector
 

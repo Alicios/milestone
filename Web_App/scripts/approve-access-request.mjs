@@ -44,12 +44,15 @@ export function promptHiddenPassword(label, { input = process.stdin, output = pr
     let reader
     let settled = false
     const cancel = () => finish(new ApprovalError('Password entry cancelled or unavailable. No approval was attempted.'))
+    // Windows readline does not emit SIGTSTP for Ctrl+Z.
+    const cancelOnKeypress = (_text, key) => { if (key?.ctrl && key.name === 'z') cancel() }
     function finish(error, answer) {
       if (settled) return
       settled = true
       input.removeListener('end', cancel)
       input.removeListener('error', cancel)
       input.removeListener('close', cancel)
+      input.removeListener('keypress', cancelOnKeypress)
       process.removeListener('SIGINT', cancel)
       process.removeListener('SIGTERM', cancel)
       reader?.removeListener('close', cancel)
@@ -61,6 +64,7 @@ export function promptHiddenPassword(label, { input = process.stdin, output = pr
     }
     try {
       reader = createInterface({ input, output: hiddenOutput, terminal: true, historySize: 0 })
+      input.on('keypress', cancelOnKeypress)
       reader.once('SIGINT', cancel)
       reader.once('SIGTSTP', cancel)
       reader.once('error', cancel)

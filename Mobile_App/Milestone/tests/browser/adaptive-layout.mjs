@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 const require = createRequire(import.meta.url);
 const { chromium } = require('../../../../Web_App/node_modules/playwright');
 const { expect } = require('../../../../Web_App/node_modules/@playwright/test');
-const root = resolve('.expo/adaptive-web');
+const root = resolve(process.argv[2] || '.expo/adaptive-web');
 const output = resolve('.expo/adaptive-check');
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.ttf': 'font/ttf', '.jpg': 'image/jpeg', '.mp3': 'audio/mpeg' };
 const server = createServer(async (req, res) => {
@@ -57,9 +57,10 @@ try {
     if (name === 'get_my_care_relationships') return json([{ patient_profile_id: 'relationship-0' }]);
     if (name === 'get_my_routine_assignments') return json([{ id: 'assignment', scheduled_date: new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date()), status: 'scheduled', routine_name_snapshot: 'Daily plan', created_at: '2026-01-01' }]);
     if (name === 'get_my_routine_assignment_prescriptions') return json([
-      { exercise_name_snapshot: 'Gentle stretch', sets_snapshot: 1, reps_snapshot: 5, notes_snapshot: 'Move gently and breathe comfortably.' },
-      { exercise_name_snapshot: 'Calf stretch', sets_snapshot: 1, timer_seconds_snapshot: 30, notes_snapshot: 'Keep your heel down.' },
+      { id: 'stretch-snapshot', exercise_name_snapshot: 'Gentle stretch', sets_snapshot: 1, reps_snapshot: 5, notes_snapshot: 'Move gently and breathe comfortably.' },
+      { id: 'calf-snapshot', exercise_name_snapshot: 'Calf stretch', sets_snapshot: 1, timer_seconds_snapshot: 30, notes_snapshot: 'Keep your heel down.' },
     ]);
+    if (name === 'save_my_routine_exercise_feedback') return json([{ routine_assignment_exercise_id: body.p_routine_assignment_exercise_id, pain_score: body.p_pain_score, feeling: body.p_feeling, explanation: body.p_explanation, reported_at: new Date().toISOString() }]);
     if (name === 'get_my_message_inbox') return json(providers.map((name, i) => ({ patient_profile_id: `relationship-${i}`, provider_name: name, provider_professional_title: 'Physical therapist', last_body: histories[i].at(-1).body, last_message_at: histories[i].at(-1).created_at, unread_count: 0 })));
     if (name === 'get_my_messages') return json(histories[providerIndex]);
     if (name === 'send_my_message') {
@@ -194,10 +195,14 @@ try {
   }
   await press('Finish exercise');
   for (const [width, height] of sizes) { await resize(width, height); await check('review', width, height); }
+  await page.getByRole('slider', { name: 'Pain level' }).press('Home');
+  await press('Exercise felt good');
   await press('Next exercise');
   await press('Start exercise');
   await press('Pause exercise');
   await press('Finish exercise');
+  await page.getByRole('slider', { name: 'Pain level' }).press('Home');
+  await press('Exercise felt good');
   await press('Next exercise');
   await expect(page.getByText('ROUTINE COMPLETE!', { exact: true })).toBeVisible();
   for (const [width, height] of sizes) { await resize(width, height); await check('summary', width, height); }

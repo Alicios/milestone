@@ -372,6 +372,22 @@ test('patient details collapse, calendar combines completion and issues, and sel
   await page.screenshot({ path: testInfo.outputPath('calendar-status.png'), fullPage: true });
 });
 
+for (const report of [{ pain: 8, feeling: 'good', label: 'Completed · Critical issue' }, { pain: 2, feeling: 'neutral', label: 'Patient reported an issue' }]) {
+  test(`exercise feedback drives calendar and Home warnings for ${report.feeling} pain ${report.pain}`, async ({ page }, testInfo) => {
+    await fixture(page, { completedIssue: report.pain >= 7 });
+    await page.route('https://provider-test.supabase.co/rest/v1/routine_assignment_exercise_feedback*', route => route.fulfill({ json: [{ routine_assignment_exercise_id: 'exercise-1', pain_score: report.pain, feeling: report.feeling, explanation: 'Please review.', reported_at: `${dateKey()}T11:00:00Z` }] }));
+    await signIn(page);
+    await page.getByRole('link', { name: 'Open Jamie Rivera' }).click();
+    const tile = page.getByRole('button', { name: `Gentle shoulder mobility, ${report.label}`, exact: false }).first();
+    await expect(tile).toBeVisible();
+    await noHorizontalOverflow(page);
+    await page.screenshot({ path: testInfo.outputPath(`feedback-${report.pain}.png`), fullPage: true });
+    await page.getByRole('tab', { name: 'Home', exact: true }).click();
+    await expect(page.getByText('Shoulder rolls', { exact: false }).first()).toBeVisible();
+    await expect(page.getByText('All clear', { exact: true })).toHaveCount(0);
+  });
+}
+
 test('saved routines replace, remove, and assign from the patient page', async ({ page }, testInfo) => {
   const { calls } = await fixture(page, { scheduling: true }); await signIn(page);
   await page.getByRole('link', { name: 'Open Jamie Rivera' }).click();

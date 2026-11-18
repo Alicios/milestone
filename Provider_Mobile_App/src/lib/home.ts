@@ -1,5 +1,6 @@
 import type { Assignment, Exercise, Patient } from '../types';
 import type { createProviderApi } from './api';
+import { feedbackIssue, strongestIssue } from './domain';
 
 export function homeDateRange(today: string) {
   const start = new Date(`${today}T12:00:00Z`);
@@ -15,9 +16,9 @@ export function homeActivity(patients: Patient[], assignments: Assignment[]) {
     return patient && assignment.status !== 'cancelled' ? [{ patient, assignment }] : [];
   }).sort((a, b) => b.assignment.scheduledDate.localeCompare(a.assignment.scheduledDate) || a.assignment.id.localeCompare(b.assignment.id));
   const issues: CareIssue[] = activity.flatMap(row => {
-    const critical = row.assignment.patientResult?.issue === 'critical';
+    const critical = strongestIssue(row.assignment.patientResult?.issue, row.assignment.exercises.map(exercise => exercise.patientFeedback ? feedbackIssue(exercise.patientFeedback) : undefined)) === 'critical';
     const exercises = row.assignment.exercises.filter(exercise => exercise.patientFeedback &&
-      (exercise.patientFeedback.feeling === 'difficult' || exercise.patientFeedback.painScore >= 7));
+      feedbackIssue(exercise.patientFeedback));
     return exercises.length ? exercises.map(exercise => ({ ...row, exercise, critical }))
       : row.assignment.patientResult?.issue ? [{ ...row, critical }] : [];
   }).sort((a, b) => Number(b.critical) - Number(a.critical) || b.assignment.scheduledDate.localeCompare(a.assignment.scheduledDate));

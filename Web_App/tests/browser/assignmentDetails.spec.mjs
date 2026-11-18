@@ -3,7 +3,7 @@ import { setup, patient, profile, routineA, exercise } from './fixture.mjs'
 
 const assignmentId = 'synthetic-assignment'
 const assignment = { id: assignmentId, patient_profile_id: profile, routine_id: routineA,
-  scheduled_date: '2026-10-21', status: 'scheduled', routine_name_snapshot: 'Bulletproof Back' }
+  scheduled_date: '2026-10-21', status: 'completed', routine_name_snapshot: 'Bulletproof Back' }
 const snapshots = [
   { id: 'third', routine_assignment_id: assignmentId, position: 2, exercise_name_snapshot: 'Captured stretch',
     sets_snapshot: 1, reps_snapshot: null, timer_seconds_snapshot: 45, notes_snapshot: null },
@@ -15,7 +15,7 @@ const details = (page) => page.getByRole('region', { name: 'Assigned routine det
 const routineButton = (page) => page.getByRole('button', { name: 'View assigned routine Bulletproof Back on 2026-10-21', exact: true })
 async function openWeek(page) {
   await page.goto('/dashboard')
-  await page.getByRole('button', { name: 'Expand weekly routines for Synthetic Browser Patient' }).click()
+  await page.getByRole('button', { name: 'Expand weekly routines for Synthetic Browser Patient' }).locator('svg').click()
   await expect(routineButton(page)).toBeVisible()
 }
 async function assertPrescription(page) {
@@ -51,16 +51,21 @@ for (const width of [1280, 390]) {
 
     // Exercise the real editor against the isolated transport fixture only.
     await page.goto('/dashboard/routines')
-    await page.getByRole('button', { name: 'Edit Routine', exact: true }).click()
-    await page.getByText('Catalog A', { exact: true }).click()
-    await page.getByRole('textbox', { name: 'Routine name', exact: true }).fill('Changed template')
-    await page.getByLabel('Sets — exercise 1', { exact: true }).fill('99')
-    await page.getByLabel('Reps — exercise 1', { exact: true }).fill('88')
-    await page.getByLabel('Duration (seconds) — exercise 1', { exact: true }).fill('77')
-    await page.getByLabel('Notes — exercise 1', { exact: true }).fill('New template notes')
-    await page.getByRole('button', { name: 'Finish Editing', exact: true }).click()
-    await expect(page.getByRole('textbox', { name: 'Routine name', exact: true })).toHaveCount(0)
-    expect(state.routines.find((r) => r.id === routineA).exercise_list[0].sets).toBe(99)
+    await page.getByRole('button', { name: 'View my routine: Catalog A', exact: true }).click()
+    const preview = page.getByRole('region', { name: 'Routine preview' })
+    const builder = page.getByRole('region', { name: 'Routine builder' })
+    await preview.getByRole('button', { name: 'Edit', exact: true }).click()
+    await builder.getByLabel('Routine name', { exact: false }).fill('Changed template')
+    await builder.getByLabel('Sets', { exact: true }).fill('9')
+    await builder.getByLabel('Repetitions', { exact: true }).fill('8')
+    await builder.getByLabel('Duration (seconds)', { exact: true }).fill('77')
+    await builder.getByLabel('Provider notes', { exact: true }).fill('New template notes')
+    await builder.getByRole('button', { name: 'Save changes', exact: true }).click()
+    const confirmation = page.getByRole('dialog', { name: 'Apply routine changes?' })
+    await expect(confirmation).toContainText('0 affected patients')
+    await confirmation.getByRole('button', { name: 'Apply changes', exact: true }).click()
+    await expect(preview.getByRole('heading', { name: 'Changed template', exact: true })).toBeVisible()
+    expect(state.routines.find((r) => r.id === routineA).exercise_list[0].sets).toBe(9)
     await openWeek(page)
     await routineButton(page).click()
     await assertPrescription(page)
@@ -68,8 +73,8 @@ for (const width of [1280, 390]) {
     expect(state.snapshots).toEqual(snapshots)
     expect(state.assignments).toEqual([assignment])
 
-    await page.getByRole('button', { name: 'Collapse weekly routines for Synthetic Browser Patient' }).click()
-    await page.getByRole('button', { name: 'Expand weekly routines for Synthetic Browser Patient' }).click()
+    await page.getByRole('button', { name: 'Collapse weekly routines for Synthetic Browser Patient' }).locator('svg').click()
+    await page.getByRole('button', { name: 'Expand weekly routines for Synthetic Browser Patient' }).locator('svg').click()
     await expect(details(page)).toHaveCount(0)
     await routineButton(page).click()
     await page.getByRole('button', { name: 'Next calendar week' }).click()

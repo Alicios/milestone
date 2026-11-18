@@ -34,7 +34,7 @@ function serve(root, port) {
   });
   return new Promise(done => server.listen(port, '127.0.0.1', () => done(server)));
 }
-const servers = [await serve(resolve('.messaging-work/web'), 4191), await serve(resolve('../../Web_App/dist'), 4192)];
+const servers = [await serve(resolve(process.argv[2] || '.messaging-work/web'), 4191), await serve(resolve('../../Web_App/dist'), 4192)];
 await mkdir('.messaging-work/screenshots', { recursive: true });
 let browser;
 try {
@@ -51,7 +51,7 @@ try {
         const body = request.postData() ? request.postDataJSON() : {};
         const json = data => route.fulfill({ json: data, headers: { 'Content-Range': `0-${Math.max(0, data?.length - 1)}/*` } });
         if (url.pathname.startsWith('/auth/v1/')) {
-          if (name === 'token') return json(session(id));
+          if (name === 'token' || name === 'verify') return json(session(id));
           if (name === 'logout') return route.fulfill({ status: 204 });
           return json(session(id).user);
         }
@@ -65,6 +65,10 @@ try {
               unread_count: messages.filter(m => m.sender_kind === 'provider' && (!read || m.created_at > read)).length }]);
           }
           if (name === 'get_my_messages') return json(messages);
+          if (name === 'get_provider_message_inbox') {
+            const last = messages.at(-1), read = states.get(providerId)?.last_read_at;
+            return json([{ patient_profile_id: relationship, patient_name: patient.name, last_body: last?.body ?? null, last_message_at: last?.created_at ?? null, unread_count: messages.filter(message => message.sender_kind === 'patient' && (!read || message.created_at > read)).length, starred: false }]);
+          }
           if (name === 'send_my_message') {
             if (failPatient) return route.fulfill({ status: 503, json: { message: 'Connection interrupted. Please retry.' } });
             const row = { id: crypto.randomUUID(), patient_profile_id: relationship, sender_kind: 'patient', body: body.p_body, created_at: new Date().toISOString() };
@@ -96,8 +100,9 @@ try {
     for (const page of [mobilePage, webPage]) page.on('pageerror', error => { errors.push(error.message); console.log('Browser error:', error.message); });
     await mobilePage.goto('http://127.0.0.1:4191');
     await mobilePage.getByRole('textbox', { name: 'Email address' }).fill(patient.email);
-    await mobilePage.getByLabel('Password', { exact: true }).fill('browser-test-password');
+    await mobilePage.getByRole('textbox', { name: 'Login code' }).fill('123456');
     await mobilePage.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await mobilePage.getByRole('button', { name: 'Finish setup', exact: true }).click();
     await expect(mobilePage.getByText('Welcome back, Browser.')).toBeVisible();
     await webPage.goto('http://127.0.0.1:4192/dashboard/messages');
     await webPage.waitForTimeout(500);
@@ -113,7 +118,7 @@ try {
     assert.equal(states.has(patientId), false, 'Home must leave messages unread');
     await mobilePage.getByRole('button', { name: 'Messages', exact: true }).click();
     await mobilePage.getByRole('button', { name: /Conversation with Browser Provider/ }).click();
-    await expect(mobilePage.getByText('Message from provider', { exact: true })).toBeVisible();
+    await expect(mobilePage.getByTestId('conversation-detail').getByText('Message from provider', { exact: true })).toBeVisible();
     await expect.poll(() => states.get(patientId)?.last_read_at).toBeTruthy();
     failPatient = true;
     await mobilePage.getByRole('textbox', { name: 'Message to provider' }).fill('Patient reply');
@@ -122,7 +127,7 @@ try {
     await expect(mobilePage.getByRole('textbox', { name: 'Message to provider' })).toHaveValue('Patient reply');
     failPatient = false;
     await mobilePage.getByRole('button', { name: 'Send message', exact: true }).click();
-    await expect(mobilePage.getByText('Patient reply', { exact: true })).toBeVisible();
+    await expect(mobilePage.getByTestId('conversation-detail').getByText('Patient reply', { exact: true })).toBeVisible();
     await expect(mobilePage.getByRole('textbox', { name: 'Message to provider' })).toHaveValue('');
     await mobilePage.screenshot({ path: `.messaging-work/screenshots/patient-${width}.png`, fullPage: true });
     await webPage.reload();
@@ -132,7 +137,7 @@ try {
     await mobilePage.reload();
     await mobilePage.getByRole('button', { name: 'Messages', exact: true }).click();
     await mobilePage.getByRole('button', { name: /Conversation with Browser Provider/ }).click();
-    await expect(mobilePage.getByText('Patient reply', { exact: true })).toBeVisible();
+    await expect(mobilePage.getByTestId('conversation-detail').getByText('Patient reply', { exact: true })).toBeVisible();
     for (const page of [mobilePage, webPage]) assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `overflow at ${width}`);
     assert.deepEqual(errors, []);
     assert.equal(messages.length, 2);

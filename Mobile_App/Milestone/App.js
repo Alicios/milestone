@@ -49,6 +49,8 @@ import Play from 'lucide-react-native/icons/play';
 import RotateCcw from 'lucide-react-native/icons/rotate-ccw';
 import Info from 'lucide-react-native/icons/info';
 import ChevronDown from 'lucide-react-native/icons/chevron-down';
+import CircleHelp from 'lucide-react-native/icons/circle-help';
+import TutorialScreen from './components/TutorialScreen';
 
 import {isSupabaseConfigured} from './lib/supabase';
 
@@ -445,6 +447,14 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
     );
   }
 
+  if (screen === 'tutorials') {
+    return <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <StatusBar barStyle={barStyle} />
+      <TutorialScreen onBack={goHome} />
+      {renderDock()}
+    </SafeAreaView>;
+  }
+
   if (routineLoading && screen !== 'home' && screen !== 'messages') {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -712,6 +722,7 @@ function AppContent({ isUnlocked, onLock, profile, onOpenProfile }) {
         <HomeDashboard
           onLock={onLock}
           onOpenProfile={onOpenProfile}
+          onOpenTutorials={() => { setIsRunning(false); setScreen('tutorials'); }}
           profile={profile}
           exercises={exercises}
           routineMinutes={routineMinutes}
@@ -1207,6 +1218,7 @@ function UpcomingRoutines({ routines, expandedId, details, onToggle, reduceMotio
 
 function HomeDashboard({
   onOpenProfile,
+  onOpenTutorials,
   onLock,
   profile,
   completedExerciseCount,
@@ -1253,6 +1265,9 @@ function HomeDashboard({
           {onLock && <Pressable accessibilityRole="button" accessibilityLabel="Lock Milestone" onPress={onLock} style={styles.lockButton}>
             <LockKeyhole size={21} color={colors.primary} accessible={false} />
           </Pressable>}
+          <Pressable accessibilityRole="button" accessibilityLabel="Open help and tutorials" onPress={onOpenTutorials} style={styles.lockButton}>
+            <CircleHelp size={26} color={colors.primary} aria-hidden={true} />
+          </Pressable>
           <ProfileAvatar profile={profile} onPress={onOpenProfile} />
         </View>
       </View>

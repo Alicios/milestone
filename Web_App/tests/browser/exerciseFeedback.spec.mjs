@@ -9,13 +9,13 @@ async function navigate(page, path) {
   await page.evaluate((path) => { history.pushState({}, '', path); dispatchEvent(new PopStateEvent('popstate')) }, path)
 }
 for (const width of [1280, 390]) for (const theme of ['light', 'dark']) {
-  test(`exercise pain is independent of routine colors at ${width}px ${theme}`, async ({ context, page }, info) => {
+  test(`exercise feedback drives routine warnings and retains individual pain details at ${width}px ${theme}`, async ({ context, page }, info) => {
     const state = await setup(context, { assignments: [assignment], snapshots, exerciseFeedback })
     await page.setViewportSize({ width, height: 1000 })
     await page.goto('/dashboard/settings')
     await page.getByRole('radio', { name: theme === 'dark' ? 'Dark' : 'Light', exact: true }).check()
     await navigate(page, `/dashboard/patients/${patient}`)
-    await expect(page.locator('[data-routine-status="neutral"]')).toContainText('Patient-rated routine')
+    await expect(page.locator('[data-routine-status="critical"]')).toContainText('Patient-rated routine')
     await page.getByRole('button', { name: /View assigned routine Patient-rated routine/ }).click()
     await expect(page.getByText('Repeated stretch · 3 sets · 12 reps', { exact: true })).toHaveCount(4)
     const exerciseBoxes = page.getByRole('region', { name: 'Assigned exercise: Repeated stretch', exact: true })
@@ -44,7 +44,7 @@ for (const width of [1280, 390]) for (const theme of ['light', 'dark']) {
     await navigate(page, '/dashboard')
     await page.getByRole('button', { name: 'Expand weekly routines for Synthetic Browser Patient' }).locator('svg').click()
     const routine = page.getByRole('button', { name: /View assigned routine Patient-rated routine/ })
-    await expect(routine).toHaveAttribute('data-routine-status', 'neutral')
+    await expect(routine).toHaveAttribute('data-routine-status', 'critical')
     await routine.focus(); await page.keyboard.press('Enter')
     const details = page.getByRole('region', { name: 'Assigned routine details', exact: true })
     await expect(details.getByLabel('Pain: 9 out of 10')).toBeVisible()

@@ -15,14 +15,14 @@ test('patient creation displays an OTP and existing accounts can regenerate code
   await page.getByLabel('Patient email').fill(code.email)
   await page.getByRole('button', { name: 'Create & Invite Patient' }).click()
   await expect(page.getByText('123456', { exact: true })).toBeVisible()
-  await expect(page.getByText(/No email was sent/)).toBeVisible()
+  await expect(page.getByText(/Email delivery was not confirmed/)).toBeVisible()
   expect(creates).toBe(1); expect(codes).toBe(1)
   await page.goto(`/dashboard/patients/${patient}`)
   await expect(page.getByText('654321', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Send New Login Code' }).click()
+  await page.getByRole('button', { name: 'Generate login code', exact: true }).click()
   await expect(page.getByText('123456', { exact: true })).toBeVisible()
   failing = true
-  await page.getByRole('button', { name: 'Send New Login Code' }).click()
+  await page.getByRole('button', { name: 'Generate login code', exact: true }).click()
   await expect(page.getByRole('alert').filter({ hasText: 'You do not have permission' })).toBeVisible()
   await expect(page.locator('body')).not.toContainText(secret)
   expect(creates).toBe(1); expect(codes).toBe(3)
@@ -51,6 +51,7 @@ test('messaging preserves paginated history and hidden-tab read protection with 
   const rows = Array.from({ length: 501 }, (_, id) => ({ id: String(id), patient_profile_id: profile, sender_kind: 'patient', body: `Synthetic message ${id}`, created_at: '2026-10-27T12:00:00Z' }))
   let readAt = null; let reads = 0; let sends = 0; let stars = 0; let failure = true
   const offsets = []
+  await context.route('**/rest/v1/rpc/get_provider_message_inbox*', route => route.fulfill({ json: [{ patient_profile_id: profile, patient_name: 'Synthetic', last_body: 'Synthetic message 500', last_message_at: '2026-10-27T12:00:00Z', unread_count: 501, starred: false }] }))
   await context.route('**/rest/v1/messages**', route => {
     if (route.request().method() === 'POST') { sends++; return reject(route) }
     const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? 0); offsets.push(offset)
@@ -67,9 +68,11 @@ test('messaging preserves paginated history and hidden-tab read protection with 
     return route.fulfill({ json: [{ patient_profile_id: profile, last_read_at: readAt, starred: false }] })
   })
   await page.goto('/dashboard/messages')
-  await expect(page.getByRole('region', { name: 'Conversation with Synthetic' }).getByText('Synthetic message 500', { exact: true })).toBeVisible()
-  expect(offsets).toContain(500); expect(reads).toBe(0)
+  await expect(page.getByRole('button', { name: /Synthetic message 500/ })).toBeVisible()
+  expect(reads).toBe(0)
   await page.evaluate(() => { window.fixtureVisibility = 'visible'; document.dispatchEvent(new Event('visibilitychange')) })
+  await expect(page.getByRole('region', { name: 'Conversation with Synthetic' }).getByText('Synthetic message 500', { exact: true })).toBeVisible()
+  expect(offsets).toContain(500)
   await expect(page.getByRole('alert').filter({ hasText: 'You do not have permission' })).toBeVisible()
   expect(reads).toBeGreaterThan(0)
   failure = false
@@ -88,16 +91,15 @@ test('messaging preserves paginated history and hidden-tab read protection with 
 test('routine deletion keeps confirmation and editor on a history-protection rejection', async ({ context, page }) => {
   await setup(context)
   let deletes = 0
-  await context.route('**/rest/v1/rpc/delete_routine', route => { deletes++; return route.fulfill({ status: 409, json: { code: '23503', message: secret } }) })
+  await context.route('**/rest/v1/rpc/apply_routine_change', route => { deletes++; return route.fulfill({ status: 409, json: { code: '23503', message: secret } }) })
   await page.goto('/dashboard/routines')
-  await page.getByRole('button', { name: 'Edit Routine', exact: true }).click()
-  await page.getByText('Catalog A', { exact: true }).click()
-  await page.getByRole('button', { name: 'Delete Routine', exact: true }).click()
+  await page.getByRole('button', { name: 'View my routine: Catalog A', exact: true }).click()
+  await page.getByRole('region', { name: 'Routine preview' }).getByRole('button', { name: 'Delete routine', exact: true }).click()
   expect(deletes).toBe(0)
   const dialog = page.getByRole('dialog')
-  await dialog.getByRole('button', { name: 'Delete Routine', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Delete routine', exact: true }).click()
   await expect(dialog.getByRole('alert')).toContainText('patient assignments and cannot be deleted')
-  await expect(dialog.getByRole('button', { name: 'Delete Routine', exact: true })).toBeEnabled()
+  await expect(dialog.getByRole('button', { name: 'Delete routine', exact: true })).toBeEnabled()
   await expect(page.locator('body')).not.toContainText(secret)
   expect(deletes).toBe(1)
 })

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Alert, AppBar, Avatar, Box, Button, Container, Divider, IconButton, Menu, MenuItem, Stack, Toolbar, Typography, useMediaQuery } from '@mui/material'
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
 import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined'
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined'
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined'
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined'
 import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import type { Patient } from '../data/mockPatients'
@@ -279,6 +281,7 @@ export function DashboardWorkspace() {
     { label: 'Routines', to: '/dashboard/routines', active: location.pathname === '/dashboard/routines', icon: <AssignmentOutlinedIcon /> },
     { label: 'Appointments', to: '/dashboard/appointments', active: location.pathname === '/dashboard/appointments', icon: <EventNoteOutlinedIcon /> },
     { label: 'Messages', to: '/dashboard/messages', active: isMessagesPage, icon: <ForumOutlinedIcon /> },
+    { label: 'Analytics', to: '/dashboard/analytics', active: location.pathname === '/dashboard/analytics', icon: <InsightsOutlinedIcon /> },
   ]
   const buttonSx = {
     minWidth: 0, minHeight: { xs: 42, sm: 48 }, px: { xs: .5, sm: 1.25 }, py: 0.5,
@@ -292,6 +295,7 @@ export function DashboardWorkspace() {
     <AppBar className="dashboard-header" position="sticky" elevation={0} sx={{ bgcolor: teal, color: 'white', borderRadius: { xs: 0, md: '0 0 16px 16px' }, zIndex: (theme) => theme.zIndex.appBar }}>
       <Container maxWidth="xl">
         <Toolbar disableGutters sx={{ minHeight: { xs: 72, sm: 124 }, justifyContent: 'space-between', gap: { xs: .5, sm: 2 }, alignItems: 'center', flexWrap: 'nowrap', py: { xs: .5, sm: 0 }, position: 'relative' }}>
+          <IconButton component={RouterLink} to="/dashboard/tutorials" aria-label="Open help and tutorials" title="Help & tutorials" sx={{ color: 'white', minWidth: 44, minHeight: 44, flexShrink: 0 }}><HelpOutlineIcon /></IconButton>
           <Stack component="nav" aria-label="Provider pages" direction="row" spacing={{ xs: .35, sm: 1 }} justifyContent="center" sx={{ flex: { xs: 1, md: 'initial' }, minWidth: 0, position: { md: 'absolute' }, left: { md: '50%' }, transform: { md: 'translateX(-50%)' }, zIndex: 1 }}>
             {navItems.map((item) => <Button key={item.to} component={RouterLink} to={item.to} aria-label={item.label} aria-current={item.active ? 'page' : undefined} startIcon={item.icon} sx={{ ...buttonSx, flex: { xs: 1, md: 'initial' }, bgcolor: item.active ? '#eb681d' : aqua, color: item.active ? 'white' : 'black' }}>
               <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>{item.label}</Box>

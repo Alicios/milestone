@@ -38,7 +38,7 @@ for (const width of [1280, 390]) for (const theme of ['light', 'dark']) {
         if (name === 'get_my_routine_assignments') return reply([{ id: assignmentId, status: 'scheduled', scheduled_date: '2026-10-20', created_at: '2026-10-19T18:00:00Z', routine_name_snapshot: 'Rated routine' }])
         if (name === 'get_my_routine_assignment_prescriptions') return reply(snapshots.map((row) => ({ ...row, exercise_position: row.position })))
         if (name === 'get_my_routine_exercise_feedback') return failRead ? reply({ code: '08006', message: 'Feedback unavailable' }, 400) : reply(providerState.exerciseFeedback)
-        if (name === 'get_my_message_inbox' || name === 'clear_my_pending_otp') return reply([])
+        if (name === 'get_my_message_inbox' || name === 'clear_my_pending_otp' || name === 'get_my_routine_assignment_media') return reply([])
         if (name === 'save_my_routine_exercise_feedback') {
           attempts++
           if (failSave) return reply({ code: '08006', message: 'Unable to connect. Please retry.' }, 400)
@@ -64,8 +64,10 @@ for (const width of [1280, 390]) for (const theme of ['light', 'dark']) {
       await page.getByRole('button', { name: 'Next exercise', exact: true }).click()
       await expect(page.getByRole('alert')).toContainText('Choose a pain score')
       expect(attempts).toBe(0)
-      const pain = page.getByRole('button', { name: 'Pain 7 out of 10', exact: true })
-      await pain.focus(); await page.keyboard.press('Enter')
+      const pain = page.getByRole('slider', { name: 'Pain level', exact: true })
+      await pain.press('Home')
+      for (let step = 0; step < 6; step++) await pain.press('ArrowRight')
+      await expect(pain).toHaveAttribute('aria-valuenow', '7')
       await page.getByRole('button', { name: 'Exercise felt neutral', exact: true }).click()
       await page.getByRole('button', { name: 'Next exercise', exact: true }).click()
       await expect(page.getByRole('alert')).toContainText('Tell your provider why')
@@ -86,13 +88,14 @@ for (const width of [1280, 390]) for (const theme of ['light', 'dark']) {
       await page.getByRole('button', { name: 'Start exercise', exact: true }).click()
       await page.getByRole('button', { name: 'Pause exercise', exact: true }).click()
       await page.getByRole('button', { name: 'Finish exercise', exact: true }).click()
-      await expect(page.getByRole('button', { name: 'Pain 7 out of 10', exact: true })).toHaveAttribute('aria-pressed', 'true')
+      await expect(page.getByRole('slider', { name: 'Pain level', exact: true })).toHaveAttribute('aria-valuenow', '7')
       await expect(page.getByRole('textbox', { name: 'Tell your provider why' })).toHaveValue('The balance felt difficult.\nPlease review it.')
       const providerPage = await providerContext.newPage()
       await providerPage.goto(`http://127.0.0.1:4187/dashboard/patients/${patient}`)
+      await providerPage.getByRole('button', { name: /View assigned routine Rated routine/ }).click()
       await expect(providerPage.getByLabel('Pain: 7 out of 10')).toBeVisible()
       await expect(providerPage.getByText('Patient pain: Not rated', { exact: true })).toHaveCount(1)
-      await expect(providerPage.locator('[data-routine-status="neutral"]')).toContainText('The balance felt difficult.')
+      await expect(providerPage.locator('#patient-assignment-details [data-routine-status="critical"]')).toContainText('The balance felt difficult.')
     } finally {
       await mobileContext.close(); await providerContext.close()
     }

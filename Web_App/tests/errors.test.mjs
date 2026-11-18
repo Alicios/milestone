@@ -85,7 +85,7 @@ test('validation details allow only known fields and issue codes, not supplied t
 
 function query(result) {
   const chain = {}
-  for (const method of ['select', 'order', 'eq', 'insert', 'update', 'in', 'single']) chain[method] = () => chain
+  for (const method of ['select', 'order', 'eq', 'is', 'range', 'insert', 'update', 'in', 'single']) chain[method] = () => chain
   chain.then = (resolve, reject) => (result instanceof Error ? Promise.reject(result) : Promise.resolve(result)).then(resolve, reject)
   return chain
 }

@@ -1,0 +1,6 @@
+.expo/
+.messaging-work/
+dist/
+vendor/
+android/
+ios/

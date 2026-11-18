@@ -19,6 +19,16 @@ test('critical reports come first; high pain is flagged even with good feeling',
   const result = homeActivity([patient], [completed, critical, pain]);
   assert.equal(result.issues.length, 3);
   assert.equal(result.issues[0].assignment.id, 'critical');
+  assert.equal(result.issues.find(issue => issue.assignment.id === 'pain')?.critical, true);
+});
+
+test('moderate pain and neutral feedback stay visible in Needs attention', () => {
+  for (const [painScore, feeling] of [[4, 'good'], [2, 'neutral']] as const) {
+    const assignment = { ...completed, exercises: [{ ...completed.exercises[0], patientFeedback: { ...completed.exercises[0].patientFeedback!, painScore, feeling } }] };
+    const result = homeActivity([patient], [assignment]);
+    assert.equal(result.issues.length, 1);
+    assert.equal(result.issues[0].critical, false);
+  }
 });
 test('cancelled, archived, and unrelated records cannot appear in Home', () => {
   assert.equal(homeActivity([patient], [{ ...completed, status: 'cancelled' }]).issues.length, 0);

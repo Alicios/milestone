@@ -134,3 +134,16 @@ export interface RoutinePatientResult {
   comment: string | null
   source: 'patient' | 'demo' | null
 }
+
+export interface ProviderRoutineAnalyticsRow {
+  patientProfileId: string
+  patientName: string
+  discharged: boolean
+  scheduledCount: number
+  completedCount: number
+  missedCount: number
+  criticalCount: number
+  issueCount: number
+  inProgressCount: number
+  avgPainScore: number | null
+}

@@ -16,3 +16,4 @@
 !tests/browser/routinePrototype.spec.mjs
 !tests/browser/patient-discharge.spec.mjs
 !tests/browser/patientMonthCalendar.spec.mjs
+!tests/browser/publicPages.spec.mjs

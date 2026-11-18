@@ -1,6 +1,6 @@
 import { AppError, normalizeError } from './errors'
 import { supabase } from './supabase'
-import type { EditableUserFields, FollowUpAppointment, MedicalPractice, Routine, RoutineAssignment, RoutineAssignmentStatus, RoutineChangeImpact, RoutineExercise, RoutineExerciseInput, User } from '../types'
+import type { EditableUserFields, FollowUpAppointment, MedicalPractice, ProviderRoutineAnalyticsRow, Routine, RoutineAssignment, RoutineAssignmentStatus, RoutineChangeImpact, RoutineExercise, RoutineExerciseInput, User } from '../types'
 import { validPrescriptionInteger } from './prescriptions'
 import type { Patient } from '../data/mockPatients'
 import type { DemoRoutine } from './routinePrototype'
@@ -610,6 +610,18 @@ export async function loadRoutineAssignments(profileIds: string[], startDate: st
       current.push({ ...toExercise(exercise), ...(patientFeedback ? { patientFeedback } : {}) })
       exercisesByAssignment.set(exercise.routine_assignment_id, current)
     }
+
+    const feedbackIssueByAssignment = new Map<string, 'noncritical' | 'critical'>()
+    for (const exercise of exercises) {
+      const feedback = feedbackByExercise.get(exercise.id)
+      if (!feedback) continue
+      const nextIssue = feedback.painScore >= 7
+        ? 'critical'
+        : feedback.painScore > 3 || feedback.feeling !== 'good' ? 'noncritical' : undefined
+      if (!nextIssue) continue
+      const current = feedbackIssueByAssignment.get(exercise.routine_assignment_id)
+      if (nextIssue === 'critical' || !current) feedbackIssueByAssignment.set(exercise.routine_assignment_id, nextIssue)
+    }
     const followUpByAssignment = new Map<string, FollowUpAppointment>()
     for (const followUp of followUps) {
       followUpByAssignment.set(followUp.routine_assignment_id, {
@@ -620,23 +632,31 @@ export async function loadRoutineAssignments(profileIds: string[], startDate: st
       })
     }
 
-    return rows.map((assignment) => ({
-      id: assignment.id,
-      patientProfileId: assignment.patient_profile_id,
-      routineId: assignment.routine_id,
-      scheduledDate: assignment.scheduled_date,
-      status: assignment.status,
-      routineName: assignment.routine_name_snapshot,
-      exercises: exercisesByAssignment.get(assignment.id) ?? [],
-      followUp: followUpByAssignment.get(assignment.id),
-      ...(exerciseFeedbackError ? { exerciseFeedbackError } : {}),
-      ...('patient_in_progress' in assignment ? { patientResult: {
-        inProgress: assignment.patient_in_progress === true,
-        issue: assignment.patient_issue_severity === 'noncritical' || assignment.patient_issue_severity === 'critical' ? assignment.patient_issue_severity : undefined,
-        comment: assignment.patient_comment ?? null,
-        source: assignment.patient_result_source ?? null,
-      } } : {}),
-    }))
+    return rows.map((assignment) => {
+      const feedbackIssue = feedbackIssueByAssignment.get(assignment.id)
+      const storedIssue = assignment.patient_issue_severity === 'noncritical' || assignment.patient_issue_severity === 'critical'
+        ? assignment.patient_issue_severity : undefined
+      const issue = storedIssue === 'critical' || feedbackIssue === 'critical'
+        ? 'critical' : storedIssue ?? feedbackIssue
+      const hasStoredResult = 'patient_in_progress' in assignment
+      return {
+        id: assignment.id,
+        patientProfileId: assignment.patient_profile_id,
+        routineId: assignment.routine_id,
+        scheduledDate: assignment.scheduled_date,
+        status: assignment.status,
+        routineName: assignment.routine_name_snapshot,
+        exercises: exercisesByAssignment.get(assignment.id) ?? [],
+        followUp: followUpByAssignment.get(assignment.id),
+        ...(exerciseFeedbackError ? { exerciseFeedbackError } : {}),
+        ...(hasStoredResult || feedbackIssue ? { patientResult: {
+          inProgress: assignment.patient_in_progress === true,
+          ...(issue ? { issue } : {}),
+          comment: assignment.patient_comment ?? null,
+          source: assignment.patient_result_source ?? (feedbackIssue ? 'patient' as const : null),
+        } } : {}),
+      }
+    })
   } catch (error) {
     throw normalizeError(error, { operation: 'loadRoutineAssignments' })
   }
@@ -693,5 +713,44 @@ export async function completeRoutineFollowUp(routineAssignmentId: string) {
     if (error) throw normalizeError(error, { operation: 'completeRoutineFollowUp', status: errorStatus })
   } catch (error) {
     throw normalizeError(error, { operation: 'completeRoutineFollowUp' })
+  }
+}
+
+type ProviderRoutineAnalyticsRpcRow = {
+  patient_profile_id: string
+  patient_name: string
+  discharged: boolean
+  scheduled_count: number
+  completed_count: number
+  missed_count: number
+  critical_count: number
+  issue_count: number
+  in_progress_count: number
+  avg_pain_score: number | string | null
+}
+
+// Defaults to the last 8 weeks ending "today" (server-computed, timezone-aware)
+// when startDate/endDate are omitted. See supabase/migrations/20261118000100_provider_routine_analytics.sql.
+export async function loadProviderRoutineAnalytics(startDate?: string, endDate?: string): Promise<ProviderRoutineAnalyticsRow[]> {
+  try {
+    const { data, error, status: errorStatus } = await supabase.rpc('get_provider_routine_analytics', {
+      p_start: startDate ?? null,
+      p_end: endDate ?? null,
+    })
+    if (error) throw normalizeError(error, { operation: 'loadProviderRoutineAnalytics', status: errorStatus })
+    return ((data ?? []) as ProviderRoutineAnalyticsRpcRow[]).map((row) => ({
+      patientProfileId: row.patient_profile_id,
+      patientName: row.patient_name,
+      discharged: row.discharged,
+      scheduledCount: row.scheduled_count,
+      completedCount: row.completed_count,
+      missedCount: row.missed_count,
+      criticalCount: row.critical_count,
+      issueCount: row.issue_count,
+      inProgressCount: row.in_progress_count,
+      avgPainScore: row.avg_pain_score == null ? null : Number(row.avg_pain_score),
+    }))
+  } catch (error) {
+    throw normalizeError(error, { operation: 'loadProviderRoutineAnalytics' })
   }
 }

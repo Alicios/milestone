@@ -130,8 +130,8 @@ test('total logout marker failure reports that reload protection could not be sa
   }, logoutKey)
   await authFixture(context, { initialSession: session })
   await page.goto('/dashboard'); await signOut(page)
-  await expect(page.getByRole('alert')).toContainText('reloading may restore a remaining session')
   await expect(page).toHaveURL(/\/login$/)
+  await expect(page.getByRole('alert').filter({ hasText: 'Logout protection could not be saved' })).toContainText('reloading may restore a remaining session')
 })
 
 for (const resume of [false, true]) test(`retryable SDK refresh failure denies expired access on ${resume ? 'tab resumption' : 'expiration timer'}`, async ({ context, page }) => {

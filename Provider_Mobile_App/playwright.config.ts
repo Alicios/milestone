@@ -6,7 +6,7 @@ export default defineConfig({
   fullyParallel: true,
   workers: 2,
   reporter: 'list',
-  use: { baseURL: 'http://localhost:8090', channel: process.env.PLAYWRIGHT_CHANNEL, trace: 'retain-on-failure', screenshot: 'only-on-failure' },
+  use: { baseURL: 'http://localhost:8090', channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome', trace: 'retain-on-failure', screenshot: 'only-on-failure' },
   projects: [
     { name: 'small-phone', use: { hasTouch: true, viewport: { width: 320, height: 640 } } },
     { name: 'phone', use: { hasTouch: true, viewport: { width: 390, height: 844 } } },

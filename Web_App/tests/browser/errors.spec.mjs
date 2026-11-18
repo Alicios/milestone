@@ -74,16 +74,16 @@ test('creation rejection stays on the form and never sends an invitation', async
   expect(invites).toBe(0)
 })
 
-test('catalog service errors are safe and keep saving disabled', async ({ context, page }) => {
+test('catalog service errors are safe and provide a read-only retry', async ({ context, page }) => {
   await setup(context)
   await context.route('**/rest/v1/exercises?**', route => replyError(route, 'XX000', 500))
   await page.goto('/dashboard/routines')
-  await page.getByRole('button', { name: 'New Routine', exact: true }).click()
   await expect(page.getByRole('alert').filter({ hasText: 'temporarily unavailable' })).toBeVisible()
   await expect(page.locator('body')).not.toContainText(privateMessage)
-  await page.getByLabel('Routine name').fill('Synthetic routine')
-  await expect(page.getByRole('combobox', { name: 'Exercise 1' })).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Create Routine', exact: true })).toBeDisabled()
+  await page.getByRole('button', { name: 'Retry catalog', exact: true }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'temporarily unavailable' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add Catalog exercise to routine', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'New routine', exact: true })).toBeEnabled()
 })
 
 test('MFA settings failure is safe, does not claim MFA is off, and permits a read retry', async ({ context, page }) => {

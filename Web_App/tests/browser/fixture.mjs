@@ -80,6 +80,7 @@ export async function setup(context, options = {}) {
         return reply(id)
       }
       if (name === 'get_patient_onboarding_statuses') return reply([])
+      if (name === 'get_provider_message_inbox') return reply([{ patient_profile_id: profile, patient_name: 'Synthetic Browser Patient', last_body: null, last_message_at: null, unread_count: 0, starred: false }])
       if (name === 'get_routine_scheduling_policy') return reply(policy)
       if (name === 'get_patient_schedule_occupancy') return reply([
         ...state.assignments.filter((a) => a.status !== 'cancelled' && a.scheduled_date >= body.p_start_date && a.scheduled_date <= body.p_end_date)

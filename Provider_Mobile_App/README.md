@@ -20,13 +20,13 @@ Only public client settings belong in `EXPO_PUBLIC_*`. Never add a service-role 
 
 ## Included workflows
 
-- Home: the opening screen summarizes active patients, completed routines, and issues from the last seven days. Difficult exercise feedback, pain of 7/10 or higher, and routine issue reports appear under Needs attention. Tap an issue or completion to open that patient on the recorded assignment date. The overview refreshes when returning, on app resume, and periodically while visible.
+- Home: the opening screen summarizes active patients, completed routines, and issues from the last seven days. Neutral or Difficult exercise feedback, pain of 4/10 or higher, and routine issue reports appear under Needs attention. Tap an issue or completion to open that patient on the recorded assignment date. The overview refreshes when returning, on app resume, and periodically while visible.
 - Patients: search and sort the patient list; filter by current-week routine status using the same rules as the website; inspect a separate read-only archive. Tap any patient row to open their care details and routines. No patient-count summary is shown. Patient details are collapsed by default, with primary concern always visible.
 - Routines: assign a saved routine to an empty day, replace an unstarted routine with another saved routine, or remove it after confirmation. Prescription previews show the selected exercises and dosage. Colored calendar indicators distinguish completed, completed with issues, in progress, missed, assigned, and critical issues. Monday–Sunday week navigation; saved assignment/exercise prescriptions; shared web status rules; patient routine comments and exercise pain/feeling/explanations with report times.
 - Messages: provider inbox, unread counts, starred threads, history, text sends, and read state shared with the website. Swipe a conversation left or right to archive it; Undo is available for seven seconds. Open Archived to read or restore archived conversations. New message activity returns a conversation to the inbox. An explicit archive/restore button and screen-reader actions provide alternatives to swiping. Failed sends preserve the draft; retry is explicit. Message limits count Unicode characters, up to 4,000 after trimming.
 - Dock: Home, Patients, Messages, and the provider photo (or initials). The upward-opening photo menu contains Profile, App settings, Lock workspace, and Sign out. Selected dock icons and labels use orange in both themes. The dock remains available on patient and conversation pages and hides while the keyboard is open. Profile and App settings are separate screens; appearance resets when the app process restarts.
 
-Saved-routine exercise editing, onboarding, discharge/reinstatement, push notifications, message attachments, appointment management, and offline care storage are outside this release. The app does not classify pain scores as critical or infer completion from feedback.
+Saved-routine exercise editing, onboarding, discharge/reinstatement, push notifications, appointment management, and offline care storage are outside this release. Feedback warnings match provider web: pain scores 4–6 or Neutral/Difficult responses show an issue; scores 7–10 show a critical indicator. These are display rules; feedback never implies routine completion. Simulated records retain their label.
 
 The requested Frank Home demonstration adds three historical completed sessions with six exercise responses, including one difficult Feet-Together Balance response. All three assignments carry the `demo` source and appear as Simulated result. The guarded, repeatable data script is [seed-frank-home-demo.sql](./scripts/seed-frank-home-demo.sql); it checks existing-record fingerprints and never overwrites previous results.
 
@@ -77,10 +77,11 @@ npx expo install --check
 npm run export
 
 # Browser tests intercept every Supabase request and use synthetic accounts/data.
-npx playwright install chromium
+# Installed Google Chrome is the default browser.
 npm run test:browser
-# Alternatively, with installed Chrome on Windows:
-$env:PLAYWRIGHT_CHANNEL='chrome'
+# Alternatively, install and use bundled Chromium:
+npx playwright install chromium
+$env:PLAYWRIGHT_CHANNEL='chromium'
 npm run test:browser
 ```
 

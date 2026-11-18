@@ -118,7 +118,7 @@ jest.mock('../lib/supabase', () => ({ isSupabaseConfigured: true, supabase: {} }
 jest.mock('../lib/usePatientMessages', () => ({ __esModule: true, default: () => ({ conversations: [], messages: [], loading: false, error: '', unread: 0 }) }));
 jest.mock('../lib/patientRoutine', () => ({ loadPatientRoutine: async () => ({
   routine: mockAssignment ? { name: 'Lower Body' } : null,
-  exercises: mockAssignment ? require('../lib/assignedExercises').normalizeAssignedExercises(require('../lib/assignedExercises').parseExerciseList(mockExercises), mockCatalog, ['#8BC0BC']).map((exercise, index) => ({ ...exercise, assignmentExerciseId: `snapshot-${index}` })) : [],
+  exercises: mockAssignment ? require('../lib/assignedExercises').normalizeAssignedExercises(require('../lib/assignedExercises').parseExerciseList(mockExercises), mockCatalog, ['#8BC0BC']).map((exercise: Record<string, unknown>, index: number) => ({ ...exercise, assignmentExerciseId: `snapshot-${index}` })) : [],
   upcoming: mockUpcoming,
 }), exercisesForAssignment: jest.fn() }));
 

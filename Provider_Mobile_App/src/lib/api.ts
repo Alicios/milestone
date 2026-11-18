@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Assignment, Conversation, Message, Patient, Provider } from '../types';
-import { validateMessage } from './domain';
+import { feedbackIssue, strongestIssue, validateMessage } from './domain';
 import { archiveCursor, isConversationArchived } from './conversationArchive';
 import type { AssignmentSummary } from './patientFilters';
 
@@ -62,8 +62,24 @@ export function createProviderApi(client: SupabaseClient) {
           .in('patient_profile_id', profileIds.slice(offset, offset + 100)).gte('scheduled_date', from).lte('scheduled_date', to)
           .neq('status', 'cancelled').order('id').range(start, end)));
       }
+      // Status filters need feedback severity, but not prescription or clinical text.
+      const snapshots: { id: string; routine_assignment_id: string }[] = [];
+      for (let offset = 0; offset < rows.length; offset += 100) {
+        snapshots.push(...await allRows<{ id: string; routine_assignment_id: string }>((start, end) => client.from('routine_assignment_exercises')
+          .select('id,routine_assignment_id').in('routine_assignment_id', rows.slice(offset, offset + 100).map(row => row.id))
+          .order('id').range(start, end)));
+      }
+      const feedback = new Map<string, ReturnType<typeof feedbackIssue>>();
+      for (let offset = 0; offset < snapshots.length; offset += 100) {
+        const reports = await allRows<{ routine_assignment_exercise_id: string; pain_score: number; feeling: 'good' | 'neutral' | 'difficult' }>((start, end) => client.from('routine_assignment_exercise_feedback')
+          .select('routine_assignment_exercise_id,pain_score,feeling').in('routine_assignment_exercise_id', snapshots.slice(offset, offset + 100).map(row => row.id))
+          .order('routine_assignment_exercise_id').range(start, end));
+        for (const report of reports) feedback.set(report.routine_assignment_exercise_id, feedbackIssue({ painScore: report.pain_score, feeling: report.feeling }));
+      }
+      const issues = new Map<string, ReturnType<typeof feedbackIssue>>();
+      for (const snapshot of snapshots) issues.set(snapshot.routine_assignment_id, strongestIssue(issues.get(snapshot.routine_assignment_id), [feedback.get(snapshot.id)]));
       return rows.map(row => ({ id: row.id, patientProfileId: row.patient_profile_id, scheduledDate: row.scheduled_date, status: row.status,
-        patientResult: { inProgress: row.patient_in_progress, issue: row.patient_issue_severity === 'critical' || row.patient_issue_severity === 'noncritical' ? row.patient_issue_severity : undefined, comment: row.patient_comment, source: row.patient_result_source } }));
+        patientResult: { inProgress: row.patient_in_progress, issue: strongestIssue(row.patient_issue_severity, [issues.get(row.id)]), comment: row.patient_comment, source: row.patient_result_source } }));
     },
     async assignments(profileId: string | string[], from: string, to: string): Promise<Assignment[]> {
       type Row = { id: string; routine_id: string; updated_at: string; patient_profile_id: string; routine_name_snapshot: string; scheduled_date: string; status: Assignment['status']; patient_in_progress: boolean; patient_issue_severity: string; patient_comment: string | null; patient_result_source: 'patient' | 'demo' | null };
@@ -92,10 +108,15 @@ export function createProviderApi(client: SupabaseClient) {
           for (const row of batch) feedback.set(row.routine_assignment_exercise_id, row);
         }
       } catch { exerciseFeedbackError = 'Patient exercise feedback could not be loaded. Pull down to retry.'; }
+      const issues = new Map<string, ReturnType<typeof feedbackIssue>>();
+      for (const exercise of exercises) {
+        const report = feedback.get(exercise.id);
+        if (report) issues.set(exercise.routine_assignment_id, strongestIssue(issues.get(exercise.routine_assignment_id), [feedbackIssue({ painScore: report.pain_score, feeling: report.feeling })]));
+      }
       return rows.map(row => ({
         id: row.id, routineId: row.routine_id, updatedAt: row.updated_at, patientProfileId: row.patient_profile_id, routineName: row.routine_name_snapshot,
         scheduledDate: row.scheduled_date, status: row.status, exerciseFeedbackError,
-        patientResult: { inProgress: row.patient_in_progress, issue: row.patient_issue_severity === 'critical' || row.patient_issue_severity === 'noncritical' ? row.patient_issue_severity : undefined,
+        patientResult: { inProgress: row.patient_in_progress, issue: strongestIssue(row.patient_issue_severity, [issues.get(row.id)]),
           comment: row.patient_comment, source: row.patient_result_source },
         exercises: exercises.filter(exercise => exercise.routine_assignment_id === row.id).map(exercise => {
           const report = feedback.get(exercise.id);

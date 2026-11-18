@@ -56,9 +56,11 @@ for (const width of [390, 1365]) {
         expect(controlsBox.y).toBeGreaterThan(detailsBox.y + detailsBox.height);
       }
       expect(routinesBox.y).toBeGreaterThan(controlsBox.y + controlsBox.height);
-      expect(routinesBox.width).toBeGreaterThan(width - 60);
+      expect(Math.abs(routinesBox.x - careBox.x)).toBeLessThan(2);
+      const contentRight = width > 900 ? controlsBox.x + controlsBox.width : careBox.x + careBox.width;
+      expect(Math.abs(routinesBox.x + routinesBox.width - contentRight)).toBeLessThan(2);
       await expect(page.getByRole('tab', { name: 'Patient actions', exact: true })).toHaveCount(0);
-      await expect(page.getByRole('button', { name: 'Invite to App' })).toBeEnabled();
+      await expect(page.getByRole('button', { name: 'Generate login code', exact: true })).toBeEnabled();
       await expect(care).toBeVisible();
       await expect(page.getByRole('button', { name: 'Discharge Patient', exact: true })).toBeVisible();
       await page.reload();

@@ -114,3 +114,36 @@ test('Home assignment batches are relationship scoped and empty caseloads make n
   assert.ok(calls.some(call => call.method === 'gte' && call.args[1] === '2026-11-05'));
   assert.ok(calls.some(call => call.method === 'lte' && call.args[1] === '2026-11-11'));
 });
+
+test('detail and filter statuses agree with web feedback severity without inferring completion or losing demo provenance', async () => {
+  for (const [pain, feeling, stored, expected] of [
+    [3, 'good', 'none', undefined], [4, 'good', 'none', 'noncritical'],
+    [2, 'neutral', 'none', 'noncritical'], [2, 'difficult', 'none', 'noncritical'],
+    [7, 'good', 'none', 'critical'], [10, 'difficult', 'noncritical', 'critical'],
+    [1, 'good', 'critical', 'critical'],
+  ] as const) {
+    const { api, calls } = fake({
+      routine_assignments: { data: [{ id: 'a', patient_profile_id: 'p', status: 'completed', scheduled_date: '2026-11-09', patient_issue_severity: stored, patient_result_source: 'demo' }] },
+      routine_assignment_exercises: { data: [{ id: 'e', routine_assignment_id: 'a', position: 0 }] },
+      routine_assignment_exercise_feedback: { data: [{ routine_assignment_exercise_id: 'e', pain_score: pain, feeling }] },
+    });
+    const detail = (await api.assignments('p', '2026-11-09', '2026-11-15'))[0];
+    const summary = (await api.assignmentStatuses(['p'], '2026-11-09', '2026-11-15'))[0];
+    assert.equal(detail.patientResult?.issue, expected);
+    assert.equal(summary.patientResult?.issue, expected);
+    assert.equal(detail.patientResult?.source, 'demo');
+    assert.equal(detail.status, 'completed');
+    assert.ok(calls.some(call => call.table === 'routine_assignment_exercises' && call.method === 'in' && call.args[0] === 'routine_assignment_id' && (call.args[1] as string[]).join() === 'a'));
+    assert.ok(calls.some(call => call.table === 'routine_assignment_exercise_feedback' && call.method === 'in' && (call.args[1] as string[]).join() === 'e'));
+    assert.ok(!calls.some(call => ['insert', 'update'].includes(call.method)));
+  }
+});
+
+test('unavailable exercise feedback blocks filters instead of reporting a healthy completion', async () => {
+  const { api } = fake({
+    routine_assignments: { data: [{ id: 'a', patient_profile_id: 'p', status: 'completed', scheduled_date: '2026-11-09' }] },
+    routine_assignment_exercises: { data: [{ id: 'e', routine_assignment_id: 'a' }] },
+    routine_assignment_exercise_feedback: { error: new Error('offline') },
+  });
+  await assert.rejects(api.assignmentStatuses(['p'], '2026-11-09', '2026-11-15'), /offline/);
+});

@@ -653,7 +653,7 @@ export async function loadRoutineAssignments(profileIds: string[], startDate: st
           inProgress: assignment.patient_in_progress === true,
           ...(issue ? { issue } : {}),
           comment: assignment.patient_comment ?? null,
-          source: feedbackIssue ? 'patient' as const : assignment.patient_result_source ?? null,
+          source: assignment.patient_result_source ?? (feedbackIssue ? 'patient' as const : null),
         } } : {}),
       }
     })

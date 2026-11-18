@@ -39,7 +39,7 @@ export function LoginPage() {
   const { login, verifyMfaLogin, cancelMfaLogin, mfaChallengePending, authError, logoutState, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [email, setEmail] = useState('lebron.james@milestone.example')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')

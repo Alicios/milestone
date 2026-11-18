@@ -1,4 +1,16 @@
-import type { Assignment } from '../types';
+import type { Assignment, Feedback } from '../types';
+
+export type IssueSeverity = 'noncritical' | 'critical';
+// Match the provider web feedback indicators, preserving the strongest report.
+export function feedbackIssue(feedback: Pick<Feedback, 'painScore' | 'feeling'>): IssueSeverity | undefined {
+  return feedback.painScore >= 7 ? 'critical'
+    : feedback.painScore > 3 || feedback.feeling !== 'good' ? 'noncritical' : undefined;
+}
+export function strongestIssue(stored: string | null | undefined, reports: (IssueSeverity | undefined)[]): IssueSeverity | undefined {
+  if (stored === 'critical' || reports.includes('critical')) return 'critical';
+  if (stored === 'noncritical' || reports.includes('noncritical')) return 'noncritical';
+  return undefined;
+}
 
 export function localDateKey(date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;

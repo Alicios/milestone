@@ -5,6 +5,7 @@ import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
 import EventNoteOutlinedIcon from '@mui/icons-material/EventNoteOutlined'
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined'
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined'
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined'
 import { Link as RouterLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import type { Patient } from '../data/mockPatients'
@@ -280,6 +281,7 @@ export function DashboardWorkspace() {
     { label: 'Routines', to: '/dashboard/routines', active: location.pathname === '/dashboard/routines', icon: <AssignmentOutlinedIcon /> },
     { label: 'Appointments', to: '/dashboard/appointments', active: location.pathname === '/dashboard/appointments', icon: <EventNoteOutlinedIcon /> },
     { label: 'Messages', to: '/dashboard/messages', active: isMessagesPage, icon: <ForumOutlinedIcon /> },
+    { label: 'Analytics', to: '/dashboard/analytics', active: location.pathname === '/dashboard/analytics', icon: <InsightsOutlinedIcon /> },
   ]
   const buttonSx = {
     minWidth: 0, minHeight: { xs: 42, sm: 48 }, px: { xs: .5, sm: 1.25 }, py: 0.5,

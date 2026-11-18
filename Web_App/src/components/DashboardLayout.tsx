@@ -313,6 +313,7 @@ export function DashboardWorkspace() {
               <Divider />
               <MenuItem component={RouterLink} to="/dashboard/profile" onClick={() => setProfileMenuAnchor(null)} sx={{ fontFamily: 'Georgia, serif' }}>Profile</MenuItem>
               <MenuItem component={RouterLink} to="/dashboard/settings" onClick={() => setProfileMenuAnchor(null)} sx={{ fontFamily: 'Georgia, serif' }}>Settings</MenuItem>
+              <MenuItem component={RouterLink} to="/dashboard/it-support" onClick={() => setProfileMenuAnchor(null)} sx={{ fontFamily: 'Georgia, serif' }}>IT Support Tools</MenuItem>
               <MenuItem onClick={() => { setProfileMenuAnchor(null); void logout() }} sx={{ fontFamily: 'Georgia, serif' }}>Logout</MenuItem>
             </Menu>
           </Stack>

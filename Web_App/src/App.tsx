@@ -22,6 +22,7 @@ import { RoutinesPage } from './pages/RoutinesPage'
 import { RoutineStatusPreviewPage } from './pages/RoutineStatusPreviewPage'
 import { TutorialPage } from './pages/TutorialPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { SupportToolsPage } from './pages/SupportToolsPage'
 import { createMilestoneTheme } from './theme'
 
 function AppTheme({ children }: { children: ReactNode }) {
@@ -45,6 +46,7 @@ function RouteScrollReset() {
 }
 
 function AppRoutes() {
+  return <AuthProvider><Routes><Route path="/" element={<HomePage />} /><Route path="/faq" element={<FaqPage />} /><Route path="/about" element={<AboutUsPage />} /><Route path="/login" element={<LoginPage />} /><Route path="/register" element={<RegisterPage />} /><Route element={<ProtectedRoute />}><Route element={<DashboardLayout />}><Route path="/dashboard" element={<DashboardPage />} /><Route path="/dashboard/patients" element={<DashboardPage />} /><Route path="/dashboard/patients/new" element={<NewPatientPage />} /><Route path="/dashboard/patients/:patientId/setup" element={<PatientSetupPage />} /><Route path="/dashboard/patients/:patientId" element={<PatientPage />} />{import.meta.env.DEV && <Route path="/dashboard/routine-status-preview" element={<RoutineStatusPreviewPage />} />}<Route path="/dashboard/routines" element={<RoutinesPage />} /><Route path="/dashboard/appointments" element={<PlaceholderPage title="Appointments" />} /><Route path="/dashboard/messages" element={<MessagesPage />} /><Route path="/dashboard/profile" element={<ProfilePage />} /><Route path="/dashboard/settings" element={<SettingsPage />} /><Route path="/dashboard/it-support" element={<SupportToolsPage />} /></Route></Route><Route path="*" element={<Navigate to="/" replace />} /></Routes></AuthProvider>
   return <AuthProvider><Routes><Route path="/" element={<HomePage />} /><Route path="/faq" element={<FaqPage />} /><Route path="/about" element={<AboutUsPage />} /><Route path="/login" element={<LoginPage />} /><Route path="/register" element={<RegisterPage />} /><Route element={<ProtectedRoute />}><Route element={<DashboardLayout />}><Route path="/dashboard" element={<DashboardPage />} /><Route path="/dashboard/patients" element={<DashboardPage />} /><Route path="/dashboard/patients/new" element={<NewPatientPage />} /><Route path="/dashboard/patients/:patientId/setup" element={<PatientSetupPage />} /><Route path="/dashboard/patients/:patientId" element={<PatientPage />} />{import.meta.env.DEV && <Route path="/dashboard/routine-status-preview" element={<RoutineStatusPreviewPage />} />}<Route path="/dashboard/routines" element={<RoutinesPage />} /><Route path="/dashboard/appointments" element={<PlaceholderPage title="Appointments" />} /><Route path="/dashboard/analytics" element={<AnalyticsPage />} /><Route path="/dashboard/messages" element={<MessagesPage />} /><Route path="/dashboard/profile" element={<ProfilePage />} /><Route path="/dashboard/tutorials" element={<TutorialPage />} /><Route path="/dashboard/settings" element={<SettingsPage />} /></Route></Route><Route path="*" element={<Navigate to="/" replace />} /></Routes></AuthProvider>
 }
 
